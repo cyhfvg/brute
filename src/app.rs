@@ -141,7 +141,6 @@ async fn run_protocol(
                 let target_success_flags = target_success_flags.clone();
                 let database = database.clone();
                 let workspace = current_workspace.clone();
-                let protocol = protocol;
 
                 async move {
                     let success_flag = target_success_flags
