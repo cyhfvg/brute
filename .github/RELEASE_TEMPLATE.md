@@ -1,20 +1,8 @@
 # Release {{ version }}
 
-## Summary
-
-Short summary of this release.
-
-## Highlights
-
-- Highlight 1
-- Highlight 2
-- Highlight 3
-
 ## Changes
 
-- Added:
-- Changed:
-- Fixed:
+{{ changelog }}
 
 ## Build Targets
 
