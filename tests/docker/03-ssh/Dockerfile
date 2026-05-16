@@ -1,23 +1,30 @@
-FROM alpine:3.22
+FROM alpine:latest
 
 RUN apk add --no-cache \
     openssh \
-    shadow \
-    bash
+    bash \
+    shadow
 
-# Enable password login
-RUN sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/^#PermitRootLogin yes/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    echo 'AllowUsers root admin query test' >> /etc/ssh/sshd_config && \
-    echo 'MaxAuthTries 99999' >> /etc/ssh/sshd_config && \
-    echo 'MaxStartups 100:100:200' >> /etc/ssh/sshd_config && \
-    echo 'PerSourcePenalties no' >> /etc/ssh/sshd_config && \
-    echo 'LoginGraceTime 100m' >> /etc/ssh/sshd_config && \
-    echo 'PubkeyAuthentication no' >> /etc/ssh/sshd_config
+# 创建 sshd 运行目录
+RUN mkdir -p /var/run/sshd
 
-# SSH host keys
+# 设置 root 密码
+RUN echo 'root:root123456' | chpasswd
+
+# 拷贝 sshd 配置
+COPY sshd_config /etc/ssh/sshd_config
+
+# 拷贝用户初始化脚本
+COPY init-users.sh /init-users.sh
+
+RUN chmod +x /init-users.sh
+
+# 初始化用户
+RUN /init-users.sh
+
+# 生成 host key
 RUN ssh-keygen -A
 
 EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D", "-e"]

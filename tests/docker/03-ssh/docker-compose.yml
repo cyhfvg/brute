@@ -1,20 +1,15 @@
 services:
-  ssh:
-    build: .
+  ssh-lab:
+    build:
+      context: .
+      dockerfile: Dockerfile
 
     container_name: alpine-ssh-lab
-
-    restart: "no"
 
     ports:
       - "2222:22"
 
-    volumes:
-      - ./init-users.sh:/init-users.sh
+    restart: unless-stopped
 
-    command: >
-      sh -c "
-        chmod +x /init-users.sh &&
-        /init-users.sh &&
-        /usr/sbin/sshd -D -e
-      "
+    tty: true
+    stdin_open: true

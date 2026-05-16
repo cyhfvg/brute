@@ -1,25 +1,27 @@
 #!/bin/sh
 
-echo "[*] Initializing SSH users..."
+set -e
 
-create_user() {
-    USERNAME="$1"
-    PASSWORD="$2"
+for i in $(seq 1 50); do
+    username="test${i}"
+    password="Pass@123${i}"
 
-    if ! id "$USERNAME" >/dev/null 2>&1; then
-        adduser -D -s /bin/sh "$USERNAME"
-        echo "[+] User created: $USERNAME"
-    else
-        echo "[*] User exists: $USERNAME"
-    fi
+    adduser -D -s /bin/bash "${username}"
 
-    echo "${USERNAME}:${PASSWORD}" | chpasswd
-}
+    echo "${username}:${password}" | chpasswd
+done
+# 创建常见弱口令用户
+for username in \
+    admin \
+    test \
+    ubuntu \
+    oracle \
+    mysql \
+    tomcat
+do
+    adduser -D -s /bin/bash "${username}"
 
-create_user "admin" "admin123"
-create_user "query" "query_query"
-create_user "test" "testpass1"
+    echo "${username}:${username}" | chpasswd
+done
 
-echo "root:toor" | chpasswd
-
-echo "[+] SSH user initialization done."
+echo "[+] users initialized"
