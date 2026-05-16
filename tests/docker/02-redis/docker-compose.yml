@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7
+    container_name: redis-brute-lab
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "redis123",
+        "--appendonly",
+        "yes",
+        "--protected-mode",
+        "no",
+      ]
+
+    volumes:
+      - ./data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
