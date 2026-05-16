@@ -98,8 +98,109 @@ async fn execute_redis_command(
         .map_err(|err| err.to_string())?;
     Ok(AttemptSuccess::with_command(
         "Redis access!",
-        format!("{value:?}"),
+        format_redis_value(&value),
     ))
+}
+
+/// Formats Redis command responses for terminal output instead of exposing raw protocol debug text.
+fn format_redis_value(value: &redis::Value) -> String {
+    match value {
+        redis::Value::Nil => "(nil)".to_string(),
+        redis::Value::Int(value) => value.to_string(),
+        redis::Value::BulkString(bytes) => format_redis_bytes(bytes),
+        redis::Value::Array(values) => format_redis_sequence(values, "array"),
+        redis::Value::SimpleString(value) => normalize_redis_text(value),
+        redis::Value::Okay => "OK".to_string(),
+        redis::Value::Map(entries) => format_redis_map(entries),
+        redis::Value::Attribute { data, attributes } => {
+            let mut output = format_redis_value(data);
+            if !attributes.is_empty() {
+                output.push_str("\n(attributes)\n");
+                output.push_str(&format_redis_map(attributes));
+            }
+            output
+        }
+        redis::Value::Set(values) => format_redis_sequence(values, "set"),
+        redis::Value::Double(value) => value.to_string(),
+        redis::Value::Boolean(value) => value.to_string(),
+        redis::Value::VerbatimString { text, .. } => normalize_redis_text(text),
+        redis::Value::BigNumber(value) => value.to_string(),
+        redis::Value::Push { kind, data } => {
+            format!(
+                "push {kind:?}\n{}",
+                format_redis_sequence(data, "push data")
+            )
+        }
+        redis::Value::ServerError(err) => match err.details() {
+            Some(details) => format!("{} {}", err.code(), details),
+            None => err.code().to_string(),
+        },
+    }
+}
+
+fn format_redis_bytes(bytes: &[u8]) -> String {
+    match std::str::from_utf8(bytes) {
+        Ok(value) => normalize_redis_text(value),
+        Err(_) => {
+            let hex = bytes
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!("(binary, {} bytes) {hex}", bytes.len())
+        }
+    }
+}
+
+fn normalize_redis_text(value: &str) -> String {
+    value.replace("\r\n", "\n").replace('\r', "\n")
+}
+
+fn format_redis_sequence(values: &[redis::Value], label: &str) -> String {
+    if values.is_empty() {
+        return format!("(empty {label})");
+    }
+
+    values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let formatted = indent_continuation_lines(&format_redis_value(value), "   ");
+            format!("{}) {}", index + 1, formatted)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_redis_map(entries: &[(redis::Value, redis::Value)]) -> String {
+    if entries.is_empty() {
+        return "(empty map)".to_string();
+    }
+
+    entries
+        .iter()
+        .map(|(key, value)| {
+            let key = indent_continuation_lines(&format_redis_value(key), "   ");
+            let value = indent_continuation_lines(&format_redis_value(value), "   ");
+            format!("{key}: {value}")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn indent_continuation_lines(value: &str, indent: &str) -> String {
+    let mut lines = value.lines();
+    let Some(first) = lines.next() else {
+        return String::new();
+    };
+
+    let mut output = first.to_string();
+    for line in lines {
+        output.push('\n');
+        output.push_str(indent);
+        output.push_str(line);
+    }
+    output
 }
 
 /// Splits simple command strings while preserving quoted whitespace.
@@ -126,4 +227,36 @@ fn split_command(command: &str) -> Vec<String> {
     }
 
     parts
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formats_bulk_string_as_readable_text() {
+        let value = redis::Value::BulkString(b"# Server\r\nredis_version:7.4.9\r\n".to_vec());
+
+        assert_eq!(
+            format_redis_value(&value),
+            "# Server\nredis_version:7.4.9\n"
+        );
+    }
+
+    #[test]
+    fn formats_arrays_with_numbered_items() {
+        let value = redis::Value::Array(vec![
+            redis::Value::BulkString(b"key".to_vec()),
+            redis::Value::Int(42),
+        ]);
+
+        assert_eq!(format_redis_value(&value), "1) key\n2) 42");
+    }
+
+    #[test]
+    fn formats_binary_bulk_strings_as_hex() {
+        let value = redis::Value::BulkString(vec![0xff, 0x00, 0x41]);
+
+        assert_eq!(format_redis_value(&value), "(binary, 3 bytes) ff 00 41");
+    }
 }
