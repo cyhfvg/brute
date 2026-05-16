@@ -1,0 +1,10 @@
+ftpuser01
+ftpuser02
+ftpuser03
+ftpuser04
+ftpuser05
+ftpuser06
+ftpuser07
+ftpuser08
+ftpuser09
+ftpuser10
