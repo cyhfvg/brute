@@ -114,6 +114,19 @@ async fn run_protocol(
             .map(|target_host| (target_host, Arc::new(AtomicBool::new(false))))
             .collect::<HashMap<_, _>>(),
     );
+    let account_success_flags = Arc::new(
+        ready_targets
+            .iter()
+            .flat_map(|target_host| {
+                credentials.iter().map(move |credential| {
+                    (
+                        account_success_key(target_host, &credential.username),
+                        Arc::new(AtomicBool::new(false)),
+                    )
+                })
+            })
+            .collect::<HashMap<_, _>>(),
+    );
 
     let attempts: Vec<_> = credentials
         .iter()
@@ -139,6 +152,7 @@ async fn run_protocol(
                 let execute = request_execute.clone();
                 let target_semaphores = target_semaphores.clone();
                 let target_success_flags = target_success_flags.clone();
+                let account_success_flags = account_success_flags.clone();
                 let database = database.clone();
                 let workspace = current_workspace.clone();
 
@@ -147,8 +161,16 @@ async fn run_protocol(
                         .get(&target_host)
                         .expect("target success flag missing")
                         .clone();
+                    let account_success_flag = account_success_flags
+                        .get(&account_success_key(&target_host, &credential.username))
+                        .expect("account success flag missing")
+                        .clone();
 
-                    if !target.continue_on_success && success_flag.load(Ordering::Relaxed) {
+                    if should_skip_attempt(
+                        target.continue_on_success,
+                        &success_flag,
+                        &account_success_flag,
+                    ) {
                         return;
                     }
 
@@ -162,7 +184,11 @@ async fn run_protocol(
                         .await
                         .expect("semaphore poisoned");
 
-                    if !target.continue_on_success && success_flag.load(Ordering::Relaxed) {
+                    if should_skip_attempt(
+                        target.continue_on_success,
+                        &success_flag,
+                        &account_success_flag,
+                    ) {
                         return;
                     }
 
@@ -179,6 +205,7 @@ async fn run_protocol(
 
                     let outcome = module.attempt(&ctx).await;
                     if matches!(outcome, AttemptOutcome::Success(_)) {
+                        account_success_flag.store(true, Ordering::Relaxed);
                         if !ctx.target.continue_on_success {
                             success_flag.store(true, Ordering::Relaxed);
                         }
@@ -194,6 +221,19 @@ async fn run_protocol(
         .await;
 
     Ok(())
+}
+
+fn account_success_key(target_host: &str, username: &Option<String>) -> String {
+    format!("{}\0{}", target_host, username.as_deref().unwrap_or(""))
+}
+
+fn should_skip_attempt(
+    continue_on_success: bool,
+    target_success_flag: &AtomicBool,
+    account_success_flag: &AtomicBool,
+) -> bool {
+    account_success_flag.load(Ordering::Relaxed)
+        || (!continue_on_success && target_success_flag.load(Ordering::Relaxed))
 }
 
 /// Handles workspace commands.

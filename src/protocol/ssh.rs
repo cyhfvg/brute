@@ -8,7 +8,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use russh::{ChannelMsg, Disconnect, client};
+use russh::{ChannelMsg, Disconnect, MethodKind, client};
 use tokio::time::sleep;
 
 use super::{
@@ -90,12 +90,12 @@ impl BruteModule for SshModule {
                     sleep(Duration::from_millis(delay_ms)).await;
                 }
                 Ok(Err(_)) | Err(_) => {
-                    return AttemptOutcome::Failure("ssh transport failed".to_string());
+                    return AttemptOutcome::Error("ssh transport failed".to_string());
                 }
             }
         }
 
-        AttemptOutcome::Failure("ssh transport failed".to_string())
+        AttemptOutcome::Error("ssh transport failed".to_string())
     }
 }
 
@@ -116,12 +116,10 @@ async fn try_ssh_login_once(
         .await
         .map_err(|_| ())?;
 
-    let auth = session
-        .authenticate_password(username, password)
+    if !authenticate_ssh_password(&mut session, &username, &password)
         .await
-        .map_err(|_| ())?;
-
-    if !auth.success() {
+        .map_err(|_| ())?
+    {
         let _ = session
             .disconnect(Disconnect::ByApplication, "", "English")
             .await;
@@ -138,6 +136,68 @@ async fn try_ssh_login_once(
         .await;
 
     Ok(outcome)
+}
+
+/// Authenticates with password auth first, then falls back to keyboard-interactive password prompts.
+async fn authenticate_ssh_password(
+    session: &mut client::Handle<ClientHandler>,
+    username: &str,
+    password: &str,
+) -> Result<bool, russh::Error> {
+    let auth = session.authenticate_password(username, password).await?;
+    if auth.success() {
+        return Ok(true);
+    }
+
+    let russh::client::AuthResult::Failure {
+        remaining_methods, ..
+    } = auth
+    else {
+        return Ok(false);
+    };
+
+    if !remaining_methods.contains(&MethodKind::KeyboardInteractive) {
+        return Ok(false);
+    }
+
+    authenticate_keyboard_interactive_password(session, username, password).await
+}
+
+async fn authenticate_keyboard_interactive_password(
+    session: &mut client::Handle<ClientHandler>,
+    username: &str,
+    password: &str,
+) -> Result<bool, russh::Error> {
+    let mut response = session
+        .authenticate_keyboard_interactive_start(username, None)
+        .await?;
+
+    loop {
+        match response {
+            client::KeyboardInteractiveAuthResponse::Success => return Ok(true),
+            client::KeyboardInteractiveAuthResponse::Failure { .. } => return Ok(false),
+            client::KeyboardInteractiveAuthResponse::InfoRequest { prompts, .. } => {
+                let responses = prompts
+                    .iter()
+                    .map(|prompt| {
+                        keyboard_interactive_response(&prompt.prompt, prompt.echo, password)
+                    })
+                    .collect();
+                response = session
+                    .authenticate_keyboard_interactive_respond(responses)
+                    .await?;
+            }
+        }
+    }
+}
+
+fn keyboard_interactive_response(prompt: &str, echo: bool, password: &str) -> String {
+    let prompt = prompt.to_ascii_lowercase();
+    if !echo || prompt.contains("password") || prompt.contains("passcode") {
+        password.to_string()
+    } else {
+        String::new()
+    }
 }
 
 /// Reads a single SSH service banner without attempting authentication.
