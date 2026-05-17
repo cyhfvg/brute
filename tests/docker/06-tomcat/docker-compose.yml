@@ -1,0 +1,15 @@
+services:
+  tomcat:
+    image: tomcat:9.0
+    container_name: tomcat
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml
+      - ./context.xml:/tmp/context.xml
+    command: >
+      /bin/bash -c "
+        mv /usr/local/tomcat/webapps /usr/local/tomcat/webapps2;
+        mv /usr/local/tomcat/webapps.dist /usr/local/tomcat/webapps;
+        cp /tmp/context.xml /usr/local/tomcat/webapps/manager/META-INF/context.xml;
+        catalina.sh run"
