@@ -2,6 +2,8 @@
 name = "brute"
 version = "0.1.1"
 edition = "2024"
+description = "A Rust-based multi-protocol credential testing and login verification CLI for authorized security assessments."
+license = "BSD-3-Clause"
 
 [dependencies]
 anyhow = "1.0"
