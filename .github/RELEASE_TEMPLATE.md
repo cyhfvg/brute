@@ -16,5 +16,7 @@
 
 ## Notes
 
+- Authorized use only: Run proxlet only against systems you own or have explicit
+ permission to assess. Respect applicable policies, laws, and traffic limits.
 - Tag format must be `v*`, for example `v0.1.0`.
 - Release artifacts are published automatically by GitHub Actions after the tag is pushed.
