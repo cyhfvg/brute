@@ -124,6 +124,28 @@ fn creds_list_renders_empty_table() {
 }
 
 #[test]
+fn zero_concurrency_options_are_rejected() {
+    let home = TempHome::new("invalid-concurrency");
+
+    let output = run_with_home(
+        &home,
+        [
+            "http",
+            "127.0.0.1",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--threads",
+            "0",
+        ],
+    );
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("value must be at least 1"));
+}
+
+#[test]
 fn scaffolded_protocol_reports_unimplemented_attempt() {
     let home = TempHome::new("stub-protocol");
 

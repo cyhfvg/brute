@@ -17,7 +17,6 @@ use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 #[derive(Debug)]
 enum PostgreSqlAttemptError {
     Auth(String),
-    Command(String),
 }
 
 /// PostgreSQL module configuration.
@@ -113,19 +112,18 @@ impl BruteModule for PostgreSqlModule {
                 let _ = connection.await;
             });
             if let Some(command) = command {
-                let messages = client
-                    .simple_query(&command)
-                    .await
-                    .map_err(|err| PostgreSqlAttemptError::Command(err.to_string()))?;
-                Ok::<_, PostgreSqlAttemptError>(AttemptSuccess::with_command(
-                    "PostgreSQL access!",
-                    format_simple_query_messages(&messages),
-                ))
+                let success = match client.simple_query(&command).await {
+                    Ok(messages) => AttemptSuccess::with_command(
+                        "PostgreSQL access!",
+                        format_simple_query_messages(&messages),
+                    ),
+                    Err(err) => AttemptSuccess::with_command_error(
+                        "PostgreSQL access!",
+                        format!("postgresql command execution failed: {err}"),
+                    ),
+                };
+                Ok::<_, PostgreSqlAttemptError>(success)
             } else {
-                client
-                    .simple_query("SELECT 1")
-                    .await
-                    .map_err(|err| PostgreSqlAttemptError::Auth(err.to_string()))?;
                 Ok::<_, PostgreSqlAttemptError>(AttemptSuccess::new("PostgreSQL access!"))
             }
         };
@@ -134,9 +132,6 @@ impl BruteModule for PostgreSqlModule {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(PostgreSqlAttemptError::Auth(err))) => {
                 AttemptOutcome::Failure(format!("postgresql auth failed: {err}"))
-            }
-            Ok(Err(PostgreSqlAttemptError::Command(err))) => {
-                AttemptOutcome::Error(format!("postgresql command execution failed: {err}"))
             }
             Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
         }

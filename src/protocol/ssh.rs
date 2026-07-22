@@ -126,16 +126,16 @@ async fn try_ssh_login_once(
         return Ok(AttemptOutcome::Failure("ssh auth failed".to_string()));
     }
 
-    let outcome = match command {
+    let success = match command {
         Some(command) => execute_ssh_command(&mut session, &command).await,
-        None => AttemptOutcome::Success(AttemptSuccess::new("Linux - Shell access!")),
+        None => AttemptSuccess::new("Linux - Shell access!"),
     };
 
     let _ = session
         .disconnect(Disconnect::ByApplication, "", "English")
         .await;
 
-    Ok(outcome)
+    Ok(AttemptOutcome::Success(success))
 }
 
 /// Authenticates with password auth first, then falls back to keyboard-interactive password prompts.
@@ -238,14 +238,22 @@ fn read_ssh_banner(addr: &str, timeout: Duration) -> Option<String> {
 async fn execute_ssh_command(
     session: &mut client::Handle<ClientHandler>,
     command: &str,
-) -> AttemptOutcome {
+) -> AttemptSuccess {
     let mut channel = match session.channel_open_session().await {
         Ok(channel) => channel,
-        Err(err) => return AttemptOutcome::Error(format!("ssh channel creation failed: {err}")),
+        Err(err) => {
+            return AttemptSuccess::with_command_error(
+                "Linux - Shell access!",
+                format!("ssh channel creation failed: {err}"),
+            );
+        }
     };
 
     if let Err(err) = channel.exec(true, command).await {
-        return AttemptOutcome::Error(format!("ssh command execution failed: {err}"));
+        return AttemptSuccess::with_command_error(
+            "Linux - Shell access!",
+            format!("ssh command execution failed: {err}"),
+        );
     }
 
     let mut exit_status = None;
@@ -264,10 +272,7 @@ async fn execute_ssh_command(
     }
 
     let output = format_command_output(exit_status, stdout, stderr);
-    AttemptOutcome::Success(AttemptSuccess::with_command(
-        "Linux - Shell access!",
-        output,
-    ))
+    AttemptSuccess::with_command("Linux - Shell access!", output)
 }
 
 /// Builds command output for NetExec-style follow-up lines.

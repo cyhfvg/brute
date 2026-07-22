@@ -42,14 +42,9 @@ impl BruteModule for MySqlModule {
             match Conn::new(opts) {
                 Ok(mut conn) => {
                     if let Some(command) = command {
-                        return execute_mysql_command(&mut conn, &command);
+                        return AttemptOutcome::Success(execute_mysql_command(&mut conn, &command));
                     }
 
-                    if let Err(err) = conn.query_drop("SELECT 1") {
-                        return AttemptOutcome::Error(format!(
-                            "mysql post-auth query failed: {err}"
-                        ));
-                    }
                     AttemptOutcome::Success(AttemptSuccess::new("MySQL access!"))
                 }
                 Err(err) => AttemptOutcome::Failure(format!("mysql auth failed: {err}")),
@@ -60,13 +55,13 @@ impl BruteModule for MySqlModule {
 }
 
 /// Executes a SQL command after authentication and formats returned rows.
-fn execute_mysql_command(conn: &mut Conn, command: &str) -> AttemptOutcome {
+fn execute_mysql_command(conn: &mut Conn, command: &str) -> AttemptSuccess {
     match conn.query::<Row, _>(command) {
-        Ok(rows) => AttemptOutcome::Success(AttemptSuccess::with_command(
+        Ok(rows) => AttemptSuccess::with_command("MySQL access!", format_rows(&rows, rows.len())),
+        Err(err) => AttemptSuccess::with_command_error(
             "MySQL access!",
-            format_rows(&rows, rows.len()),
-        )),
-        Err(err) => AttemptOutcome::Error(format!("mysql command execution failed: {err}")),
+            format!("mysql command execution failed: {err}"),
+        ),
     }
 }
 

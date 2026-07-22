@@ -255,6 +255,7 @@ impl CredentialDatabase {
     fn connect(&self) -> Result<Connection> {
         let conn = Connection::open(&self.path)
             .with_context(|| format!("failed to open database: {}", self.path.display()))?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
         conn.busy_timeout(Duration::from_secs(5))?;
         Ok(conn)
     }
@@ -281,7 +282,7 @@ impl CredentialDatabase {
                 workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
                 protocol TEXT NOT NULL,
                 host TEXT NOT NULL,
-                port INTEGER NOT NULL,
+                port INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
                 username TEXT,
                 password TEXT,
                 conn_url TEXT NOT NULL,
@@ -340,20 +341,40 @@ impl CredentialDatabase {
 
 /// Builds a scanner-friendly connection URL for saved credentials.
 fn build_conn_url(protocol: &str, credential: &CredentialSet, host: &str, port: u16) -> String {
-    let username = credential.username.as_deref().unwrap_or_default();
-    let password = credential.password.as_deref().unwrap_or_default();
+    let username = encode_userinfo_component(credential.username.as_deref().unwrap_or_default());
+    let password = encode_userinfo_component(credential.password.as_deref().unwrap_or_default());
+    let host = if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]")
+    } else {
+        host.to_string()
+    };
+
     format!("{protocol}://{username}:{password}@{host}:{port}")
+}
+
+/// Percent-encodes a username or password for use in URL user-info.
+fn encode_userinfo_component(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            use std::fmt::Write;
+            let _ = write!(encoded, "%{byte:02X}");
+        }
+    }
+    encoded
 }
 
 /// Maps a SQLite row into a saved credential record.
 fn saved_credential_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedCredential> {
-    let port: i64 = row.get(4)?;
+    let port: u16 = row.get(4)?;
     Ok(SavedCredential {
         id: row.get(0)?,
         workspace: row.get(1)?,
         protocol: row.get(2)?,
         host: row.get(3)?,
-        port: port as u16,
+        port,
         username: row.get(5)?,
         password: row.get(6)?,
         conn_url: row.get(7)?,
@@ -363,6 +384,8 @@ fn saved_credential_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedC
 #[cfg(test)]
 mod tests {
     use std::{fs, path::PathBuf, time::SystemTime};
+
+    use rusqlite::Connection;
 
     use super::*;
 
@@ -404,6 +427,10 @@ mod tests {
         assert_eq!(saved.password.as_deref(), Some("123456"));
 
         assert!(database.delete_workspace("audit")?);
+        let raw_connection = Connection::open(&path)?;
+        let remaining_credentials: i64 =
+            raw_connection.query_row("SELECT COUNT(*) FROM credentials", [], |row| row.get(0))?;
+        assert_eq!(remaining_credentials, 0);
         assert_eq!(database.current_workspace()?, DEFAULT_WORKSPACE);
         assert!(
             database
@@ -413,5 +440,18 @@ mod tests {
 
         let _ = fs::remove_file(path);
         Ok(())
+    }
+
+    #[test]
+    fn connection_url_encodes_user_info_and_brackets_ipv6_hosts() {
+        let credential = CredentialSet {
+            username: Some("admin@example.com".to_string()),
+            password: Some("p@ss".to_string()),
+        };
+
+        assert_eq!(
+            build_conn_url("ssh", &credential, "2001:db8::1", 22),
+            "ssh://admin%40example.com:p%40ss@[2001:db8::1]:22"
+        );
     }
 }

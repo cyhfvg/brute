@@ -70,7 +70,10 @@ impl BruteModule for RedisModule {
                 AttemptOutcome::Failure(format!("redis auth failed: {err}"))
             }
             Ok(Err(RedisAttemptError::Command(err))) => {
-                AttemptOutcome::Error(format!("redis command execution failed: {err}"))
+                AttemptOutcome::Success(AttemptSuccess::with_command_error(
+                    "Redis access!",
+                    format!("redis command execution failed: {err}"),
+                ))
             }
             Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
         }

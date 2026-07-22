@@ -1,7 +1,7 @@
 //! Top-level orchestration for the brute-force CLI.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -11,7 +11,7 @@ use std::{
 use anyhow::{Result, bail};
 use clap::Parser;
 use futures::{StreamExt, stream};
-use tokio::sync::Semaphore;
+use tokio::sync::{Mutex, Semaphore};
 
 use crate::cli::{
     Cli, Command, CredsAction, CredsArgs, Protocol, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
@@ -63,8 +63,6 @@ async fn run_protocol(
     let credentials = credentials.expand();
 
     let console = Arc::new(Console::new(no_color));
-    let semaphore = Arc::new(Semaphore::new(protocol_args.common().threads));
-
     if targets.is_empty() {
         bail!("no targets were generated from the supplied TARGET arguments");
     }
@@ -79,7 +77,6 @@ async fn run_protocol(
             protocol,
             target_host,
             target: protocol_args.common().clone(),
-            path: request_path.clone(),
         };
 
         match module.probe_target(&target_ctx).await {
@@ -102,7 +99,7 @@ async fn run_protocol(
             .map(|target_host| {
                 (
                     target_host,
-                    Arc::new(Semaphore::new(protocol_args.common().target_threads.max(1))),
+                    Arc::new(Semaphore::new(protocol_args.common().target_threads)),
                 )
             })
             .collect::<HashMap<_, _>>(),
@@ -114,111 +111,85 @@ async fn run_protocol(
             .map(|target_host| (target_host, Arc::new(AtomicBool::new(false))))
             .collect::<HashMap<_, _>>(),
     );
-    let account_success_flags = Arc::new(
+    let account_successes = Arc::new(Mutex::new(HashSet::new()));
+
+    stream::iter(credentials.into_iter().flat_map(|credential| {
         ready_targets
             .iter()
-            .flat_map(|target_host| {
-                credentials.iter().map(move |credential| {
-                    (
-                        account_success_key(target_host, &credential.username),
-                        Arc::new(AtomicBool::new(false)),
-                    )
-                })
-            })
-            .collect::<HashMap<_, _>>(),
-    );
+            .cloned()
+            .map(move |target_host| (target_host, credential.clone()))
+    }))
+    .for_each_concurrent(
+        protocol_args.common().threads,
+        |(target_host, credential)| {
+            let console = console.clone();
+            let module = module.clone();
+            let target = protocol_args.common().clone();
+            let path = request_path.clone();
+            let execute = request_execute.clone();
+            let target_semaphores = target_semaphores.clone();
+            let target_success_flags = target_success_flags.clone();
+            let account_successes = account_successes.clone();
+            let database = database.clone();
+            let workspace = current_workspace.clone();
 
-    let attempts: Vec<_> = credentials
-        .iter()
-        .cloned()
-        .flat_map(|credential| {
-            ready_targets
-                .iter()
-                .cloned()
-                .map(move |target_host| (target_host, credential.clone()))
-        })
-        .collect();
-    let total_attempts = attempts.len();
+            async move {
+                let success_flag = target_success_flags
+                    .get(&target_host)
+                    .expect("target success flag missing")
+                    .clone();
+                let account_key = account_success_key(&target_host, &credential.username);
 
-    stream::iter(attempts.into_iter().enumerate())
-        .for_each_concurrent(
-            protocol_args.common().threads,
-            |(index, (target_host, credential))| {
-                let semaphore = semaphore.clone();
-                let console = console.clone();
-                let module = module.clone();
-                let target = protocol_args.common().clone();
-                let path = request_path.clone();
-                let execute = request_execute.clone();
-                let target_semaphores = target_semaphores.clone();
-                let target_success_flags = target_success_flags.clone();
-                let account_success_flags = account_success_flags.clone();
-                let database = database.clone();
-                let workspace = current_workspace.clone();
-
-                async move {
-                    let success_flag = target_success_flags
-                        .get(&target_host)
-                        .expect("target success flag missing")
-                        .clone();
-                    let account_success_flag = account_success_flags
-                        .get(&account_success_key(&target_host, &credential.username))
-                        .expect("account success flag missing")
-                        .clone();
-
-                    if should_skip_attempt(
-                        target.continue_on_success,
-                        &success_flag,
-                        &account_success_flag,
-                    ) {
-                        return;
-                    }
-
-                    let _permit = semaphore.acquire().await.expect("semaphore poisoned");
-                    let target_semaphore = target_semaphores
-                        .get(&target_host)
-                        .expect("target semaphore missing")
-                        .clone();
-                    let _target_permit = target_semaphore
-                        .acquire()
-                        .await
-                        .expect("semaphore poisoned");
-
-                    if should_skip_attempt(
-                        target.continue_on_success,
-                        &success_flag,
-                        &account_success_flag,
-                    ) {
-                        return;
-                    }
-
-                    let ctx = AttemptContext {
-                        index: index + 1,
-                        total: total_attempts,
-                        protocol,
-                        target_host,
-                        target,
-                        path,
-                        execute,
-                        credential,
-                    };
-
-                    let outcome = module.attempt(&ctx).await;
-                    if matches!(outcome, AttemptOutcome::Success(_)) {
-                        account_success_flag.store(true, Ordering::Relaxed);
-                        if !ctx.target.continue_on_success {
-                            success_flag.store(true, Ordering::Relaxed);
-                        }
-
-                        if let Err(err) = save_successful_credential(&database, &workspace, &ctx) {
-                            eprintln!("failed to save credential: {err:#}");
-                        }
-                    }
-                    console.print_attempt(&ctx, &outcome);
+                if should_skip_attempt(
+                    target.continue_on_success,
+                    &success_flag,
+                    account_successes.lock().await.contains(&account_key),
+                ) {
+                    return;
                 }
-            },
-        )
-        .await;
+
+                let target_semaphore = target_semaphores
+                    .get(&target_host)
+                    .expect("target semaphore missing")
+                    .clone();
+                let _target_permit = target_semaphore
+                    .acquire()
+                    .await
+                    .expect("semaphore poisoned");
+
+                if should_skip_attempt(
+                    target.continue_on_success,
+                    &success_flag,
+                    account_successes.lock().await.contains(&account_key),
+                ) {
+                    return;
+                }
+
+                let ctx = AttemptContext {
+                    protocol,
+                    target_host,
+                    target,
+                    path,
+                    execute,
+                    credential,
+                };
+
+                let outcome = module.attempt(&ctx).await;
+                if matches!(outcome, AttemptOutcome::Success(_)) {
+                    account_successes.lock().await.insert(account_key);
+                    if !ctx.target.continue_on_success {
+                        success_flag.store(true, Ordering::Relaxed);
+                    }
+
+                    if let Err(err) = save_successful_credential(&database, &workspace, &ctx) {
+                        eprintln!("failed to save credential: {err:#}");
+                    }
+                }
+                console.print_attempt(&ctx, &outcome);
+            }
+        },
+    )
+    .await;
 
     Ok(())
 }
@@ -230,10 +201,9 @@ fn account_success_key(target_host: &str, username: &Option<String>) -> String {
 fn should_skip_attempt(
     continue_on_success: bool,
     target_success_flag: &AtomicBool,
-    account_success_flag: &AtomicBool,
+    account_succeeded: bool,
 ) -> bool {
-    account_success_flag.load(Ordering::Relaxed)
-        || (!continue_on_success && target_success_flag.load(Ordering::Relaxed))
+    account_succeeded || (!continue_on_success && target_success_flag.load(Ordering::Relaxed))
 }
 
 /// Handles workspace commands.

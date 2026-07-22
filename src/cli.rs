@@ -162,6 +162,30 @@ impl ProtocolArgs {
     }
 }
 
+/// Parses a strictly positive concurrency value.
+fn parse_positive_usize(value: &str) -> Result<usize, String> {
+    value
+        .parse()
+        .map_err(|_| format!("{value:?} is not a valid positive integer"))
+        .and_then(|parsed: usize| {
+            (parsed > 0)
+                .then_some(parsed)
+                .ok_or_else(|| "value must be at least 1".to_string())
+        })
+}
+
+/// Parses a strictly positive timeout in milliseconds.
+fn parse_positive_u64(value: &str) -> Result<u64, String> {
+    value
+        .parse()
+        .map_err(|_| format!("{value:?} is not a valid positive integer"))
+        .and_then(|parsed: u64| {
+            (parsed > 0)
+                .then_some(parsed)
+                .ok_or_else(|| "value must be at least 1".to_string())
+        })
+}
+
 /// Common options shared by all protocols.
 #[derive(Debug, Clone, Args)]
 pub struct CommonArgs {
@@ -195,16 +219,16 @@ pub struct CommonArgs {
     #[arg(long)]
     pub port: Option<u16>,
     /// Number of concurrent attempts.
-    #[arg(long, default_value_t = 16)]
+    #[arg(long, default_value_t = 16, value_parser = parse_positive_usize)]
     pub threads: usize,
     /// Maximum concurrent attempts against the same target.
-    #[arg(long, default_value_t = 1)]
+    #[arg(long, default_value_t = 1, value_parser = parse_positive_usize)]
     pub target_threads: usize,
     /// Retry count for transient transport failures.
     #[arg(long, default_value_t = 3)]
     pub retries: usize,
     /// Timeout per attempt in milliseconds.
-    #[arg(long, default_value_t = 5000)]
+    #[arg(long, default_value_t = 5000, value_parser = parse_positive_u64)]
     pub timeout_ms: u64,
     /// Continue authentication attempts even after successes.
     #[arg(long)]

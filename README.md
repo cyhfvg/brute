@@ -113,10 +113,10 @@ brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/
 - `-p, --password <PASSWORD...>`: Password values or files containing passwords. Use `-p ''` for an empty password.
 - `--id <ID>`: Load a saved credential from the current workspace. Mutually exclusive with `-u/-p`.
 - `--port <PORT>`: Override the protocol default port.
-- `--threads <N>`: Global concurrent attempt count. Default: `16`.
-- `--target-threads <N>`: Max concurrent attempts against one target. Default: `1`.
+- `--threads <N>`: Global concurrent attempt count. Default: `16`; must be at least `1`.
+- `--target-threads <N>`: Max concurrent attempts against one target. Default: `1`; must be at least `1`.
 - `--retries <N>`: Retry count for transient transport errors. Default: `3`.
-- `--timeout-ms <MS>`: Per-attempt timeout in milliseconds. Default: `5000`.
+- `--timeout-ms <MS>`: Per-attempt timeout in milliseconds. Default: `5000`; must be at least `1`.
 - `--continue-on-success`: Continue attempts against a target after a successful credential is found.
 - `--no-color`: Disable colored output.
 
@@ -137,6 +137,8 @@ Example:
 ```bash
 brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
 ```
+
+Once authentication succeeds, a post-auth command error is reported separately and the verified credential is still saved to the current workspace.
 
 ## Output
 
@@ -282,11 +284,19 @@ Test:
 cargo test
 ```
 
-Release:
+Local release build:
 
 ```bash
-cargo build --release
+scripts/local_build.sh --release
 ```
+
+Run the same checks required by CI before committing:
+
+```bash
+scripts/pre_commit_check.sh
+```
+
+Use `scripts/pre_commit_check.sh --fix` to apply Rust formatting before running the checks.
 
 ## Security and Legal Notice
 

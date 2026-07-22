@@ -2,7 +2,7 @@
 
 use colored::{ColoredString, Colorize};
 
-use crate::protocol::{AttemptContext, AttemptOutcome, TargetContext};
+use crate::protocol::{AttemptContext, AttemptOutcome, PostAuthResult, TargetContext};
 
 /// Lightweight terminal output wrapper.
 #[derive(Debug)]
@@ -31,14 +31,26 @@ impl Console {
                     success.message
                 );
 
-                if let Some(output) = success.command_output.as_deref() {
-                    println!("{} {} Executed command", prefix, self.paint("[+]", "green"));
-                    for line in output.lines() {
-                        println!("{} {}", prefix, line);
+                if let Some(post_auth_result) = &success.post_auth_result {
+                    match post_auth_result {
+                        PostAuthResult::Output(output) => {
+                            println!("{} {} Executed command", prefix, self.paint("[+]", "green"));
+                            for line in output.lines() {
+                                println!("{} {}", prefix, line);
+                            }
+                        }
+                        PostAuthResult::Failed(error) => {
+                            println!(
+                                "{} {} Command execution failed: {}",
+                                prefix,
+                                self.paint("[!]", "yellow"),
+                                error
+                            );
+                        }
                     }
                 }
             }
-            AttemptOutcome::Failure(_) => {
+            AttemptOutcome::Failure(_reason) => {
                 println!("{} {} {}", prefix, self.paint("[-]", "red"), credential);
             }
             AttemptOutcome::Error(message) => {

@@ -23,7 +23,6 @@ pub struct TargetContext {
     pub protocol: Protocol,
     pub target_host: String,
     pub target: CommonArgs,
-    pub path: Option<String>,
 }
 
 impl TargetContext {
@@ -50,8 +49,6 @@ impl TargetContext {
 /// Per-attempt immutable context.
 #[derive(Debug, Clone)]
 pub struct AttemptContext {
-    pub index: usize,
-    pub total: usize,
     pub protocol: Protocol,
     pub target_host: String,
     pub target: CommonArgs,
@@ -66,7 +63,6 @@ impl From<&AttemptContext> for TargetContext {
             protocol: ctx.protocol,
             target_host: ctx.target_host.clone(),
             target: ctx.target.clone(),
-            path: ctx.path.clone(),
         }
     }
 }
@@ -105,7 +101,16 @@ pub enum AttemptOutcome {
 #[derive(Debug, Clone)]
 pub struct AttemptSuccess {
     pub message: String,
-    pub command_output: Option<String>,
+    pub post_auth_result: Option<PostAuthResult>,
+}
+
+/// Result of an optional command issued after authentication succeeds.
+#[derive(Debug, Clone)]
+pub enum PostAuthResult {
+    /// Command completed and produced terminal output.
+    Output(String),
+    /// Authentication succeeded, but the requested command could not be completed.
+    Failed(String),
 }
 
 impl AttemptSuccess {
@@ -113,7 +118,7 @@ impl AttemptSuccess {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
-            command_output: None,
+            post_auth_result: None,
         }
     }
 
@@ -121,7 +126,18 @@ impl AttemptSuccess {
     pub fn with_command(message: impl Into<String>, command_output: impl Into<String>) -> Self {
         Self {
             message: message.into(),
-            command_output: Some(command_output.into()),
+            post_auth_result: Some(PostAuthResult::Output(command_output.into())),
+        }
+    }
+
+    /// Creates a successful authentication result with a post-auth command error.
+    ///
+    /// A command failure must not turn a confirmed login into an authentication failure: callers
+    /// use successful outcomes to persist verified credentials.
+    pub fn with_command_error(message: impl Into<String>, error: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            post_auth_result: Some(PostAuthResult::Failed(error.into())),
         }
     }
 }
@@ -137,12 +153,6 @@ pub trait BruteModule: Send + Sync {
     }
     /// Executes one credential attempt against the remote service.
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome;
-}
-
-impl Clone for Box<dyn BruteModule> {
-    fn clone(&self) -> Self {
-        panic!("Box<dyn BruteModule> cloning is not supported; use Arc<dyn BruteModule> instead")
-    }
 }
 
 /// Helper for wrapping blocking client libraries in a Tokio timeout.

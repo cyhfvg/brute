@@ -112,10 +112,10 @@ brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/
 - `-p, --password <PASSWORD...>`: 密码或密码文件；空密码使用 `-p ''`。
 - `--id <ID>`: 从当前 workspace 读取已保存凭据；与 `-u/-p` 互斥。
 - `--port <PORT>`: 覆盖协议默认端口。
-- `--threads <N>`: 全局并发尝试数，默认 `16`。
-- `--target-threads <N>`: 单目标最大并发尝试数，默认 `1`。
+- `--threads <N>`: 全局并发尝试数，默认 `16`，最小值为 `1`。
+- `--target-threads <N>`: 单目标最大并发尝试数，默认 `1`，最小值为 `1`。
 - `--retries <N>`: 传输层临时错误重试次数，默认 `3`。
-- `--timeout-ms <MS>`: 单次尝试超时，默认 `5000`。
+- `--timeout-ms <MS>`: 单次尝试超时，默认 `5000`，最小值为 `1`。
 - `--continue-on-success`: 命中成功凭据后仍继续尝试该目标剩余凭据。
 - `--no-color`: 关闭彩色输出。
 
@@ -136,6 +136,8 @@ brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/
 ```bash
 brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
 ```
+
+认证已成功但认证后命令执行失败时，工具会单独输出命令错误，并仍将已验证凭据保存到当前 workspace。
 
 ## 输出风格
 
@@ -281,11 +283,19 @@ cargo check
 cargo test
 ```
 
-发布构建：
+本地 release 构建：
 
 ```bash
-cargo build --release
+scripts/local_build.sh --release
 ```
+
+提交前执行与 CI 一致的检查：
+
+```bash
+scripts/pre_commit_check.sh
+```
+
+需要先自动格式化 Rust 代码时，可使用 `scripts/pre_commit_check.sh --fix`。
 
 ## 安全与法律声明
 

@@ -46,6 +46,8 @@
 - `workspaces`: 保存 workspace 名称与 `is_current` 标识，默认 workspace 为 `default`
 - `credentials`: 保存 `id`、`workspace_id`、`protocol`、`host`、`port`、`username`、`password`、`conn_url` 和时间戳
 
+每个 SQLite 连接都会启用外键约束，因此删除 workspace 会级联删除其凭据。认证成功后的命令执行错误会作为认证成功的附加状态输出，确保有效凭据仍会写入数据库。保存的 `conn_url` 会对用户名和密码进行 URL 编码，并为 IPv6 主机添加方括号。
+
 协议调度层在 `AttemptOutcome::Success` 时写入数据库，并用 `(workspace_id, protocol, host, port, username, password)` 去重。`workspace current/new/use/delete/list` 负责 workspace 管理；`delete` 会级联删除该 workspace 下的凭据，且不允许删除 `default`。`creds list` 负责按当前 workspace 或指定 `--workspace` 检索，支持 `--protocol`、`--host` 和 `--conn-url`。
 
 所有协议模块都支持 `--id <ID>`，用于从当前 workspace 读取已保存凭据并填充登录尝试。`--id` 与 `-u/-p` 互斥；读取时不校验凭据原始 protocol，允许密码喷洒和跨协议密码复用验证。
@@ -56,7 +58,7 @@ SSH banner 获取从单次登录尝试中前移到 target 级预探测阶段。�
 
 SSH 单次登录中的连接、session 创建、handshake 等传输层错误会内部重试一次；重试后仍失败时按普通认证失败行输出，不暴露 `Failed getting banner` 等低层错误细节。
 
-调度层使用全局 `--threads` 和单目标 `--target-threads` 双层限流，并将尝试队列按 credential -> target 交错展开，避免默认并发集中打到同一台 SSH 服务。`--target-threads` 默认值为 1，优先保证 SSH 场景下的稳健性。SSH 传输层重试次数由 `--retries` 控制，默认 3 次，并使用短退避降低握手碰撞概率。
+调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流，并用单目标 `--target-threads` 信号量限制单目标并发。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads`、`--target-threads` 和 `--timeout-ms` 必须大于 0；`--target-threads` 默认值为 1，优先保证 SSH 场景下的稳健性。SSH 传输层重试次数由 `--retries` 控制，默认 3 次，并使用短退避降低握手碰撞概率。
 
 默认情况下，每个 target 命中 1 组成功凭据后会停止该 target 的后续尝试；`--continue-on-success` 用于显式开启继续爆破模式。
 

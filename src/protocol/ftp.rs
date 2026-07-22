@@ -64,7 +64,10 @@ impl BruteModule for FtpModule {
                 AttemptOutcome::Failure(format!("ftp auth failed: {err}"))
             }
             Ok(Err(FtpAttemptError::Command(err))) => {
-                AttemptOutcome::Error(format!("ftp command execution failed: {err}"))
+                AttemptOutcome::Success(AttemptSuccess::with_command_error(
+                    "FTP access!",
+                    format!("ftp command execution failed: {err}"),
+                ))
             }
             Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
         }
