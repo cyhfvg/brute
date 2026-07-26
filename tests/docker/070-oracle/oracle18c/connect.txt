@@ -1,0 +1,10 @@
+ORACLE_PORT=1521
+
+servicename=XEPDB1
+
+# `SYS` and `SYSTEM` password
+ORACLE_PASSWORD=orac_sys_Oracle18c_A9x7!
+
+ normal credentials
+ORACLE_APP_USER=APPUSER
+ORACLE_APP_PASSWORD=orac_norm_AppUser_K8p4!

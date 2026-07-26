@@ -1,0 +1,58 @@
+name: oracle11g
+
+services:
+  oracle11g:
+    image: "${ORACLE_IMAGE:-gvenzl/oracle-xe:11.2.0.2}"
+    container_name: "${ORACLE_CONTAINER_NAME:-oracle11g}"
+    hostname: "${ORACLE_HOSTNAME:-oracle11g}"
+
+    restart: unless-stopped
+
+    ports:
+      # 默认仅允许宿主机本地访问，避免 Oracle 监听端口暴露到公网
+      - "${ORACLE_BIND_HOST:-127.0.0.1}:${ORACLE_PORT:-1521}:1521"
+
+      # 需要访问 Oracle XE/APEX Web 管理页面时再开放
+      # - "${ORACLE_BIND_HOST:-127.0.0.1}:${ORACLE_APEX_PORT:-8080}:8080"
+
+    environment:
+      # SYS 和 SYSTEM 的初始化密码
+      ORACLE_PASSWORD: "${ORACLE_PASSWORD:?ORACLE_PASSWORD must be set}"
+
+      # 创建普通业务用户
+      APP_USER: "${ORACLE_APP_USER:?ORACLE_APP_USER must be set}"
+      APP_USER_PASSWORD: "${ORACLE_APP_PASSWORD:?ORACLE_APP_PASSWORD must be set}"
+
+      # 容器时区
+      TZ: "${TZ:-Asia/Shanghai}"
+
+    volumes:
+      # Oracle XE 11g R2 必须挂载到该目录
+      - oracle11g_data:/u01/app/oracle/oradata
+
+      # 可选：首次初始化时自动执行 SQL、SQL.GZ 或 Shell 脚本
+      # - ./initdb:/container-entrypoint-initdb.d:ro
+
+    shm_size: "${ORACLE_SHM_SIZE:-1g}"
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+    # 给 Oracle 留出正常关闭数据库实例的时间
+    stop_grace_period: 2m
+
+    networks:
+      - oracle11g_network
+
+volumes:
+  oracle11g_data:
+    name: "${ORACLE_VOLUME_NAME:-oracle11g_data}"
+
+networks:
+  oracle11g_network:
+    name: "${ORACLE_NETWORK_NAME:-oracle11g_network}"
+    driver: bridge

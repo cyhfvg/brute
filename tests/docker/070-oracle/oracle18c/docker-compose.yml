@@ -1,0 +1,74 @@
+name: oracle18c
+
+services:
+  oracle18c:
+    image: "${ORACLE_IMAGE:-gvenzl/oracle-xe:18.4.0}"
+    container_name: "${ORACLE_CONTAINER_NAME:-oracle18c}"
+    hostname: "${ORACLE_HOSTNAME:-oracle18c}"
+
+    restart: unless-stopped
+
+    # Oracle XE 18c 镜像仅提供 linux/amd64 架构。
+    # x86_64 Linux 环境通常不需要显式声明。
+    # platform: linux/amd64
+
+    ports:
+      # 默认仅允许宿主机本地访问，避免数据库端口直接暴露到公网
+      - "${ORACLE_BIND_HOST:-127.0.0.1}:${ORACLE_PORT:-1521}:1521"
+
+      # Oracle Enterprise Manager Express 等管理功能可能使用该端口
+      # 确有需要时再开放
+      # - "${ORACLE_BIND_HOST:-127.0.0.1}:${ORACLE_EM_PORT:-5500}:5500"
+
+    environment:
+      # SYS 和 SYSTEM 用户的初始化密码
+      ORACLE_PASSWORD: "${ORACLE_PASSWORD:?ORACLE_PASSWORD must be set}"
+
+      # 创建普通应用用户。
+      # Oracle 18c 中默认创建在 XEPDB1 PDB 内。
+      APP_USER: "${ORACLE_APP_USER:?ORACLE_APP_USER must be set}"
+      APP_USER_PASSWORD: "${ORACLE_APP_PASSWORD:?ORACLE_APP_PASSWORD must be set}"
+
+      # 可选：创建额外的 PDB。
+      #
+      # 不设置时直接使用镜像内置的 XEPDB1，初始化速度更快。
+      # 如设置为 APPPDB，则会额外创建名为 APPPDB 的 PDB，
+      # APP_USER 也会同时创建在该 PDB 中。
+      #
+      # ORACLE_DATABASE: "${ORACLE_DATABASE:-}"
+
+      TZ: "${TZ:-Asia/Shanghai}"
+
+    volumes:
+      # Oracle XE 18c/21c 的数据目录
+      - oracle18c_data:/opt/oracle/oradata
+
+      # 可选：首次初始化时执行 SQL、SQL.GZ、SQL.ZIP 或 Shell 脚本
+      # - ./initdb:/container-entrypoint-initdb.d:ro
+
+      # 可选：每次容器启动时执行脚本
+      # - ./startup:/container-entrypoint-startdb.d:ro
+
+    shm_size: "${ORACLE_SHM_SIZE:-1g}"
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+    # Oracle 正常关闭可能需要一定时间
+    stop_grace_period: 2m
+
+    networks:
+      - oracle18c_network
+
+volumes:
+  oracle18c_data:
+    name: "${ORACLE_VOLUME_NAME:-oracle18c_data}"
+
+networks:
+  oracle18c_network:
+    name: "${ORACLE_NETWORK_NAME:-oracle18c_network}"
+    driver: bridge
