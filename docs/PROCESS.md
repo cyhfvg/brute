@@ -34,7 +34,7 @@
 - `mysql`: 基于 `mysql`
 - `postgresql`: 基于 `tokio-postgres`
 - `redis`: 基于 `redis`
-- `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；支持 Oracle Database 12c+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
+- `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；支持 Oracle Database 11g R2 (11.2)+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 11g 兼容与 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
 - `tomcat`: 基于 `reqwest` + Basic Auth
 
 ### 命令执行

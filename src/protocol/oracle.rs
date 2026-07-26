@@ -132,7 +132,7 @@ fn oracle_config(
 ///
 /// # Returns
 ///
-/// A retryable authentication failure, or a configuration error for an unsupported server protocol.
+/// A retryable authentication failure, or a configuration error for a server older than Oracle 11g R2.
 ///
 /// # Examples
 ///
@@ -141,7 +141,7 @@ fn oracle_connection_outcome(error: OracleError) -> AttemptOutcome {
     match error {
         OracleError::ProtocolVersionNotSupported(server, minimum) => {
             AttemptOutcome::Error(format!(
-                "unsupported Oracle server protocol version {server}; brute requires Oracle Database 12c+ (minimum protocol version {minimum})"
+                "unsupported Oracle server protocol version {server}; brute requires Oracle Database 11g R2 (11.2)+ (minimum protocol version {minimum})"
             ))
         }
         OracleError::InvalidLengthIndicator(indicator) => AttemptOutcome::Error(format!(
@@ -315,14 +315,15 @@ mod tests {
     }
 
     #[test]
-    /// Verifies unsupported pre-12c protocol versions are reported as configuration errors.
-    fn identifies_unsupported_pre_12c_protocol() {
-        let outcome = oracle_connection_outcome(OracleError::ProtocolVersionNotSupported(314, 315));
+    /// Verifies server protocols older than Oracle 11g R2 are reported as configuration errors.
+    fn identifies_unsupported_pre_11g_r2_protocol() {
+        let outcome = oracle_connection_outcome(OracleError::ProtocolVersionNotSupported(313, 314));
 
         match outcome {
             AttemptOutcome::Error(message) => {
+                assert!(message.contains("313"));
                 assert!(message.contains("314"));
-                assert!(message.contains("315"));
+                assert!(message.contains("11g R2"));
             }
             outcome => panic!("unexpected outcome: {outcome:?}"),
         }
@@ -385,8 +386,8 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires an authorized Oracle instance configured with BRUTE_ORACLE_TEST_* variables"]
-    /// Verifies a Service Name connection against an explicitly configured Oracle test instance.
-    async fn connects_to_authorized_oracle_service() {
+    /// Verifies a Service Name connection and read-only query against an authorized Oracle 11g test instance.
+    async fn connects_to_authorized_oracle_11g_service() {
         let host = std::env::var("BRUTE_ORACLE_TEST_HOST").expect("test host must be configured");
         let port = std::env::var("BRUTE_ORACLE_TEST_PORT")
             .expect("test port must be configured")

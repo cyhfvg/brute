@@ -158,7 +158,7 @@ brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
 
 The Oracle module uses the pure Rust `oracle-rs` Thin driver. It requires no Oracle Client, OCI, ODPI-C, or Oracle shared library at build or runtime. The repository uses the `cyhfvg/oracle-rs` fork, which includes the Oracle 18c completion-message decoding fix.
 
-Oracle Database 12c Release 1 (12.1) or later is supported. Pre-12c servers such as Oracle 11g are detected and reported as unsupported protocol versions instead of being misreported as authentication failures.
+Oracle Database 11g Release 2 (11.2) or later is supported. Servers older than 11g R2 are detected and reported as unsupported protocol versions instead of being misreported as authentication failures.
 
 ## Output
 

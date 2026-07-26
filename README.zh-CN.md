@@ -153,9 +153,9 @@ brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
 
 `-x` 会在认证成功后执行 SQL 查询，并以 `列名=值` 形式最多预览 10 行结果。执行前会移除 SQL 尾部空白和一个或多个客户端分号。查询同样受 `--timeout-ms` 约束；查询失败或超时会单独报告，不会丢弃已验证的凭据。
 
-Oracle 模块使用纯 Rust 的 `oracle-rs` Thin 驱动，构建和运行时均不需要 Oracle Client、OCI、ODPI-C 或 Oracle 动态链接库。仓库使用 `cyhfvg/oracle-rs` fork，其中包含 Oracle 18c 完成报文解析修复。
+Oracle 模块使用纯 Rust 的 `oracle-rs` Thin 驱动，构建和运行时均不需要 Oracle Client、OCI、ODPI-C 或 Oracle 动态链接库。仓库使用 `cyhfvg/oracle-rs` fork，其中包含 Oracle 11g 兼容与 Oracle 18c 完成报文解析修复。
 
-支持 Oracle Database 12c Release 1 (12.1) 或更高版本。对于 Oracle 11g 等低于 12c 的服务端，工具会识别并明确报告不支持的协议版本，而不会误报为认证失败。
+支持 Oracle Database 11g Release 2 (11.2) 及更高版本。早于 11g R2 的服务端会被识别并明确报告不支持的协议版本，而不会误报为认证失败。
 
 认证已成功但认证后命令执行失败时，工具会单独输出命令错误，并仍将已验证凭据保存到当前 workspace。
 
