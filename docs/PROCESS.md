@@ -84,3 +84,9 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 2. 增加 JSON/NDJSON 输出模式，便于脚本接入
 3. 为 HTTP 模块做通用表单爆破与 Basic/Digest Auth 支持
 4. 为 SMB/WinRM/RDP 选择合适 Rust 库或封装外部安全测试组件
+
+### 输出前缀
+
+控制台固定前缀仅显示协议、目标和端口；协议专属的探测信息使用独立输出行，避免不可靠或重复的通用主机名列。
+
+未来实现 SMB 时，目标级探测应枚举远端主机名与域名，并单独输出：SMB  192.168.5.5  445  [*] name:DESKTOP-APL87RT domain:LAB.LOCAL。

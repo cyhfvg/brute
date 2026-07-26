@@ -20,3 +20,10 @@ The following protocol modules are reserved in the CLI but not implemented yet:
 - `winrm`
 - `http`
 - `vnc`
+
+## Planned SMB Target Probe
+
+- When implementing smb, add a target-level probe that enumerates the remote host name and
+  domain. Report the data on a dedicated probe line rather than restoring a shared hostname column:
+
+    SMB  192.168.5.5  445  [*] name:DESKTOP-APL87RT domain:LAB.LOCAL

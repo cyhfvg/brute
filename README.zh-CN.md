@@ -164,10 +164,10 @@ Oracle 模块使用纯 Rust 的 `oracle-rs` Thin 驱动，构建和运行时均�
 输出采用固定列格式，风格接近 NetExec：
 
 ```text
-SSH                      192.168.5.5     22     192.168.5.5     [-] admin:123456
-SSH                      192.168.5.5     22     192.168.5.5     [+] root:toor  Linux - Shell access!
-SSH                      192.168.5.5     22     192.168.5.5     [+] Executed command
-SSH                      192.168.5.5     22     192.168.5.5     uid=0(root) gid=0(root) groups=0(root)
+SSH        192.168.5.5     22     [-] admin:123456
+SSH        192.168.5.5     22     [+] root:toor  Linux - Shell access!
+SSH        192.168.5.5     22     [+] Executed command
+SSH        192.168.5.5     22     uid=0(root) gid=0(root) groups=0(root)
 ```
 
 启用彩色输出时，成功凭据会高亮显示。

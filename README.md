@@ -165,10 +165,10 @@ Oracle Database 11g Release 2 (11.2) or later is supported. Servers older than 1
 Output uses fixed NetExec-style columns:
 
 ```text
-SSH                      192.168.5.5     22     192.168.5.5     [-] admin:123456
-SSH                      192.168.5.5     22     192.168.5.5     [+] root:toor  Linux - Shell access!
-SSH                      192.168.5.5     22     192.168.5.5     [+] Executed command
-SSH                      192.168.5.5     22     192.168.5.5     uid=0(root) gid=0(root) groups=0(root)
+SSH        192.168.5.5     22     [-] admin:123456
+SSH        192.168.5.5     22     [+] root:toor  Linux - Shell access!
+SSH        192.168.5.5     22     [+] Executed command
+SSH        192.168.5.5     22     uid=0(root) gid=0(root) groups=0(root)
 ```
 
 Successful credential pairs are highlighted when color output is enabled.
