@@ -9,6 +9,7 @@
 - `mysql`
 - `postgresql`
 - `redis`
+- `oracle`
 - `tomcat manager`
 
 同时为后续协议扩展保留统一抽象。
@@ -33,11 +34,12 @@
 - `mysql`: 基于 `mysql`
 - `postgresql`: 基于 `tokio-postgres`
 - `redis`: 基于 `redis`
+- `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；支持 Oracle Database 12c+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
 - `tomcat`: 基于 `reqwest` + Basic Auth
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`redis` 支持模块级 `-x, --execute <COMMAND>`。该参数不会出现在 `http`、`tomcat` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`，其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
 
 ### 凭据数据库
 
@@ -73,7 +75,6 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 - `smb`
 - `rdp`
 - `winrm`
-- `oracle`
 - `http`
 - `vnc`
 

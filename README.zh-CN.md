@@ -32,6 +32,7 @@
 - `mysql`
 - `postgresql`
 - `redis`
+- `oracle`
 - `tomcat-manager`，别名 `tomcat`
 
 已预留但尚未实现：
@@ -39,7 +40,6 @@
 - `smb`
 - `rdp`
 - `winrm`
-- `oracle`
 - `http`
 - `vnc`
 
@@ -101,6 +101,7 @@ brute ssh targets.txt -u users.txt -p pass.txt --threads 32
 brute ftp 10.10.10.20 -u users.txt -p pass.txt -x 'PWD'
 brute mysql db.internal -u root -p weakpass --port 3306 -x 'show databases;'
 brute postgresql 172.16.1.50 -u pg_users.txt -p pg_pass.txt -x 'select version();'
+brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 ```
@@ -129,6 +130,7 @@ brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/
 - `ftp`: FTP 控制命令，例如 `-x 'PWD'`
 - `mysql`: SQL 查询，例如 `-x 'show databases;'`
 - `postgresql`: SQL 查询，例如 `-x 'select version();'`
+- `oracle`: SQL 查询，例如 `-x 'select * from dual'`
 - `redis`: Redis 命令，例如 `-x 'INFO server'`
 
 示例：
@@ -136,6 +138,24 @@ brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/
 ```bash
 brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
 ```
+
+## Oracle
+
+`oracle` 必须且只能指定一个数据库标识；`TARGET` 应为主机名/IP，默认端口为 `1521`，可用 `--port` 覆盖。
+
+- `--service-name <SERVICE_NAME>` 使用 Oracle Easy Connect：`//host:port/service_name`。
+- `--sid <SID>` 使用完整的 Oracle Net 连接描述符。
+
+```bash
+brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'
+brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
+```
+
+`-x` 会在认证成功后执行 SQL 查询，并以 `列名=值` 形式最多预览 10 行结果。执行前会移除 SQL 尾部空白和一个或多个客户端分号。查询同样受 `--timeout-ms` 约束；查询失败或超时会单独报告，不会丢弃已验证的凭据。
+
+Oracle 模块使用纯 Rust 的 `oracle-rs` Thin 驱动，构建和运行时均不需要 Oracle Client、OCI、ODPI-C 或 Oracle 动态链接库。仓库使用 `cyhfvg/oracle-rs` fork，其中包含 Oracle 18c 完成报文解析修复。
+
+支持 Oracle Database 12c Release 1 (12.1) 或更高版本。对于 Oracle 11g 等低于 12c 的服务端，工具会识别并明确报告不支持的协议版本，而不会误报为认证失败。
 
 认证已成功但认证后命令执行失败时，工具会单独输出命令错误，并仍将已验证凭据保存到当前 workspace。
 
@@ -258,6 +278,7 @@ src/
     ftp.rs
     mysql.rs
     postgresql.rs
+    oracle.rs
     redis.rs
     tomcat.rs
     stub.rs         # 预留协议占位实现

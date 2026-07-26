@@ -173,3 +173,17 @@ fn scaffolded_protocol_reports_unimplemented_attempt() {
     assert!(stdout.contains("admin:secret"));
     assert!(stdout.contains("http is scaffolded but not implemented in this build"));
 }
+
+#[test]
+fn oracle_help_exposes_sql_query_execution() {
+    let home = TempHome::new("oracle-help");
+
+    let output = run_with_home(&home, ["oracle", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("--service-name <SERVICE_NAME>"));
+    assert!(stdout.contains("--sid <SID>"));
+    assert!(stdout.contains("select * from dual"));
+}

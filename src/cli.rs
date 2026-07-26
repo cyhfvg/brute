@@ -102,9 +102,9 @@ pub enum ProtocolArgs {
     #[command(
         about = "own stuff using ORACLE",
         override_usage = "brute oracle <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute oracle 192.168.5.5 -u system -p oracle"
+        after_help = "Example:\n  brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'"
     )]
-    Oracle(CommonArgs),
+    Oracle(OracleArgs),
 
     #[command(
         about = "own stuff using HTTP",
@@ -130,11 +130,8 @@ impl ProtocolArgs {
             | Self::Mysql(args)
             | Self::Postgresql(args)
             | Self::Redis(args) => &args.common,
-            Self::Smb(args)
-            | Self::Rdp(args)
-            | Self::Winrm(args)
-            | Self::Oracle(args)
-            | Self::Vnc(args) => args,
+            Self::Oracle(args) => &args.execute.common,
+            Self::Smb(args) | Self::Rdp(args) | Self::Winrm(args) | Self::Vnc(args) => args,
             Self::Tomcat(args) => &args.common,
             Self::Http(args) => &args.common,
         }
@@ -157,6 +154,7 @@ impl ProtocolArgs {
             | Self::Mysql(args)
             | Self::Postgresql(args)
             | Self::Redis(args) => args.execute.as_deref(),
+            Self::Oracle(args) => args.execute.execute.as_deref(),
             _ => None,
         }
     }
@@ -243,6 +241,29 @@ pub struct ExecuteArgs {
     /// Execute the specified command after a successful login.
     #[arg(short = 'x', long = "execute", value_name = "COMMAND")]
     pub execute: Option<String>,
+}
+
+/// Oracle-specific options including the required database service identifier.
+#[derive(Debug, Clone, Args)]
+pub struct OracleArgs {
+    #[command(flatten)]
+    pub execute: ExecuteArgs,
+    /// Oracle Service Name used in Easy Connect syntax.
+    #[arg(
+        long,
+        value_name = "SERVICE_NAME",
+        required_unless_present = "sid",
+        conflicts_with = "sid"
+    )]
+    pub service_name: Option<String>,
+    /// Oracle SID used in a full Oracle Net connect descriptor.
+    #[arg(
+        long,
+        value_name = "SID",
+        required_unless_present = "service_name",
+        conflicts_with = "service_name"
+    )]
+    pub sid: Option<String>,
 }
 
 /// Options for Apache Tomcat Manager.
@@ -398,5 +419,83 @@ impl ProtocolArgs {
             Self::Http(_) => Protocol::Http,
             Self::Vnc(_) => Protocol::Vnc,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::{Cli, Command, Protocol, ProtocolArgs};
+
+    /// Verifies that Oracle Service Name and `-x` query arguments are parsed into the execution options.
+    #[test]
+    fn parses_oracle_service_name_and_sql_query_execution_arguments() {
+        let cli = Cli::try_parse_from([
+            "brute",
+            "oracle",
+            "db.internal",
+            "-u",
+            "system",
+            "-p",
+            "oracle",
+            "--service-name",
+            "ORCLPDB1",
+            "-x",
+            "select * from dual",
+        ])
+        .expect("oracle service name arguments should parse");
+
+        let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+            panic!("expected oracle protocol arguments");
+        };
+        assert_eq!(args.execute.common.targets, ["db.internal"]);
+        assert_eq!(args.service_name.as_deref(), Some("ORCLPDB1"));
+        assert_eq!(args.sid, None);
+        assert_eq!(args.execute.execute.as_deref(), Some("select * from dual"));
+        assert_eq!(ProtocolArgs::Oracle(args).protocol(), Protocol::Oracle);
+    }
+
+    /// Verifies that Oracle SID arguments are accepted without a Service Name.
+    #[test]
+    fn parses_oracle_sid_argument() {
+        let cli = Cli::try_parse_from([
+            "brute",
+            "oracle",
+            "db.internal",
+            "-u",
+            "system",
+            "-p",
+            "oracle",
+            "--sid",
+            "ORCL",
+        ])
+        .expect("oracle SID arguments should parse");
+
+        let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+            panic!("expected oracle protocol arguments");
+        };
+        assert_eq!(args.service_name, None);
+        assert_eq!(args.sid.as_deref(), Some("ORCL"));
+    }
+
+    /// Verifies that Oracle Service Name and SID cannot be supplied together.
+    #[test]
+    fn rejects_oracle_service_name_and_sid_together() {
+        let result = Cli::try_parse_from([
+            "brute",
+            "oracle",
+            "db.internal",
+            "-u",
+            "system",
+            "-p",
+            "oracle",
+            "--service-name",
+            "XE",
+            "--sid",
+            "ORCL",
+        ]);
+
+        assert!(result.is_err());
     }
 }

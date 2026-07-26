@@ -33,6 +33,7 @@ Implemented modules:
 - `mysql`
 - `postgresql`
 - `redis`
+- `oracle`
 - `tomcat-manager` alias: `tomcat`
 
 Reserved but not implemented yet:
@@ -40,7 +41,6 @@ Reserved but not implemented yet:
 - `smb`
 - `rdp`
 - `winrm`
-- `oracle`
 - `http`
 - `vnc`
 
@@ -102,6 +102,7 @@ brute ssh targets.txt -u users.txt -p pass.txt --threads 32
 brute ftp 10.10.10.20 -u users.txt -p pass.txt -x 'PWD'
 brute mysql db.internal -u root -p weakpass --port 3306 -x 'show databases;'
 brute postgresql 172.16.1.50 -u pg_users.txt -p pg_pass.txt -x 'select version();'
+brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 ```
@@ -130,6 +131,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `ftp`: FTP control command, for example `-x 'PWD'`
 - `mysql`: SQL query, for example `-x 'show databases;'`
 - `postgresql`: SQL query, for example `-x 'select version();'`
+- `oracle`: SQL query, for example `-x 'select * from dual'`
 - `redis`: Redis command, for example `-x 'INFO server'`
 
 Example:
@@ -139,6 +141,24 @@ brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
 ```
 
 Once authentication succeeds, a post-auth command error is reported separately and the verified credential is still saved to the current workspace.
+
+## Oracle
+
+`oracle` requires exactly one database identifier; `TARGET` must be a hostname/IP and its default port is `1521` (override with `--port`).
+
+- `--service-name <SERVICE_NAME>` uses Oracle Easy Connect: `//host:port/service_name`.
+- `--sid <SID>` uses a full Oracle Net connect descriptor.
+
+```bash
+brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'
+brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
+```
+
+`-x` executes a SQL query after authentication and previews up to 10 result rows as `COLUMN=VALUE`. Trailing whitespace and one or more client-side semicolons are removed before the query is sent to Oracle. The query uses `--timeout-ms`; query failures and timeouts are reported separately and do not discard a verified credential.
+
+The Oracle module uses the pure Rust `oracle-rs` Thin driver. It requires no Oracle Client, OCI, ODPI-C, or Oracle shared library at build or runtime. The repository uses the `cyhfvg/oracle-rs` fork, which includes the Oracle 18c completion-message decoding fix.
+
+Oracle Database 12c Release 1 (12.1) or later is supported. Pre-12c servers such as Oracle 11g are detected and reported as unsupported protocol versions instead of being misreported as authentication failures.
 
 ## Output
 
@@ -259,6 +279,7 @@ src/
     ftp.rs
     mysql.rs
     postgresql.rs
+    oracle.rs
     redis.rs
     tomcat.rs
     stub.rs         # reserved protocol placeholder
