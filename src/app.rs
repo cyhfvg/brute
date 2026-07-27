@@ -16,9 +16,7 @@ use tokio::sync::{Mutex, Semaphore};
 use crate::cli::{
     Cli, Command, CredsAction, CredsArgs, Protocol, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
 };
-use crate::credentials::{
-    LoadedCredentials, load_credentials, load_service_names, load_sids,
-};
+use crate::credentials::{LoadedCredentials, load_credentials, load_service_names, load_sids};
 use crate::database::{CredentialDatabase, SavedCredential};
 use crate::output::Console;
 use crate::protocol::{
@@ -419,9 +417,7 @@ fn build_module(args: &ProtocolArgs) -> Arc<dyn BruteModule> {
         ProtocolArgs::Postgresql(args) => Arc::new(PostgreSqlModule::new(args.common.timeout_ms)),
         ProtocolArgs::Redis(args) => Arc::new(RedisModule::new(args.common.timeout_ms)),
         ProtocolArgs::Tomcat(args) => Arc::new(TomcatManagerModule::new(args.common.timeout_ms)),
-        ProtocolArgs::Oracle(args) => {
-            Arc::new(OracleModule::new(args.execute.common.timeout_ms))
-        }
+        ProtocolArgs::Oracle(args) => Arc::new(OracleModule::new(args.execute.common.timeout_ms)),
         ProtocolArgs::Smb(common)
         | ProtocolArgs::Rdp(common)
         | ProtocolArgs::Winrm(common)
