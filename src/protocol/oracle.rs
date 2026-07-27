@@ -9,11 +9,11 @@ use tokio::time::timeout;
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 
 /// Oracle database module configuration.
-#[derive(Debug, Clone)]
-pub struct OracleModule {
-    service_name: Option<String>,
-    sid: Option<String>,
-}
+///
+/// Service Names and SIDs are supplied per attempt via [`AttemptContext::credential`]
+/// so the scheduler can enumerate `identifier × user × password` combinations.
+#[derive(Debug, Clone, Default)]
+pub struct OracleModule;
 
 impl OracleModule {
     /// Creates an Oracle database module.
@@ -21,14 +21,19 @@ impl OracleModule {
     /// # Parameters
     ///
     /// - `_timeout_ms`: Timeout for one attempt. The caller enforces the effective timeout.
-    /// - `service_name`: Optional Oracle Service Name for Easy Connect syntax.
-    /// - `sid`: Optional Oracle SID for a full Oracle Net connect descriptor.
     ///
     /// # Returns
     ///
-    /// A stateless [`OracleModule`] instance.
-    pub fn new(_timeout_ms: u64, service_name: Option<String>, sid: Option<String>) -> Self {
-        Self { service_name, sid }
+    /// A stateless [`OracleModule`] instance. Each attempt must carry exactly one of
+    /// `credential.service_name` or `credential.sid`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let module = OracleModule::new(5_000);
+    /// ```
+    pub fn new(_timeout_ms: u64) -> Self {
+        Self
     }
 }
 
@@ -52,11 +57,13 @@ impl BruteModule for OracleModule {
         let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
+        let service_name = ctx.credential.service_name.as_deref();
+        let sid = ctx.credential.sid.as_deref();
         let config = match oracle_config(
             &ctx.target_host,
             port,
-            self.service_name.as_deref(),
-            self.sid.as_deref(),
+            service_name,
+            sid,
             &username,
             &password,
             ctx.timeout(),

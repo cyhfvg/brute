@@ -34,12 +34,22 @@
 - `mysql`: 基于 `mysql`
 - `postgresql`: 基于 `tokio-postgres`
 - `redis`: 基于 `redis`
-- `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；支持 Oracle Database 11g R2 (11.2)+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 11g 兼容与 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
+- `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；两者均支持多值与字典文件，并与 `-u`/`-p` 做 `identifier × user × password` 笛卡尔展开；支持 Oracle Database 11g R2 (11.2)+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 11g 兼容与 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
 - `tomcat`: 基于 `reqwest` + Basic Auth
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`，其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+
+### 凭据展开
+
+`-u` / `-p` 支持内联多值与字典文件；路径存在且为文件时按行展开（去空行）。`oracle` 的 `--service-name` 与 `--sid` 使用同一规则（二者互斥）。展开后：
+
+- 无 Oracle 标识（非 Oracle 协议）：`usernames × passwords`
+- 有 Service Name：`service_names × usernames × passwords`
+- 有 SID：`sids × usernames × passwords`
+
+账号级成功跳过键为 `(host, service_name, sid, username)`，避免同一用户在不同 Service Name/SID 上被误跳过。目标级首次成功即停策略不变；多标识枚举需 `--continue-on-success`。
 
 ### 凭据数据库
 

@@ -102,7 +102,7 @@ pub enum ProtocolArgs {
     #[command(
         about = "own stuff using ORACLE",
         override_usage = "brute oracle <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'"
+        after_help = "Example:\n  brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'\n  brute oracle cloud.home.lab -u users.txt -p pass.txt --service-name services.txt\n  brute oracle cloud.home.lab -u users.txt -p pass.txt --sid sids.txt"
     )]
     Oracle(OracleArgs),
 
@@ -248,22 +248,31 @@ pub struct ExecuteArgs {
 pub struct OracleArgs {
     #[command(flatten)]
     pub execute: ExecuteArgs,
-    /// Oracle Service Name used in Easy Connect syntax.
+    /// Oracle Service Name(s) or file path(s) used in Easy Connect syntax.
+    ///
+    /// Multiple values and wordlist files are expanded with `-u`/`-p` as a full
+    /// cartesian product: `service-name × username × password`.
     #[arg(
         long,
         value_name = "SERVICE_NAME",
         required_unless_present = "sid",
-        conflicts_with = "sid"
+        conflicts_with = "sid",
+        num_args = 1..,
     )]
-    pub service_name: Option<String>,
-    /// Oracle SID used in a full Oracle Net connect descriptor.
+    pub service_name: Vec<String>,
+    /// Oracle SID(s) or file path(s) used in a full Oracle Net connect descriptor.
+    ///
+    /// Multiple values and wordlist files are expanded with `-u`/`-p` as a full
+    /// cartesian product: `sid × username × password`. Mutually exclusive with
+    /// `--service-name`.
     #[arg(
         long,
         value_name = "SID",
         required_unless_present = "service_name",
-        conflicts_with = "service_name"
+        conflicts_with = "service_name",
+        num_args = 1..,
     )]
-    pub sid: Option<String>,
+    pub sid: Vec<String>,
 }
 
 /// Options for Apache Tomcat Manager.
@@ -450,10 +459,35 @@ mod tests {
             panic!("expected oracle protocol arguments");
         };
         assert_eq!(args.execute.common.targets, ["db.internal"]);
-        assert_eq!(args.service_name.as_deref(), Some("ORCLPDB1"));
-        assert_eq!(args.sid, None);
+        assert_eq!(args.service_name, ["ORCLPDB1"]);
+        assert!(args.sid.is_empty());
         assert_eq!(args.execute.execute.as_deref(), Some("select * from dual"));
         assert_eq!(ProtocolArgs::Oracle(args).protocol(), Protocol::Oracle);
+    }
+
+    /// Verifies that multiple Oracle Service Names are accepted for enumeration.
+    #[test]
+    fn parses_multiple_oracle_service_names() {
+        let cli = Cli::try_parse_from([
+            "brute",
+            "oracle",
+            "db.internal",
+            "-u",
+            "system",
+            "-p",
+            "oracle",
+            "--service-name",
+            "XE",
+            "ORCL",
+            "services.txt",
+        ])
+        .expect("multiple oracle service names should parse");
+
+        let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+            panic!("expected oracle protocol arguments");
+        };
+        assert_eq!(args.service_name, ["XE", "ORCL", "services.txt"]);
+        assert!(args.sid.is_empty());
     }
 
     /// Verifies that Oracle SID arguments are accepted without a Service Name.
@@ -475,8 +509,33 @@ mod tests {
         let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
             panic!("expected oracle protocol arguments");
         };
-        assert_eq!(args.service_name, None);
-        assert_eq!(args.sid.as_deref(), Some("ORCL"));
+        assert!(args.service_name.is_empty());
+        assert_eq!(args.sid, ["ORCL"]);
+    }
+
+    /// Verifies that multiple Oracle SIDs are accepted for enumeration.
+    #[test]
+    fn parses_multiple_oracle_sids() {
+        let cli = Cli::try_parse_from([
+            "brute",
+            "oracle",
+            "db.internal",
+            "-u",
+            "system",
+            "-p",
+            "oracle",
+            "--sid",
+            "XE",
+            "ORCL",
+            "sids.txt",
+        ])
+        .expect("multiple oracle SIDs should parse");
+
+        let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+            panic!("expected oracle protocol arguments");
+        };
+        assert!(args.service_name.is_empty());
+        assert_eq!(args.sid, ["XE", "ORCL", "sids.txt"]);
     }
 
     /// Verifies that Oracle Service Name and SID cannot be supplied together.

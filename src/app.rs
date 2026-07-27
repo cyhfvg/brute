@@ -16,7 +16,7 @@ use tokio::sync::{Mutex, Semaphore};
 use crate::cli::{
     Cli, Command, CredsAction, CredsArgs, Protocol, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
 };
-use crate::credentials::{LoadedCredentials, load_credentials};
+use crate::credentials::{LoadedCredentials, load_credentials, load_service_names, load_sids};
 use crate::database::{CredentialDatabase, SavedCredential};
 use crate::output::Console;
 use crate::protocol::{
@@ -138,7 +138,12 @@ async fn run_protocol(
                     .get(&target_host)
                     .expect("target success flag missing")
                     .clone();
-                let account_key = account_success_key(&target_host, &credential.username);
+                let account_key = account_success_key(
+                    &target_host,
+                    &credential.service_name,
+                    &credential.sid,
+                    &credential.username,
+                );
 
                 if should_skip_attempt(
                     target.continue_on_success,
@@ -194,8 +199,42 @@ async fn run_protocol(
     Ok(())
 }
 
-fn account_success_key(target_host: &str, username: &Option<String>) -> String {
-    format!("{}\0{}", target_host, username.as_deref().unwrap_or(""))
+/// Builds a stable key used to skip further passwords for an already-successful account.
+///
+/// # Parameters
+///
+/// - `target_host`: Target host for the attempt.
+/// - `service_name`: Optional Oracle Service Name (other protocols pass `None`).
+/// - `sid`: Optional Oracle SID (other protocols pass `None`).
+/// - `username`: Optional username for the attempt.
+///
+/// # Returns
+///
+/// A delimiter-separated key unique to `(host, service_name, sid, username)`.
+///
+/// # Examples
+///
+/// ```ignore
+/// let key = account_success_key(
+///     "db",
+///     &None,
+///     &Some("ORCL".into()),
+///     &Some("APPUSER".into()),
+/// );
+/// ```
+fn account_success_key(
+    target_host: &str,
+    service_name: &Option<String>,
+    sid: &Option<String>,
+    username: &Option<String>,
+) -> String {
+    format!(
+        "{}\0{}\0{}\0{}",
+        target_host,
+        service_name.as_deref().unwrap_or(""),
+        sid.as_deref().unwrap_or(""),
+        username.as_deref().unwrap_or("")
+    )
 }
 
 fn should_skip_attempt(
@@ -259,22 +298,64 @@ fn run_creds(database: CredentialDatabase, args: CredsArgs) -> Result<()> {
 }
 
 /// Loads credentials from `-u/-p` or from the current workspace via `--id`.
+///
+/// For Oracle, also expands `--service-name` or `--sid` sources into the matching
+/// identifier list so the scheduler can build the full
+/// `identifier × user × password` cartesian product.
+///
+/// # Parameters
+///
+/// - `database`: Open credential database used when `--id` is set.
+/// - `args`: Selected protocol arguments.
+///
+/// # Returns
+///
+/// Loaded credential sources ready for [`LoadedCredentials::expand`].
+///
+/// # Errors
+///
+/// Returns an error when wordlist files cannot be read, when a saved credential id is missing,
+/// or when Oracle identifier mode yields an empty list after expansion.
+///
+/// # Examples
+///
+/// ```ignore
+/// let credentials = load_protocol_credentials(&database, &protocol_args)?;
+/// let attempts = credentials.expand();
+/// ```
 fn load_protocol_credentials(
     database: &CredentialDatabase,
     args: &ProtocolArgs,
 ) -> Result<LoadedCredentials> {
     let common = args.common();
-    let Some(id) = common.credential_id else {
-        return load_credentials(common);
+    let mut loaded = if let Some(id) = common.credential_id {
+        let workspace = database.current_workspace()?;
+        let saved = database.get_credential(id, &workspace)?;
+        LoadedCredentials {
+            usernames: vec![saved.username.unwrap_or_default()],
+            passwords: vec![saved.password.unwrap_or_default()],
+            service_names: Vec::new(),
+            sids: Vec::new(),
+        }
+    } else {
+        load_credentials(common)?
     };
 
-    let workspace = database.current_workspace()?;
-    let saved = database.get_credential(id, &workspace)?;
+    if let ProtocolArgs::Oracle(oracle_args) = args {
+        if !oracle_args.service_name.is_empty() {
+            loaded.service_names = load_service_names(&oracle_args.service_name)?;
+            if loaded.service_names.is_empty() {
+                bail!("no Oracle Service Name values were generated from --service-name");
+            }
+        } else if !oracle_args.sid.is_empty() {
+            loaded.sids = load_sids(&oracle_args.sid)?;
+            if loaded.sids.is_empty() {
+                bail!("no Oracle SID values were generated from --sid");
+            }
+        }
+    }
 
-    Ok(LoadedCredentials {
-        usernames: vec![saved.username.unwrap_or_default()],
-        passwords: vec![saved.password.unwrap_or_default()],
-    })
+    Ok(loaded)
 }
 
 /// Saves a successful credential to SQLite.
@@ -336,11 +417,7 @@ fn build_module(args: &ProtocolArgs) -> Arc<dyn BruteModule> {
         ProtocolArgs::Postgresql(args) => Arc::new(PostgreSqlModule::new(args.common.timeout_ms)),
         ProtocolArgs::Redis(args) => Arc::new(RedisModule::new(args.common.timeout_ms)),
         ProtocolArgs::Tomcat(args) => Arc::new(TomcatManagerModule::new(args.common.timeout_ms)),
-        ProtocolArgs::Oracle(args) => Arc::new(OracleModule::new(
-            args.execute.common.timeout_ms,
-            args.service_name.clone(),
-            args.sid.clone(),
-        )),
+        ProtocolArgs::Oracle(args) => Arc::new(OracleModule::new(args.execute.common.timeout_ms)),
         ProtocolArgs::Smb(common)
         | ProtocolArgs::Rdp(common)
         | ProtocolArgs::Winrm(common)
