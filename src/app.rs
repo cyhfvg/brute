@@ -16,7 +16,9 @@ use tokio::sync::{Mutex, Semaphore};
 use crate::cli::{
     Cli, Command, CredsAction, CredsArgs, Protocol, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
 };
-use crate::credentials::{LoadedCredentials, load_credentials, load_service_names};
+use crate::credentials::{
+    LoadedCredentials, load_credentials, load_service_names, load_sids,
+};
 use crate::database::{CredentialDatabase, SavedCredential};
 use crate::output::Console;
 use crate::protocol::{
@@ -141,6 +143,7 @@ async fn run_protocol(
                 let account_key = account_success_key(
                     &target_host,
                     &credential.service_name,
+                    &credential.sid,
                     &credential.username,
                 );
 
@@ -204,26 +207,34 @@ async fn run_protocol(
 ///
 /// - `target_host`: Target host for the attempt.
 /// - `service_name`: Optional Oracle Service Name (other protocols pass `None`).
+/// - `sid`: Optional Oracle SID (other protocols pass `None`).
 /// - `username`: Optional username for the attempt.
 ///
 /// # Returns
 ///
-/// A delimiter-separated key unique to `(host, service_name, username)`.
+/// A delimiter-separated key unique to `(host, service_name, sid, username)`.
 ///
 /// # Examples
 ///
 /// ```ignore
-/// let key = account_success_key("db", &Some("XE".into()), &Some("APPUSER".into()));
+/// let key = account_success_key(
+///     "db",
+///     &None,
+///     &Some("ORCL".into()),
+///     &Some("APPUSER".into()),
+/// );
 /// ```
 fn account_success_key(
     target_host: &str,
     service_name: &Option<String>,
+    sid: &Option<String>,
     username: &Option<String>,
 ) -> String {
     format!(
-        "{}\0{}\0{}",
+        "{}\0{}\0{}\0{}",
         target_host,
         service_name.as_deref().unwrap_or(""),
+        sid.as_deref().unwrap_or(""),
         username.as_deref().unwrap_or("")
     )
 }
@@ -290,9 +301,9 @@ fn run_creds(database: CredentialDatabase, args: CredsArgs) -> Result<()> {
 
 /// Loads credentials from `-u/-p` or from the current workspace via `--id`.
 ///
-/// For Oracle Service Name mode, also expands `--service-name` sources into
-/// `LoadedCredentials::service_names` so the scheduler can build the full
-/// `service × user × password` cartesian product.
+/// For Oracle, also expands `--service-name` or `--sid` sources into the matching
+/// identifier list so the scheduler can build the full
+/// `identifier × user × password` cartesian product.
 ///
 /// # Parameters
 ///
@@ -306,7 +317,7 @@ fn run_creds(database: CredentialDatabase, args: CredsArgs) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error when wordlist files cannot be read, when a saved credential id is missing,
-/// or when Oracle Service Name mode yields an empty service list after expansion.
+/// or when Oracle identifier mode yields an empty list after expansion.
 ///
 /// # Examples
 ///
@@ -326,17 +337,23 @@ fn load_protocol_credentials(
             usernames: vec![saved.username.unwrap_or_default()],
             passwords: vec![saved.password.unwrap_or_default()],
             service_names: Vec::new(),
+            sids: Vec::new(),
         }
     } else {
         load_credentials(common)?
     };
 
-    if let ProtocolArgs::Oracle(oracle_args) = args
-        && !oracle_args.service_name.is_empty()
-    {
-        loaded.service_names = load_service_names(&oracle_args.service_name)?;
-        if loaded.service_names.is_empty() {
-            bail!("no Oracle Service Name values were generated from --service-name");
+    if let ProtocolArgs::Oracle(oracle_args) = args {
+        if !oracle_args.service_name.is_empty() {
+            loaded.service_names = load_service_names(&oracle_args.service_name)?;
+            if loaded.service_names.is_empty() {
+                bail!("no Oracle Service Name values were generated from --service-name");
+            }
+        } else if !oracle_args.sid.is_empty() {
+            loaded.sids = load_sids(&oracle_args.sid)?;
+            if loaded.sids.is_empty() {
+                bail!("no Oracle SID values were generated from --sid");
+            }
         }
     }
 
@@ -402,10 +419,9 @@ fn build_module(args: &ProtocolArgs) -> Arc<dyn BruteModule> {
         ProtocolArgs::Postgresql(args) => Arc::new(PostgreSqlModule::new(args.common.timeout_ms)),
         ProtocolArgs::Redis(args) => Arc::new(RedisModule::new(args.common.timeout_ms)),
         ProtocolArgs::Tomcat(args) => Arc::new(TomcatManagerModule::new(args.common.timeout_ms)),
-        ProtocolArgs::Oracle(args) => Arc::new(OracleModule::new(
-            args.execute.common.timeout_ms,
-            args.sid.clone(),
-        )),
+        ProtocolArgs::Oracle(args) => {
+            Arc::new(OracleModule::new(args.execute.common.timeout_ms))
+        }
         ProtocolArgs::Smb(common)
         | ProtocolArgs::Rdp(common)
         | ProtocolArgs::Winrm(common)

@@ -10,13 +10,10 @@ use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 
 /// Oracle database module configuration.
 ///
-/// Service Names are supplied per attempt via [`AttemptContext::credential`] so the
-/// scheduler can enumerate `service × user × password` combinations. SID mode keeps a
-/// fixed SID on the module because SID dictionary enumeration is not supported yet.
-#[derive(Debug, Clone)]
-pub struct OracleModule {
-    sid: Option<String>,
-}
+/// Service Names and SIDs are supplied per attempt via [`AttemptContext::credential`]
+/// so the scheduler can enumerate `identifier × user × password` combinations.
+#[derive(Debug, Clone, Default)]
+pub struct OracleModule;
 
 impl OracleModule {
     /// Creates an Oracle database module.
@@ -24,21 +21,19 @@ impl OracleModule {
     /// # Parameters
     ///
     /// - `_timeout_ms`: Timeout for one attempt. The caller enforces the effective timeout.
-    /// - `sid`: Optional Oracle SID for a full Oracle Net connect descriptor. When `None`,
-    ///   each attempt must provide a Service Name on the credential set.
     ///
     /// # Returns
     ///
-    /// A stateless [`OracleModule`] instance.
+    /// A stateless [`OracleModule`] instance. Each attempt must carry exactly one of
+    /// `credential.service_name` or `credential.sid`.
     ///
     /// # Examples
     ///
     /// ```ignore
-    /// let module = OracleModule::new(5_000, None); // Service Name mode
-    /// let sid_module = OracleModule::new(5_000, Some("ORCL".into()));
+    /// let module = OracleModule::new(5_000);
     /// ```
-    pub fn new(_timeout_ms: u64, sid: Option<String>) -> Self {
-        Self { sid }
+    pub fn new(_timeout_ms: u64) -> Self {
+        Self
     }
 }
 
@@ -63,11 +58,12 @@ impl BruteModule for OracleModule {
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
         let service_name = ctx.credential.service_name.as_deref();
+        let sid = ctx.credential.sid.as_deref();
         let config = match oracle_config(
             &ctx.target_host,
             port,
             service_name,
-            self.sid.as_deref(),
+            sid,
             &username,
             &password,
             ctx.timeout(),

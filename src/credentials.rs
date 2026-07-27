@@ -8,15 +8,17 @@ use crate::cli::CommonArgs;
 
 /// One login attempt combination to test.
 ///
-/// For most protocols this is a username/password pair. Oracle Service Name
-/// enumeration may also attach an optional `service_name` so the scheduler can
-/// expand `service × user × password` combinations.
+/// For most protocols this is a username/password pair. Oracle Service Name or
+/// SID enumeration may also attach an optional database identifier so the
+/// scheduler can expand `identifier × user × password` combinations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CredentialSet {
     pub username: Option<String>,
     pub password: Option<String>,
-    /// Oracle Service Name for this attempt; `None` for non-Oracle protocols or SID mode.
+    /// Oracle Service Name for this attempt; `None` when unused.
     pub service_name: Option<String>,
+    /// Oracle SID for this attempt; `None` when unused.
+    pub sid: Option<String>,
 }
 
 impl CredentialSet {
@@ -24,7 +26,9 @@ impl CredentialSet {
     ///
     /// # Returns
     ///
-    /// `user:pass` for ordinary credentials, or `service/user:pass` when a Service Name is set.
+    /// - Ordinary credentials: `user:pass`
+    /// - Service Name mode: `service/user:pass`
+    /// - SID mode: `sid:SID/user:pass`
     ///
     /// # Examples
     ///
@@ -32,9 +36,10 @@ impl CredentialSet {
     /// let set = CredentialSet {
     ///     username: Some("APPUSER".into()),
     ///     password: Some("secret".into()),
-    ///     service_name: Some("XE".into()),
+    ///     service_name: None,
+    ///     sid: Some("ORCL".into()),
     /// };
-    /// assert_eq!(set.display(), "XE/APPUSER:secret");
+    /// assert_eq!(set.display(), "sid:ORCL/APPUSER:secret");
     /// ```
     pub fn display(&self) -> String {
         let user_pass = match (&self.username, &self.password) {
@@ -44,20 +49,31 @@ impl CredentialSet {
             (None, None) => "<empty>:<empty>".to_string(),
         };
 
-        match &self.service_name {
-            Some(service) if !service.is_empty() => format!("{service}/{user_pass}"),
-            _ => user_pass,
+        if let Some(service) = &self.service_name
+            && !service.is_empty()
+        {
+            return format!("{service}/{user_pass}");
         }
+
+        if let Some(sid) = &self.sid
+            && !sid.is_empty()
+        {
+            return format!("sid:{sid}/{user_pass}");
+        }
+
+        user_pass
     }
 }
 
-/// Loaded username, password, and optional Oracle Service Name sources.
+/// Loaded username, password, and optional Oracle identifier sources.
 #[derive(Debug, Clone)]
 pub struct LoadedCredentials {
     pub usernames: Vec<String>,
     pub passwords: Vec<String>,
-    /// Empty when Service Name is not part of the attempt space (all non-Oracle modules, Oracle SID mode).
+    /// Empty when Service Name is not part of the attempt space.
     pub service_names: Vec<String>,
+    /// Empty when SID is not part of the attempt space.
+    pub sids: Vec<String>,
 }
 
 impl LoadedCredentials {
@@ -65,11 +81,12 @@ impl LoadedCredentials {
     ///
     /// # Returns
     ///
-    /// When `service_names` is empty, expands `usernames × passwords` and leaves
-    /// `CredentialSet::service_name` as `None`. When non-empty, expands
-    /// `service_names × usernames × passwords`.
+    /// - When both `service_names` and `sids` are empty: `usernames × passwords`
+    /// - When `service_names` is non-empty: `service_names × usernames × passwords`
+    /// - When `sids` is non-empty: `sids × usernames × passwords`
     ///
-    /// Empty username or password strings become `None` on the resulting set.
+    /// Callers must not populate both `service_names` and `sids` at once (CLI enforces
+    /// mutual exclusion). Empty username or password strings become `None` on the set.
     ///
     /// # Examples
     ///
@@ -77,30 +94,49 @@ impl LoadedCredentials {
     /// let loaded = LoadedCredentials {
     ///     usernames: vec!["a".into()],
     ///     passwords: vec!["1".into(), "2".into()],
-    ///     service_names: vec!["XE".into(), "ORCL".into()],
+    ///     service_names: Vec::new(),
+    ///     sids: vec!["XE".into(), "ORCL".into()],
     /// };
     /// assert_eq!(loaded.expand().len(), 4);
     /// ```
     pub fn expand(&self) -> Vec<CredentialSet> {
-        let service_layer: Vec<Option<String>> = if self.service_names.is_empty() {
-            vec![None]
-        } else {
+        debug_assert!(
+            self.service_names.is_empty() || self.sids.is_empty(),
+            "service_names and sids must not both be non-empty"
+        );
+
+        enum Identifier {
+            None,
+            Service(String),
+            Sid(String),
+        }
+
+        let identifiers: Vec<Identifier> = if !self.service_names.is_empty() {
             self.service_names
                 .iter()
                 .cloned()
-                .map(Some)
+                .map(Identifier::Service)
                 .collect()
+        } else if !self.sids.is_empty() {
+            self.sids.iter().cloned().map(Identifier::Sid).collect()
+        } else {
+            vec![Identifier::None]
         };
 
-        let capacity = service_layer
+        let capacity = identifiers
             .len()
             .saturating_mul(self.usernames.len())
             .saturating_mul(self.passwords.len());
         let mut combinations = Vec::with_capacity(capacity);
 
-        for service_name in &service_layer {
+        for identifier in &identifiers {
             for username in &self.usernames {
                 for password in &self.passwords {
+                    let (service_name, sid) = match identifier {
+                        Identifier::None => (None, None),
+                        Identifier::Service(service) => (Some(service.clone()), None),
+                        Identifier::Sid(sid) => (None, Some(sid.clone())),
+                    };
                     combinations.push(CredentialSet {
                         username: if username.is_empty() {
                             None
@@ -112,7 +148,8 @@ impl LoadedCredentials {
                         } else {
                             Some(password.clone())
                         },
-                        service_name: service_name.clone(),
+                        service_name,
+                        sid,
                     });
                 }
             }
@@ -130,7 +167,7 @@ impl LoadedCredentials {
 ///
 /// # Returns
 ///
-/// A [`LoadedCredentials`] value with empty `service_names` (caller may fill Oracle services later).
+/// A [`LoadedCredentials`] value with empty Oracle identifier lists (caller may fill later).
 ///
 /// # Errors
 ///
@@ -150,6 +187,7 @@ pub fn load_credentials(args: &CommonArgs) -> Result<LoadedCredentials> {
         usernames,
         passwords,
         service_names: Vec::new(),
+        sids: Vec::new(),
     })
 }
 
@@ -176,12 +214,35 @@ pub fn load_service_names(entries: &[String]) -> Result<Vec<String>> {
     expand_sources(entries, "service-name")
 }
 
+/// Loads Oracle SID values from inline values and file paths.
+///
+/// # Parameters
+///
+/// - `entries`: CLI `--sid` arguments (literals and/or wordlist paths).
+///
+/// # Returns
+///
+/// Expanded SID strings with empty lines removed.
+///
+/// # Errors
+///
+/// Returns an error when a listed file path cannot be read.
+///
+/// # Examples
+///
+/// ```ignore
+/// let sids = load_sids(&["ORCL".into(), "sids.txt".into()])?;
+/// ```
+pub fn load_sids(entries: &[String]) -> Result<Vec<String>> {
+    expand_sources(entries, "sid")
+}
+
 /// Expands a source list by treating existing paths as line-based wordlists.
 ///
 /// # Parameters
 ///
 /// - `entries`: Inline values and/or filesystem paths.
-/// - `kind`: Human-readable label used in I/O error messages (`username`, `password`, `service-name`).
+/// - `kind`: Human-readable label used in I/O error messages (`username`, `password`, `service-name`, `sid`).
 ///
 /// # Returns
 ///
@@ -227,39 +288,49 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
+    fn empty_identifiers() -> (Vec<String>, Vec<String>) {
+        (Vec::new(), Vec::new())
+    }
+
     #[test]
-    /// Verifies username × password expansion when Service Names are absent.
-    fn expands_two_dimensional_credentials_without_service_names() {
+    /// Verifies username × password expansion when Oracle identifiers are absent.
+    fn expands_two_dimensional_credentials_without_identifiers() {
+        let (service_names, sids) = empty_identifiers();
         let loaded = LoadedCredentials {
             usernames: vec!["a".to_string(), "b".to_string()],
             passwords: vec!["1".to_string(), "2".to_string()],
-            service_names: Vec::new(),
+            service_names,
+            sids,
         };
 
         let expanded = loaded.expand();
         assert_eq!(expanded.len(), 4);
         assert!(expanded.iter().all(|set| set.service_name.is_none()));
+        assert!(expanded.iter().all(|set| set.sid.is_none()));
         assert_eq!(
             expanded[0],
             CredentialSet {
                 username: Some("a".to_string()),
                 password: Some("1".to_string()),
                 service_name: None,
+                sid: None,
             }
         );
     }
 
     #[test]
     /// Verifies full service × user × password cartesian expansion.
-    fn expands_three_dimensional_oracle_combinations() {
+    fn expands_three_dimensional_service_name_combinations() {
         let loaded = LoadedCredentials {
             usernames: vec!["APPUSER".to_string(), "SYSTEM".to_string()],
             passwords: vec!["p1".to_string(), "p2".to_string()],
             service_names: vec!["XE".to_string(), "ORCL".to_string()],
+            sids: Vec::new(),
         };
 
         let expanded = loaded.expand();
         assert_eq!(expanded.len(), 8);
+        assert!(expanded.iter().all(|set| set.sid.is_none()));
         assert_eq!(
             expanded
                 .iter()
@@ -275,21 +346,57 @@ mod tests {
     }
 
     #[test]
-    /// Verifies console display includes the Service Name prefix when present.
-    fn display_includes_service_name_prefix() {
+    /// Verifies full sid × user × password cartesian expansion.
+    fn expands_three_dimensional_sid_combinations() {
+        let loaded = LoadedCredentials {
+            usernames: vec!["APPUSER".to_string(), "SYSTEM".to_string()],
+            passwords: vec!["p1".to_string(), "p2".to_string()],
+            service_names: Vec::new(),
+            sids: vec!["XE".to_string(), "ORCL".to_string()],
+        };
+
+        let expanded = loaded.expand();
+        assert_eq!(expanded.len(), 8);
+        assert!(expanded.iter().all(|set| set.service_name.is_none()));
+        assert_eq!(
+            expanded
+                .iter()
+                .filter(|set| set.sid.as_deref() == Some("XE"))
+                .count(),
+            4
+        );
+        assert!(expanded.iter().any(|set| {
+            set.sid.as_deref() == Some("ORCL")
+                && set.username.as_deref() == Some("SYSTEM")
+                && set.password.as_deref() == Some("p2")
+        }));
+    }
+
+    #[test]
+    /// Verifies console display prefixes for Service Name and SID modes.
+    fn display_includes_oracle_identifier_prefix() {
         let with_service = CredentialSet {
             username: Some("APPUSER".to_string()),
             password: Some("secret".to_string()),
             service_name: Some("XE".to_string()),
+            sid: None,
         };
-        let without_service = CredentialSet {
+        let with_sid = CredentialSet {
             username: Some("APPUSER".to_string()),
             password: Some("secret".to_string()),
             service_name: None,
+            sid: Some("ORCL".to_string()),
+        };
+        let plain = CredentialSet {
+            username: Some("APPUSER".to_string()),
+            password: Some("secret".to_string()),
+            service_name: None,
+            sid: None,
         };
 
         assert_eq!(with_service.display(), "XE/APPUSER:secret");
-        assert_eq!(without_service.display(), "APPUSER:secret");
+        assert_eq!(with_sid.display(), "sid:ORCL/APPUSER:secret");
+        assert_eq!(plain.display(), "APPUSER:secret");
     }
 
     #[test]
@@ -300,18 +407,18 @@ mod tests {
             .expect("clock")
             .as_nanos();
         let path = std::env::temp_dir().join(format!(
-            "brute-service-wordlist-{}-{nanos}.txt",
+            "brute-sid-wordlist-{}-{nanos}.txt",
             std::process::id()
         ));
         fs::write(
             &path,
-            "XE\n\n  ORCL  \n# not filtered as comment for service lists\n",
+            "XE\n\n  ORCL  \n# not filtered as comment for sid lists\n",
         )
         .expect("write wordlist");
 
         let values = expand_sources(
             &["INLINE".to_string(), path.to_string_lossy().into_owned()],
-            "service-name",
+            "sid",
         );
         let _ = fs::remove_file(&path);
         let values = values.expect("expand");
@@ -322,7 +429,7 @@ mod tests {
                 "INLINE".to_string(),
                 "XE".to_string(),
                 "ORCL".to_string(),
-                "# not filtered as comment for service lists".to_string(),
+                "# not filtered as comment for sid lists".to_string(),
             ]
         );
     }

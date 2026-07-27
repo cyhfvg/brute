@@ -148,19 +148,22 @@ Once authentication succeeds, a post-auth command error is reported separately a
 `oracle` requires exactly one database identifier mode; `TARGET` must be a hostname/IP and its default port is `1521` (override with `--port`).
 
 - `--service-name <SERVICE_NAME...>` uses Oracle Easy Connect: `//host:port/service_name`. Accepts multiple Service Names and/or wordlist files (same rules as `-u`/`-p`).
-- `--sid <SID>` uses a full Oracle Net connect descriptor (single value).
+- `--sid <SID...>` uses a full Oracle Net connect descriptor. Accepts multiple SIDs and/or wordlist files. Mutually exclusive with `--service-name`.
 
-When Service Names are provided, brute expands the full cartesian product:
+When Service Names or SIDs are provided, brute expands the full cartesian product:
 
 ```text
 service-name × username × password
+# or
+sid × username × password
 ```
 
-That includes the cases where all three sources are files, or any two of them are files (or multi-value inline lists). Console output prefixes the credential with the Service Name as `SERVICE/user:pass`. Account-level skip keys also include the Service Name, so the same username can still be tried against other services. Default target-level stop-on-first-success still applies; use `--continue-on-success` when enumerating multiple services or accounts.
+That includes the cases where all three sources are files, or any two of them are files (or multi-value inline lists). Console output prefixes the credential as `SERVICE/user:pass` or `sid:SID/user:pass`. Account-level skip keys include the database identifier, so the same username can still be tried against other services or SIDs. Default target-level stop-on-first-success still applies; use `--continue-on-success` when enumerating multiple identifiers or accounts.
 
 ```bash
 brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'
 brute oracle cloud.home.lab -u users.txt -p pass.txt --service-name services.txt --port 11521 --continue-on-success
+brute oracle cloud.home.lab -u users.txt -p pass.txt --sid sids.txt --port 11521 --continue-on-success
 brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
 ```
 

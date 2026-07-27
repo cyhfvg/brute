@@ -145,19 +145,22 @@ brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
 `oracle` 必须且只能选择一种数据库标识模式；`TARGET` 应为主机名/IP，默认端口为 `1521`，可用 `--port` 覆盖。
 
 - `--service-name <SERVICE_NAME...>` 使用 Oracle Easy Connect：`//host:port/service_name`。支持多个 Service Name 和/或字典文件（规则与 `-u`/`-p` 相同）。
-- `--sid <SID>` 使用完整的 Oracle Net 连接描述符（单值）。
+- `--sid <SID...>` 使用完整的 Oracle Net 连接描述符。支持多个 SID 和/或字典文件；与 `--service-name` 互斥。
 
-提供 Service Name 时，会按笛卡尔积展开全部组合：
+提供 Service Name 或 SID 时，会按笛卡尔积展开全部组合：
 
 ```text
 service-name × username × password
+# 或
+sid × username × password
 ```
 
-这覆盖三者都是文件，或其中任意两维是文件/多值的情况。控制台输出会把 Service Name 前缀到凭据上，格式为 `SERVICE/user:pass`。账号级跳过键也包含 Service Name，因此同一用户名仍可在其他 service 上继续尝试。目标级“首次成功即停”默认行为不变；枚举多个 service 或账号时请加 `--continue-on-success`。
+这覆盖三者都是文件，或其中任意两维是文件/多值的情况。控制台输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。账号级跳过键包含数据库标识，因此同一用户名仍可在其他 service/SID 上继续尝试。目标级“首次成功即停”默认行为不变；枚举多个标识或账号时请加 `--continue-on-success`。
 
 ```bash
 brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'
 brute oracle cloud.home.lab -u users.txt -p pass.txt --service-name services.txt --port 11521 --continue-on-success
+brute oracle cloud.home.lab -u users.txt -p pass.txt --sid sids.txt --port 11521 --continue-on-success
 brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
 ```
 

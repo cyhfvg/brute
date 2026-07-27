@@ -412,6 +412,7 @@ mod tests {
             username: Some("admin".to_string()),
             password: Some("123456".to_string()),
             service_name: None,
+            sid: None,
         };
         database.save_success("audit", Protocol::Ssh, "192.168.5.5", 22, &credential)?;
 
@@ -449,6 +450,7 @@ mod tests {
             username: Some("admin@example.com".to_string()),
             password: Some("p@ss".to_string()),
             service_name: None,
+            sid: None,
         };
 
         assert_eq!(
