@@ -411,6 +411,7 @@ mod tests {
         let credential = CredentialSet {
             username: Some("admin".to_string()),
             password: Some("123456".to_string()),
+            service_name: None,
         };
         database.save_success("audit", Protocol::Ssh, "192.168.5.5", 22, &credential)?;
 
@@ -447,6 +448,7 @@ mod tests {
         let credential = CredentialSet {
             username: Some("admin@example.com".to_string()),
             password: Some("p@ss".to_string()),
+            service_name: None,
         };
 
         assert_eq!(

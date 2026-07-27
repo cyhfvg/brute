@@ -9,9 +9,12 @@ use tokio::time::timeout;
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 
 /// Oracle database module configuration.
+///
+/// Service Names are supplied per attempt via [`AttemptContext::credential`] so the
+/// scheduler can enumerate `service × user × password` combinations. SID mode keeps a
+/// fixed SID on the module because SID dictionary enumeration is not supported yet.
 #[derive(Debug, Clone)]
 pub struct OracleModule {
-    service_name: Option<String>,
     sid: Option<String>,
 }
 
@@ -21,14 +24,21 @@ impl OracleModule {
     /// # Parameters
     ///
     /// - `_timeout_ms`: Timeout for one attempt. The caller enforces the effective timeout.
-    /// - `service_name`: Optional Oracle Service Name for Easy Connect syntax.
-    /// - `sid`: Optional Oracle SID for a full Oracle Net connect descriptor.
+    /// - `sid`: Optional Oracle SID for a full Oracle Net connect descriptor. When `None`,
+    ///   each attempt must provide a Service Name on the credential set.
     ///
     /// # Returns
     ///
     /// A stateless [`OracleModule`] instance.
-    pub fn new(_timeout_ms: u64, service_name: Option<String>, sid: Option<String>) -> Self {
-        Self { service_name, sid }
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let module = OracleModule::new(5_000, None); // Service Name mode
+    /// let sid_module = OracleModule::new(5_000, Some("ORCL".into()));
+    /// ```
+    pub fn new(_timeout_ms: u64, sid: Option<String>) -> Self {
+        Self { sid }
     }
 }
 
@@ -52,10 +62,11 @@ impl BruteModule for OracleModule {
         let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
+        let service_name = ctx.credential.service_name.as_deref();
         let config = match oracle_config(
             &ctx.target_host,
             port,
-            self.service_name.as_deref(),
+            service_name,
             self.sid.as_deref(),
             &username,
             &password,

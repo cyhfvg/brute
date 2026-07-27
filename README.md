@@ -103,6 +103,7 @@ brute ftp 10.10.10.20 -u users.txt -p pass.txt -x 'PWD'
 brute mysql db.internal -u root -p weakpass --port 3306 -x 'show databases;'
 brute postgresql 172.16.1.50 -u pg_users.txt -p pg_pass.txt -x 'select version();'
 brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
+brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 ```
@@ -144,13 +145,22 @@ Once authentication succeeds, a post-auth command error is reported separately a
 
 ## Oracle
 
-`oracle` requires exactly one database identifier; `TARGET` must be a hostname/IP and its default port is `1521` (override with `--port`).
+`oracle` requires exactly one database identifier mode; `TARGET` must be a hostname/IP and its default port is `1521` (override with `--port`).
 
-- `--service-name <SERVICE_NAME>` uses Oracle Easy Connect: `//host:port/service_name`.
-- `--sid <SID>` uses a full Oracle Net connect descriptor.
+- `--service-name <SERVICE_NAME...>` uses Oracle Easy Connect: `//host:port/service_name`. Accepts multiple Service Names and/or wordlist files (same rules as `-u`/`-p`).
+- `--sid <SID>` uses a full Oracle Net connect descriptor (single value).
+
+When Service Names are provided, brute expands the full cartesian product:
+
+```text
+service-name × username × password
+```
+
+That includes the cases where all three sources are files, or any two of them are files (or multi-value inline lists). Console output prefixes the credential with the Service Name as `SERVICE/user:pass`. Account-level skip keys also include the Service Name, so the same username can still be tried against other services. Default target-level stop-on-first-success still applies; use `--continue-on-success` when enumerating multiple services or accounts.
 
 ```bash
 brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'
+brute oracle cloud.home.lab -u users.txt -p pass.txt --service-name services.txt --port 11521 --continue-on-success
 brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
 ```
 

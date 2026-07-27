@@ -102,6 +102,7 @@ brute ftp 10.10.10.20 -u users.txt -p pass.txt -x 'PWD'
 brute mysql db.internal -u root -p weakpass --port 3306 -x 'show databases;'
 brute postgresql 172.16.1.50 -u pg_users.txt -p pg_pass.txt -x 'select version();'
 brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
+brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 ```
@@ -141,13 +142,22 @@ brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
 
 ## Oracle
 
-`oracle` 必须且只能指定一个数据库标识；`TARGET` 应为主机名/IP，默认端口为 `1521`，可用 `--port` 覆盖。
+`oracle` 必须且只能选择一种数据库标识模式；`TARGET` 应为主机名/IP，默认端口为 `1521`，可用 `--port` 覆盖。
 
-- `--service-name <SERVICE_NAME>` 使用 Oracle Easy Connect：`//host:port/service_name`。
-- `--sid <SID>` 使用完整的 Oracle Net 连接描述符。
+- `--service-name <SERVICE_NAME...>` 使用 Oracle Easy Connect：`//host:port/service_name`。支持多个 Service Name 和/或字典文件（规则与 `-u`/`-p` 相同）。
+- `--sid <SID>` 使用完整的 Oracle Net 连接描述符（单值）。
+
+提供 Service Name 时，会按笛卡尔积展开全部组合：
+
+```text
+service-name × username × password
+```
+
+这覆盖三者都是文件，或其中任意两维是文件/多值的情况。控制台输出会把 Service Name 前缀到凭据上，格式为 `SERVICE/user:pass`。账号级跳过键也包含 Service Name，因此同一用户名仍可在其他 service 上继续尝试。目标级“首次成功即停”默认行为不变；枚举多个 service 或账号时请加 `--continue-on-success`。
 
 ```bash
 brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'
+brute oracle cloud.home.lab -u users.txt -p pass.txt --service-name services.txt --port 11521 --continue-on-success
 brute oracle db.internal -u system -p oracle --sid ORCL -x 'select * from dual'
 ```
 
