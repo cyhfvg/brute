@@ -23,10 +23,8 @@ impl StubModule {
 impl BruteModule for StubModule {
     fn name(&self) -> &'static str {
         match self.protocol {
-            Protocol::Smb => "smb",
             Protocol::Rdp => "rdp",
             Protocol::Winrm => "winrm",
-            Protocol::Oracle => "oracle",
             Protocol::Http => "http",
             Protocol::Vnc => "vnc",
             _ => "unknown",

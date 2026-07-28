@@ -175,6 +175,91 @@ fn scaffolded_protocol_reports_unimplemented_attempt() {
 }
 
 #[test]
+fn smb_help_exposes_shares_and_rejects_execute() {
+    let home = TempHome::new("smb-help");
+
+    let output = run_with_home(&home, ["smb", "--help"]);
+    assert_success(&output);
+    let help = stdout(&output);
+    assert!(
+        help.contains("--shares"),
+        "smb help should document --shares:\n{help}"
+    );
+    // clap option lines look like "      --execute" / "  -x, --execute"; prose may
+    // mention that -x is omitted, so only reject actual option definitions.
+    let defines_execute_option = help.lines().any(|line| {
+        let trimmed = line.trim_start();
+        trimmed.starts_with("-x,")
+            || trimmed.starts_with("--execute")
+            || trimmed.contains("-x, --execute")
+    });
+    assert!(
+        !defines_execute_option,
+        "smb help must not define -x/--execute as an option:\n{help}"
+    );
+
+    let rejected = run_with_home(
+        &home,
+        [
+            "smb",
+            "10.10.50.30",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "-x",
+            "whoami",
+        ],
+    );
+    assert!(!rejected.status.success(), "smb must reject -x/--execute");
+}
+
+#[test]
+fn smb_attempt_against_closed_port_is_not_unimplemented_stub() {
+    let home = TempHome::new("smb-closed-port");
+
+    // 127.0.0.1:1 is almost certainly closed; the shipped SMB module must
+    // report a transport/error outcome rather than the old scaffold stub.
+    let output = run_with_home(
+        &home,
+        [
+            "--no-color",
+            "smb",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "-u",
+            "admin",
+            "-p",
+            "not-a-real-password",
+            "--threads",
+            "1",
+            "--target-threads",
+            "1",
+            "--timeout-ms",
+            "500",
+            "--retries",
+            "0",
+        ],
+    );
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        !stdout.contains("scaffolded but not implemented"),
+        "smb must not use the unimplemented stub:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("admin:not-a-real-password"),
+        "expected credential columns in output:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[!]") || stdout.contains("[-]"),
+        "expected failure or error marker for closed port:\n{stdout}"
+    );
+}
+
+#[test]
 fn oracle_help_exposes_sql_query_execution() {
     let home = TempHome::new("oracle-help");
 

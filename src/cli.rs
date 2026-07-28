@@ -81,9 +81,9 @@ pub enum ProtocolArgs {
     #[command(
         about = "own stuff using SMB",
         override_usage = "brute smb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute smb 192.168.5.5 -u admin -p 123456"
+        after_help = "Example:\n  brute smb 192.168.5.5 -u admin -p 123456\n  brute smb 192.168.5.5 -u admin -p 123456 --shares"
     )]
-    Smb(CommonArgs),
+    Smb(SmbArgs),
 
     #[command(
         about = "own stuff using RDP",
@@ -131,7 +131,8 @@ impl ProtocolArgs {
             | Self::Postgresql(args)
             | Self::Redis(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
-            Self::Smb(args) | Self::Rdp(args) | Self::Winrm(args) | Self::Vnc(args) => args,
+            Self::Smb(args) => &args.common,
+            Self::Rdp(args) | Self::Winrm(args) | Self::Vnc(args) => args,
             Self::Tomcat(args) => &args.common,
             Self::Http(args) => &args.common,
         }
@@ -147,6 +148,8 @@ impl ProtocolArgs {
     }
 
     /// Returns the post-authentication command for protocols that support it.
+    ///
+    /// SMB does not support `-x` / `--execute`; use [`ProtocolArgs::shares`] instead.
     pub fn execute(&self) -> Option<&str> {
         match self {
             Self::Ssh(args)
@@ -157,6 +160,24 @@ impl ProtocolArgs {
             Self::Oracle(args) => args.execute.execute.as_deref(),
             _ => None,
         }
+    }
+
+    /// Returns whether SMB share enumeration was requested.
+    ///
+    /// Used by callers that need the flag without matching on [`ProtocolArgs::Smb`].
+    ///
+    /// # Returns
+    ///
+    /// `true` only for `brute smb ... --shares`; `false` for every other protocol.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let shares = protocol_args.shares();
+    /// ```
+    #[allow(dead_code)]
+    pub fn shares(&self) -> bool {
+        matches!(self, Self::Smb(args) if args.shares)
     }
 }
 
@@ -273,6 +294,19 @@ pub struct OracleArgs {
         num_args = 1..,
     )]
     pub sid: Vec<String>,
+}
+
+/// SMB-specific options: common credentials plus optional share enumeration.
+///
+/// SMB intentionally omits `-x` / `--execute`. After a successful login, use
+/// `--shares` to list share names and Access permissions.
+#[derive(Debug, Clone, Args)]
+pub struct SmbArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+    /// Enumerate shares and Access permissions after successful authentication.
+    #[arg(long)]
+    pub shares: bool,
 }
 
 /// Options for Apache Tomcat Manager.
@@ -556,5 +590,48 @@ mod tests {
         ]);
 
         assert!(result.is_err());
+    }
+
+    /// Verifies that SMB parses `--shares` and does not accept `-x` / `--execute`.
+    #[test]
+    fn parses_smb_shares_flag_and_rejects_execute() {
+        let cli = Cli::try_parse_from([
+            "brute",
+            "smb",
+            "10.10.50.30",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--port",
+            "445",
+            "--shares",
+        ])
+        .expect("smb --shares should parse");
+
+        let Command::Protocol(ProtocolArgs::Smb(args)) = cli.command else {
+            panic!("expected smb protocol arguments");
+        };
+        assert_eq!(args.common.targets, ["10.10.50.30"]);
+        assert_eq!(args.common.port, Some(445));
+        assert!(args.shares);
+        assert!(ProtocolArgs::Smb(args.clone()).shares());
+        assert_eq!(ProtocolArgs::Smb(args).execute(), None);
+
+        let with_execute = Cli::try_parse_from([
+            "brute",
+            "smb",
+            "10.10.50.30",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "-x",
+            "whoami",
+        ]);
+        assert!(
+            with_execute.is_err(),
+            "smb must not accept -x/--execute: {with_execute:?}"
+        );
     }
 }

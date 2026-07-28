@@ -5,6 +5,7 @@ pub mod mysql;
 pub mod oracle;
 pub mod postgresql;
 pub mod redis;
+pub mod smb;
 pub mod ssh;
 pub mod stub;
 pub mod tomcat;

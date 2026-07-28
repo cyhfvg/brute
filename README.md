@@ -35,10 +35,10 @@ Implemented modules:
 - `redis`
 - `oracle`
 - `tomcat-manager` alias: `tomcat`
+- `smb` (no `-x`; optional `--shares` for share/Access enumeration)
 
 Reserved but not implemented yet:
 
-- `smb`
 - `rdp`
 - `winrm`
 - `http`
@@ -96,16 +96,18 @@ brute <protocol> <target|target_file>... (-u <username|user_file>... -p <passwor
 Examples:
 
 ```bash
-brute ssh 192.168.1.10 -u root admin -p 123456 password --port 22
-brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
+brute ssh 192.168.10.5 -u root admin -p 123456 password --port 22
+brute ssh 192.168.10.5 -u admin -p 123456 -x 'id'
 brute ssh targets.txt -u users.txt -p pass.txt --threads 32
-brute ftp 10.10.10.20 -u users.txt -p pass.txt -x 'PWD'
+brute ftp 192.168.10.5 -u users.txt -p pass.txt -x 'PWD'
 brute mysql db.internal -u root -p weakpass --port 3306 -x 'show databases;'
-brute postgresql 172.16.1.50 -u pg_users.txt -p pg_pass.txt -x 'select version();'
+brute postgresql 192.168.10.5 -u pg_users.txt -p pg_pass.txt -x 'select version();'
 brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
-brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
+brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 ```
 
 ## Common Options
@@ -138,10 +140,22 @@ The following modules support post-auth command execution with `-x, --execute <C
 Example:
 
 ```bash
-brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
+brute ssh 192.168.10.5 -u admin -p 123456 -x 'id'
 ```
 
 Once authentication succeeds, a post-auth command error is reported separately and the verified credential is still saved to the current workspace.
+
+## SMB
+
+Optional post-auth share enumeration:
+
+```bash
+brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
+```
+
+With `--shares`, a successful login is followed by share names and Access permissions (`READ`, and `READ,WRITE` when a non-invasive write probe succeeds). Share enumeration failures are reported under the success path and do not discard a verified credential.
+
+Usernames may include `DOMAIN\user` or `user@domain` forms.
 
 ## Oracle
 
@@ -178,10 +192,10 @@ Oracle Database 11g Release 2 (11.2) or later is supported. Servers older than 1
 Output uses fixed NetExec-style columns:
 
 ```text
-SSH        192.168.5.5     22     [-] admin:123456
-SSH        192.168.5.5     22     [+] root:toor  Linux - Shell access!
-SSH        192.168.5.5     22     [+] Executed command
-SSH        192.168.5.5     22     uid=0(root) gid=0(root) groups=0(root)
+SSH        192.168.10.5     22     [-] admin:123456
+SSH        192.168.10.5     22     [+] root:toor  Linux - Shell access!
+SSH        192.168.10.5     22     [+] Executed command
+SSH        192.168.10.5     22     uid=0(root) gid=0(root) groups=0(root)
 ```
 
 Successful credential pairs are highlighted when color output is enabled.
@@ -235,8 +249,8 @@ Notes:
 brute creds list
 brute creds list --workspace project-a
 brute creds list --protocol ssh
-brute creds list --host 192.168.5.5
-brute creds list --protocol ssh --host 192.168.5.5
+brute creds list --host 192.168.10.5
+brute creds list --protocol ssh --host 192.168.10.5
 brute creds list --protocol ssh --conn-url
 ```
 
@@ -246,7 +260,7 @@ With `--conn-url`, output is reduced to only:
 
 ```text
 ID     PROTOCOL     CONN_URL
-1      ssh          ssh://admin:123456@192.168.5.5:22
+1      ssh          ssh://admin:123456@192.168.10.5:22
 ```
 
 This avoids repeating host, port, username, and password because they are already encoded in the URL.
@@ -256,7 +270,7 @@ This avoids repeating host, port, username, and password because they are alread
 Use `--id` to load a saved credential from the current workspace:
 
 ```bash
-brute ssh 192.168.1.10 --id 3
+brute ssh 192.168.10.5 --id 3
 ```
 
 `--id` does not enforce protocol matching. This is intentional so operators can test password reuse and credential spraying across protocols.
@@ -266,7 +280,7 @@ brute ssh 192.168.1.10 --id 3
 The `tomcat-manager` module is a dedicated HTTP Basic Auth module for Tomcat Manager. It supports `tomcat` as an alias.
 
 ```bash
-brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 ```
 
 Result handling:

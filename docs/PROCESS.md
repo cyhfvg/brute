@@ -11,6 +11,7 @@
 - `redis`
 - `oracle`
 - `tomcat manager`
+- `smb`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -36,10 +37,13 @@
 - `redis`: 基于 `redis`
 - `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；两者均支持多值与字典文件，并与 `-u`/`-p` 做 `identifier × user × password` 笛卡尔展开；支持 Oracle Database 11g R2 (11.2)+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 11g 兼容与 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
 - `tomcat`: 基于 `reqwest` + Basic Auth
+- `smb`: 基于纯 Rust 的 `smb2`（SMB2/3 + NTLM），默认端口 `445`；不提供 `-x`/`--execute`；可选 `--shares` 在认证成功后枚举 share 名称与 Access（tree-connect 为 READ，磁盘 share 可额外探测 WRITE）；share 枚举失败不回退为认证失败；目标探测在服务可达时输出简要就绪信息
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat`、`smb` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+
+`smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
 ### 凭据展开
 
@@ -82,7 +86,6 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 ### 已保留接口但未实现
 
-- `smb`
 - `rdp`
 - `winrm`
 - `http`
@@ -93,10 +96,11 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 1. 为已排队但尚未执行的 target 任务增加更强的主动取消控制
 2. 增加 JSON/NDJSON 输出模式，便于脚本接入
 3. 为 HTTP 模块做通用表单爆破与 Basic/Digest Auth 支持
-4. 为 SMB/WinRM/RDP 选择合适 Rust 库或封装外部安全测试组件
+4. 为 WinRM/RDP 选择合适 Rust 库或封装外部安全测试组件
+5. 增强 SMB 目标探测，在可解析时输出 `name:` / `domain:`（当前为服务可达性探测）
 
 ### 输出前缀
 
 控制台固定前缀仅显示协议、目标和端口；协议专属的探测信息使用独立输出行，避免不可靠或重复的通用主机名列。
 
-未来实现 SMB 时，目标级探测应枚举远端主机名与域名，并单独输出：SMB  192.168.5.5  445  [*] name:DESKTOP-APL87RT domain:LAB.LOCAL。
+SMB 目标级探测在服务响应时输出独立 `[*]` 行；后续可在解析 NTLM TargetInfo 后补充 `name:` / `domain:`。
