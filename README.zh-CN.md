@@ -34,10 +34,10 @@
 - `redis`
 - `oracle`
 - `tomcat-manager`，别名 `tomcat`
+- `smb`（无 `-x`；可选 `--shares` 枚举 share/Access）
 
 已预留但尚未实现：
 
-- `smb`
 - `rdp`
 - `winrm`
 - `http`
@@ -95,16 +95,18 @@ brute <protocol> <target|target_file>... (-u <username|user_file>... -p <passwor
 示例：
 
 ```bash
-brute ssh 192.168.1.10 -u root admin -p 123456 password --port 22
-brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
+brute ssh 192.168.10.5 -u root admin -p 123456 password --port 22
+brute ssh 192.168.10.5 -u admin -p 123456 -x 'id'
 brute ssh targets.txt -u users.txt -p pass.txt --threads 32
-brute ftp 10.10.10.20 -u users.txt -p pass.txt -x 'PWD'
+brute ftp 192.168.10.5 -u users.txt -p pass.txt -x 'PWD'
 brute mysql db.internal -u root -p weakpass --port 3306 -x 'show databases;'
-brute postgresql 172.16.1.50 -u pg_users.txt -p pg_pass.txt -x 'select version();'
+brute postgresql 192.168.10.5 -u pg_users.txt -p pg_pass.txt -x 'select version();'
 brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
-brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
+brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 ```
 
 ## 常用参数
@@ -137,8 +139,22 @@ brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/
 示例：
 
 ```bash
-brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'
+brute ssh 192.168.10.5 -u admin -p 123456 -x 'id'
 ```
+
+认证已成功但认证后命令执行失败时，工具会单独输出命令错误，并仍将已验证凭据保存到当前 workspace。
+
+## SMB
+
+可选登录后枚举 shares：
+
+```bash
+brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
+```
+
+启用 `--shares` 时，认证成功后会输出 share 名称与 Access（`READ`；磁盘 share 在非侵入写探测成功时为 `READ,WRITE`）。share 枚举失败单独报告，不会丢弃已验证凭据。
+
+用户名支持 `DOMAIN\user` 或 `user@domain` 形式。
 
 ## Oracle
 
@@ -170,17 +186,15 @@ Oracle 模块使用纯 Rust 的 `oracle-rs` Thin 驱动，构建和运行时均�
 
 支持 Oracle Database 11g Release 2 (11.2) 及更高版本。早于 11g R2 的服务端会被识别并明确报告不支持的协议版本，而不会误报为认证失败。
 
-认证已成功但认证后命令执行失败时，工具会单独输出命令错误，并仍将已验证凭据保存到当前 workspace。
-
 ## 输出风格
 
 输出采用固定列格式，风格接近 NetExec：
 
 ```text
-SSH        192.168.5.5     22     [-] admin:123456
-SSH        192.168.5.5     22     [+] root:toor  Linux - Shell access!
-SSH        192.168.5.5     22     [+] Executed command
-SSH        192.168.5.5     22     uid=0(root) gid=0(root) groups=0(root)
+SSH        192.168.10.5     22     [-] admin:123456
+SSH        192.168.10.5     22     [+] root:toor  Linux - Shell access!
+SSH        192.168.10.5     22     [+] Executed command
+SSH        192.168.10.5     22     uid=0(root) gid=0(root) groups=0(root)
 ```
 
 启用彩色输出时，成功凭据会高亮显示。
@@ -234,8 +248,8 @@ brute workspace list
 brute creds list
 brute creds list --workspace project-a
 brute creds list --protocol ssh
-brute creds list --host 192.168.5.5
-brute creds list --protocol ssh --host 192.168.5.5
+brute creds list --host 192.168.10.5
+brute creds list --protocol ssh --host 192.168.10.5
 brute creds list --protocol ssh --conn-url
 ```
 
@@ -245,7 +259,7 @@ brute creds list --protocol ssh --conn-url
 
 ```text
 ID     PROTOCOL     CONN_URL
-1      ssh          ssh://admin:123456@192.168.5.5:22
+1      ssh          ssh://admin:123456@192.168.10.5:22
 ```
 
 这样可以避免重复显示已经包含在 URL 中的 host、port、username、password。
@@ -255,7 +269,7 @@ ID     PROTOCOL     CONN_URL
 使用 `--id` 从当前 workspace 读取保存凭据：
 
 ```bash
-brute ssh 192.168.1.10 --id 3
+brute ssh 192.168.10.5 --id 3
 ```
 
 `--id` 不校验协议一致性，这是有意设计，便于进行跨协议密码复用验证和密码喷洒。
@@ -265,7 +279,7 @@ brute ssh 192.168.1.10 --id 3
 `tomcat-manager` 是针对 Tomcat Manager 的 HTTP Basic Auth 专项模块，支持 `tomcat` 别名。
 
 ```bash
-brute tomcat 192.168.10.1 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 ```
 
 判断逻辑：

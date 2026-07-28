@@ -22,7 +22,7 @@ use crate::output::Console;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, TargetContext, TargetProbe, ftp::FtpModule,
     mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, redis::RedisModule,
-    ssh::SshModule, tomcat::TomcatManagerModule,
+    smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule,
 };
 use crate::targets::load_targets;
 
@@ -418,13 +418,13 @@ fn build_module(args: &ProtocolArgs) -> Arc<dyn BruteModule> {
         ProtocolArgs::Redis(args) => Arc::new(RedisModule::new(args.common.timeout_ms)),
         ProtocolArgs::Tomcat(args) => Arc::new(TomcatManagerModule::new(args.common.timeout_ms)),
         ProtocolArgs::Oracle(args) => Arc::new(OracleModule::new(args.execute.common.timeout_ms)),
-        ProtocolArgs::Smb(common)
-        | ProtocolArgs::Rdp(common)
-        | ProtocolArgs::Winrm(common)
-        | ProtocolArgs::Vnc(common) => Arc::new(crate::protocol::stub::StubModule::new(
-            args.protocol(),
-            common.timeout_ms,
-        )),
+        ProtocolArgs::Smb(args) => Arc::new(SmbModule::new(args.common.timeout_ms, args.shares)),
+        ProtocolArgs::Rdp(common) | ProtocolArgs::Winrm(common) | ProtocolArgs::Vnc(common) => {
+            Arc::new(crate::protocol::stub::StubModule::new(
+                args.protocol(),
+                common.timeout_ms,
+            ))
+        }
         ProtocolArgs::Http(args) => Arc::new(crate::protocol::stub::StubModule::new(
             Protocol::Http,
             args.common.timeout_ms,

@@ -34,16 +34,30 @@ impl Console {
                 if let Some(post_auth_result) = &success.post_auth_result {
                     match post_auth_result {
                         PostAuthResult::Output(output) => {
-                            println!("{} {} Executed command", prefix, self.paint("[+]", "green"));
+                            // Command modules keep the NetExec-style execute banner; SMB
+                            // `--shares` and other non-execute post-auth details only print body lines.
+                            if ctx.execute.is_some() {
+                                println!(
+                                    "{} {} Executed command",
+                                    prefix,
+                                    self.paint("[+]", "green")
+                                );
+                            }
                             for line in output.lines() {
                                 println!("{} {}", prefix, line);
                             }
                         }
                         PostAuthResult::Failed(error) => {
+                            let label = if ctx.execute.is_some() {
+                                "Command execution failed"
+                            } else {
+                                "Post-auth operation failed"
+                            };
                             println!(
-                                "{} {} Command execution failed: {}",
+                                "{} {} {}: {}",
                                 prefix,
                                 self.paint("[!]", "yellow"),
+                                label,
                                 error
                             );
                         }

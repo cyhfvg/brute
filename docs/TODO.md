@@ -13,19 +13,18 @@
 - Oracle `--service-name` multi-value/wordlist enumeration with full `service × user × password` cartesian expansion, Service Name-aware console display and account skip keys.
 - Oracle `--sid` multi-value/wordlist enumeration with full `sid × user × password` cartesian expansion, SID-aware console display (`sid:SID/user:pass`) and account skip keys.
 
+## Completed Protocol Work
+
+- `smb`: pure-Rust `smb2` login/brute (default port 445); no `-x`/`--execute`; `--shares` enumerates
+  share names and Access after successful authentication. Share enum failure does not downgrade a
+  verified login. Target probe reports service readiness; optional `name:` / `domain:` enrichment
+  remains a follow-up when NTLM TargetInfo is parsed without credentials.
+
 ## Unsupported Protocols
 
 The following protocol modules are reserved in the CLI but not implemented yet:
 
-- `smb`
 - `rdp`
 - `winrm`
 - `http`
 - `vnc`
-
-## Planned SMB Target Probe
-
-- When implementing smb, add a target-level probe that enumerates the remote host name and
-  domain. Report the data on a dedicated probe line rather than restoring a shared hostname column:
-
-    SMB  192.168.5.5  445  [*] name:DESKTOP-APL87RT domain:LAB.LOCAL
