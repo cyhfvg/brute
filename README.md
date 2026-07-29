@@ -36,10 +36,10 @@ Implemented modules:
 - `oracle`
 - `tomcat-manager` alias: `tomcat`
 - `smb` (no `-x`; optional `--shares` for share/Access enumeration)
+- `rdp` (login/brute only, no `-x`)
 
 Reserved but not implemented yet:
 
-- `rdp`
 - `winrm`
 - `http`
 - `vnc`
@@ -108,6 +108,7 @@ brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
+brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
 ```
 
 ## Common Options
@@ -117,8 +118,7 @@ brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 - `-p, --password <PASSWORD...>`: Password values or files containing passwords. Use `-p ''` for an empty password.
 - `--id <ID>`: Load a saved credential from the current workspace. Mutually exclusive with `-u/-p`.
 - `--port <PORT>`: Override the protocol default port.
-- `--threads <N>`: Global concurrent attempt count. Default: `16`; must be at least `1`.
-- `--target-threads <N>`: Max concurrent attempts against one target. Default: `1`; must be at least `1`.
+- `--threads <N>`: Concurrent in-flight login attempts (global cap across targets and credentials). Default: `16`; must be at least `1`.
 - `--retries <N>`: Retry count for transient transport errors. Default: `3`.
 - `--timeout-ms <MS>`: Per-attempt timeout in milliseconds. Default: `5000`; must be at least `1`.
 - `--continue-on-success`: Continue attempts against a target after a successful credential is found.
@@ -156,6 +156,17 @@ brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 With `--shares`, a successful login is followed by share names and Access permissions (`READ`, and `READ,WRITE` when a non-invasive write probe succeeds). Share enumeration failures are reported under the success path and do not discard a verified credential.
 
 Usernames may include `DOMAIN\user` or `user@domain` forms.
+
+## RDP
+
+Login and dictionary brute only (no `-x` / `--execute`):
+
+```bash
+brute rdp 192.168.10.5 -u admin -p 'P@ssw0rd'
+brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389 --threads 16
+```
+
+Uses pure-Rust `rdp-rs` for NLA/CredSSP (NTLM). OpenSSL is vendored statically so release binaries do not depend on system `libssl`. Usernames may include `DOMAIN\user` or `user@domain`.
 
 ## Oracle
 

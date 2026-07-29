@@ -4,6 +4,7 @@ pub mod ftp;
 pub mod mysql;
 pub mod oracle;
 pub mod postgresql;
+pub mod rdp;
 pub mod redis;
 pub mod smb;
 pub mod ssh;

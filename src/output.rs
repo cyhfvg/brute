@@ -160,7 +160,6 @@ mod tests {
                 credential_id: None,
                 port: None,
                 threads: 16,
-                target_threads: 1,
                 retries: 3,
                 timeout_ms: 5_000,
                 continue_on_success: false,

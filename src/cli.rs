@@ -149,7 +149,7 @@ impl ProtocolArgs {
 
     /// Returns the post-authentication command for protocols that support it.
     ///
-    /// SMB does not support `-x` / `--execute`; use [`ProtocolArgs::shares`] instead.
+    /// SMB and RDP do not support `-x` / `--execute`; SMB uses [`ProtocolArgs::shares`] instead.
     pub fn execute(&self) -> Option<&str> {
         match self {
             Self::Ssh(args)
@@ -237,12 +237,9 @@ pub struct CommonArgs {
     /// Target service port override.
     #[arg(long)]
     pub port: Option<u16>,
-    /// Number of concurrent attempts.
+    /// Concurrent attempt cap (in-flight logins across all targets and credentials).
     #[arg(long, default_value_t = 16, value_parser = parse_positive_usize)]
     pub threads: usize,
-    /// Maximum concurrent attempts against the same target.
-    #[arg(long, default_value_t = 1, value_parser = parse_positive_usize)]
-    pub target_threads: usize,
     /// Retry count for transient transport failures.
     #[arg(long, default_value_t = 3)]
     pub retries: usize,
@@ -598,7 +595,7 @@ mod tests {
         let cli = Cli::try_parse_from([
             "brute",
             "smb",
-            "10.10.50.30",
+            "192.168.10.5",
             "-u",
             "admin",
             "-p",
@@ -612,7 +609,7 @@ mod tests {
         let Command::Protocol(ProtocolArgs::Smb(args)) = cli.command else {
             panic!("expected smb protocol arguments");
         };
-        assert_eq!(args.common.targets, ["10.10.50.30"]);
+        assert_eq!(args.common.targets, ["192.168.10.5"]);
         assert_eq!(args.common.port, Some(445));
         assert!(args.shares);
         assert!(ProtocolArgs::Smb(args.clone()).shares());
@@ -621,7 +618,7 @@ mod tests {
         let with_execute = Cli::try_parse_from([
             "brute",
             "smb",
-            "10.10.50.30",
+            "192.168.10.5",
             "-u",
             "admin",
             "-p",
@@ -632,6 +629,60 @@ mod tests {
         assert!(
             with_execute.is_err(),
             "smb must not accept -x/--execute: {with_execute:?}"
+        );
+    }
+
+    /// Verifies RDP accepts `--threads` and rejects removed `--target-threads` / `-x`.
+    #[test]
+    fn parses_rdp_threads_and_rejects_target_threads() {
+        let with_threads = Cli::try_parse_from([
+            "brute",
+            "rdp",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--threads",
+            "8",
+        ])
+        .expect("rdp --threads should parse");
+        let Command::Protocol(ProtocolArgs::Rdp(common)) = with_threads.command else {
+            panic!("expected rdp protocol arguments");
+        };
+        assert_eq!(common.threads, 8);
+        assert_eq!(ProtocolArgs::Rdp(common).execute(), None);
+
+        let with_target_threads = Cli::try_parse_from([
+            "brute",
+            "rdp",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--target-threads",
+            "4",
+        ]);
+        assert!(
+            with_target_threads.is_err(),
+            "rdp must not accept --target-threads: {with_target_threads:?}"
+        );
+
+        let with_execute = Cli::try_parse_from([
+            "brute",
+            "rdp",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "-x",
+            "whoami",
+        ]);
+        assert!(
+            with_execute.is_err(),
+            "rdp must not accept -x/--execute: {with_execute:?}"
         );
     }
 }
