@@ -161,8 +161,6 @@ fn scaffolded_protocol_reports_unimplemented_attempt() {
             "secret",
             "--threads",
             "1",
-            "--target-threads",
-            "1",
             "--timeout-ms",
             "1",
         ],
@@ -215,6 +213,154 @@ fn smb_help_exposes_shares_and_rejects_execute() {
 }
 
 #[test]
+fn rdp_help_documents_login_and_rejects_execute() {
+    let home = TempHome::new("rdp-help");
+
+    let output = run_with_home(&home, ["rdp", "--help"]);
+    assert_success(&output);
+    let help = stdout(&output);
+    assert!(
+        help.contains("RDP") || help.to_ascii_lowercase().contains("rdp"),
+        "rdp help should mention RDP:\n{help}"
+    );
+    assert!(
+        help.contains("--threads"),
+        "rdp help must document --threads:\n{help}"
+    );
+    assert!(
+        !help.contains("--target-threads"),
+        "rdp help must not list removed --target-threads:\n{help}"
+    );
+    // clap option lines look like "      --execute" / "  -x, --execute"; prose may
+    // mention that -x is omitted, so only reject actual option definitions.
+    let defines_execute_option = help.lines().any(|line| {
+        let trimmed = line.trim_start();
+        trimmed.starts_with("-x,")
+            || trimmed.starts_with("--execute")
+            || trimmed.contains("-x, --execute")
+    });
+    assert!(
+        !defines_execute_option,
+        "rdp help must not define -x/--execute as an option:\n{help}"
+    );
+
+    let rejected = run_with_home(
+        &home,
+        [
+            "rdp",
+            "10.10.50.10",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "-x",
+            "whoami",
+        ],
+    );
+    assert!(!rejected.status.success(), "rdp must reject -x/--execute");
+}
+
+#[test]
+fn rdp_accepts_threads_flag_and_rejects_target_threads() {
+    let home = TempHome::new("rdp-threads-parse");
+
+    // Closed port: prove the shipped CLI accepts --threads on the RDP path
+    // and reaches the real module (not a clap parse error / stub).
+    let output = run_with_home(
+        &home,
+        [
+            "--no-color",
+            "rdp",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "-u",
+            "admin",
+            "-p",
+            "not-a-real-password",
+            "--threads",
+            "4",
+            "--timeout-ms",
+            "500",
+            "--retries",
+            "0",
+        ],
+    );
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        !stdout.contains("scaffolded but not implemented"),
+        "rdp must not use the unimplemented stub:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("admin:not-a-real-password"),
+        "expected credential attempt output:\n{stdout}"
+    );
+
+    let rejected = run_with_home(
+        &home,
+        [
+            "rdp",
+            "127.0.0.1",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--target-threads",
+            "2",
+        ],
+    );
+    assert!(
+        !rejected.status.success(),
+        "rdp must reject removed --target-threads"
+    );
+}
+
+#[test]
+fn rdp_attempt_against_closed_port_is_not_unimplemented_stub() {
+    let home = TempHome::new("rdp-closed-port");
+
+    // 127.0.0.1:1 is almost certainly closed; the shipped RDP module must
+    // report a transport/error outcome rather than the old scaffold stub.
+    let output = run_with_home(
+        &home,
+        [
+            "--no-color",
+            "rdp",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "-u",
+            "admin",
+            "-p",
+            "not-a-real-password",
+            "--threads",
+            "1",
+            "--timeout-ms",
+            "500",
+            "--retries",
+            "0",
+        ],
+    );
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        !stdout.contains("scaffolded but not implemented"),
+        "rdp must not use the unimplemented stub:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("admin:not-a-real-password"),
+        "expected credential columns in output:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[!]") || stdout.contains("[-]"),
+        "expected failure or error marker for closed port:\n{stdout}"
+    );
+}
+
+#[test]
 fn smb_attempt_against_closed_port_is_not_unimplemented_stub() {
     let home = TempHome::new("smb-closed-port");
 
@@ -233,8 +379,6 @@ fn smb_attempt_against_closed_port_is_not_unimplemented_stub() {
             "-p",
             "not-a-real-password",
             "--threads",
-            "1",
-            "--target-threads",
             "1",
             "--timeout-ms",
             "500",

@@ -1,6 +1,6 @@
 [package]
 name = "brute"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 description = "A Rust-based multi-protocol credential testing and login verification CLI for authorized security assessments."
 license = "BSD-3-Clause"
@@ -15,6 +15,9 @@ mysql = { version = "26.0", default-features = false, features = [
     "minimal",
     "rustls-tls",
 ] }
+# Vendored OpenSSL so rdp-rs/native-tls does not require system libssl at runtime
+# (static single-file builds). IronRDP cannot resolve with smb2 (aes-gcm pin conflict).
+openssl = { version = "0.10", features = ["vendored"] }
 redis = { version = "0.32", default-features = false, features = [
     "tokio-comp",
 ] }
@@ -23,6 +26,7 @@ reqwest = { version = "0.12", default-features = false, features = [
     "http2",
 ] }
 oracle-rs = { git = "https://github.com/cyhfvg/oracle-rs" }
+rdp-rs = "0.1"
 russh = { version = "0.60", default-features = false, features = [
     "ring",
     "flate2",

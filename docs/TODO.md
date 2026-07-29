@@ -19,12 +19,16 @@
   share names and Access after successful authentication. Share enum failure does not downgrade a
   verified login. Target probe reports service readiness; optional `name:` / `domain:` enrichment
   remains a follow-up when NTLM TargetInfo is parsed without credentials.
+- `rdp`: pure-Rust `rdp-rs` NLA/CredSSP login/brute (default port 3389); no `-x`/`--execute`.
+  IronRDP could not be used: aes-gcm pin conflict with `smb2` (no vendor patch). OpenSSL is
+  vendored statically so release binaries do not require system `libssl`.
+- Scheduler concurrency: only `--threads` (removed `--target-threads` / per-host semaphore);
+  global `for_each_concurrent` is sufficient for concurrent RDP and other protocol sprays.
 
 ## Unsupported Protocols
 
 The following protocol modules are reserved in the CLI but not implemented yet:
 
-- `rdp`
 - `winrm`
 - `http`
 - `vnc`

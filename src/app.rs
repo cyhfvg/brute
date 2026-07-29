@@ -11,7 +11,7 @@ use std::{
 use anyhow::{Result, bail};
 use clap::Parser;
 use futures::{StreamExt, stream};
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::Mutex;
 
 use crate::cli::{
     Cli, Command, CredsAction, CredsArgs, Protocol, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
@@ -21,8 +21,8 @@ use crate::database::{CredentialDatabase, SavedCredential};
 use crate::output::Console;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, TargetContext, TargetProbe, ftp::FtpModule,
-    mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, redis::RedisModule,
-    smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule,
+    mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule,
+    redis::RedisModule, smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule,
 };
 use crate::targets::load_targets;
 
@@ -92,18 +92,6 @@ async fn run_protocol(
         return Ok(());
     }
 
-    let target_semaphores = Arc::new(
-        ready_targets
-            .iter()
-            .cloned()
-            .map(|target_host| {
-                (
-                    target_host,
-                    Arc::new(Semaphore::new(protocol_args.common().target_threads)),
-                )
-            })
-            .collect::<HashMap<_, _>>(),
-    );
     let target_success_flags = Arc::new(
         ready_targets
             .iter()
@@ -113,6 +101,9 @@ async fn run_protocol(
     );
     let account_successes = Arc::new(Mutex::new(HashSet::new()));
 
+    // Global concurrency only: --threads caps in-flight attempts across all targets
+    // and credentials. No per-host semaphore; dictionary sprays overlap freely under
+    // that global cap (including single-host RDP).
     stream::iter(credentials.into_iter().flat_map(|credential| {
         ready_targets
             .iter()
@@ -127,7 +118,6 @@ async fn run_protocol(
             let target = protocol_args.common().clone();
             let path = request_path.clone();
             let execute = request_execute.clone();
-            let target_semaphores = target_semaphores.clone();
             let target_success_flags = target_success_flags.clone();
             let account_successes = account_successes.clone();
             let database = database.clone();
@@ -144,23 +134,6 @@ async fn run_protocol(
                     &credential.sid,
                     &credential.username,
                 );
-
-                if should_skip_attempt(
-                    target.continue_on_success,
-                    &success_flag,
-                    account_successes.lock().await.contains(&account_key),
-                ) {
-                    return;
-                }
-
-                let target_semaphore = target_semaphores
-                    .get(&target_host)
-                    .expect("target semaphore missing")
-                    .clone();
-                let _target_permit = target_semaphore
-                    .acquire()
-                    .await
-                    .expect("semaphore poisoned");
 
                 if should_skip_attempt(
                     target.continue_on_success,
@@ -419,15 +392,64 @@ fn build_module(args: &ProtocolArgs) -> Arc<dyn BruteModule> {
         ProtocolArgs::Tomcat(args) => Arc::new(TomcatManagerModule::new(args.common.timeout_ms)),
         ProtocolArgs::Oracle(args) => Arc::new(OracleModule::new(args.execute.common.timeout_ms)),
         ProtocolArgs::Smb(args) => Arc::new(SmbModule::new(args.common.timeout_ms, args.shares)),
-        ProtocolArgs::Rdp(common) | ProtocolArgs::Winrm(common) | ProtocolArgs::Vnc(common) => {
-            Arc::new(crate::protocol::stub::StubModule::new(
-                args.protocol(),
-                common.timeout_ms,
-            ))
-        }
+        ProtocolArgs::Rdp(common) => Arc::new(RdpModule::new(common.timeout_ms)),
+        ProtocolArgs::Winrm(common) | ProtocolArgs::Vnc(common) => Arc::new(
+            crate::protocol::stub::StubModule::new(args.protocol(), common.timeout_ms),
+        ),
         ProtocolArgs::Http(args) => Arc::new(crate::protocol::stub::StubModule::new(
             Protocol::Http,
             args.common.timeout_ms,
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Verifies the scheduler source applies global `--threads` via for_each_concurrent
+    /// and does not reintroduce a per-host semaphore.
+    #[test]
+    fn scheduler_uses_global_threads_without_per_target_semaphore() {
+        let source = include_str!("app.rs");
+        // Strip this test module so string literals here do not false-positive.
+        let production = source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("production app source");
+        assert!(
+            production.contains("for_each_concurrent"),
+            "scheduler must use for_each_concurrent for --threads"
+        );
+        assert!(
+            !production.contains("Semaphore::new"),
+            "per-target Semaphore must be removed; --threads alone caps concurrency"
+        );
+        assert!(
+            !production.contains("target_semaphore") && !production.contains("target_semaphores"),
+            "per-target semaphore variables must be removed from the scheduler"
+        );
+    }
+
+    /// Verifies RDP attempt scheduling has no module-level serial mutex in source.
+    #[test]
+    fn rdp_module_source_has_no_global_serial_mutex() {
+        // Structural guard: concurrent RDP attempts must not be forced serial by a
+        // process-wide lock inside the shipped RDP module.
+        let source = include_str!("protocol/rdp.rs");
+        assert!(
+            source.contains("run_blocking_with_timeout"),
+            "RDP attempts must use spawn_blocking via run_blocking_with_timeout"
+        );
+        assert!(
+            !source.contains("std::sync::Mutex"),
+            "RDP module must not use std::sync::Mutex across attempts"
+        );
+        assert!(
+            !source.contains("tokio::sync::Mutex"),
+            "RDP module must not use tokio::sync::Mutex across attempts"
+        );
+        assert!(
+            !source.contains("lazy_static") && !source.contains("OnceLock"),
+            "RDP module must not introduce process-wide locks for attempts"
+        );
     }
 }

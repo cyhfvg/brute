@@ -35,10 +35,10 @@
 - `oracle`
 - `tomcat-manager`，别名 `tomcat`
 - `smb`（无 `-x`；可选 `--shares` 枚举 share/Access）
+- `rdp`（仅登录/爆破，无 `-x`）
 
 已预留但尚未实现：
 
-- `rdp`
 - `winrm`
 - `http`
 - `vnc`
@@ -107,6 +107,7 @@ brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
+brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
 ```
 
 ## 常用参数
@@ -116,8 +117,7 @@ brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 - `-p, --password <PASSWORD...>`: 密码或密码文件；空密码使用 `-p ''`。
 - `--id <ID>`: 从当前 workspace 读取已保存凭据；与 `-u/-p` 互斥。
 - `--port <PORT>`: 覆盖协议默认端口。
-- `--threads <N>`: 全局并发尝试数，默认 `16`，最小值为 `1`。
-- `--target-threads <N>`: 单目标最大并发尝试数，默认 `1`，最小值为 `1`。
+- `--threads <N>`: 同时进行的登录尝试数上限（跨目标与凭据的全局并发），默认 `16`，最小值为 `1`。
 - `--retries <N>`: 传输层临时错误重试次数，默认 `3`。
 - `--timeout-ms <MS>`: 单次尝试超时，默认 `5000`，最小值为 `1`。
 - `--continue-on-success`: 命中成功凭据后仍继续尝试该目标剩余凭据。
@@ -155,6 +155,17 @@ brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 启用 `--shares` 时，认证成功后会输出 share 名称与 Access（`READ`；磁盘 share 在非侵入写探测成功时为 `READ,WRITE`）。share 枚举失败单独报告，不会丢弃已验证凭据。
 
 用户名支持 `DOMAIN\user` 或 `user@domain` 形式。
+
+## RDP
+
+仅登录与字典爆破（无 `-x` / `--execute`）：
+
+```bash
+brute rdp 192.168.10.5 -u admin -p 'P@ssw0rd'
+brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389 --threads 16
+```
+
+使用纯 Rust `rdp-rs` 完成 NLA/CredSSP（NTLM）。OpenSSL 通过 `vendored` 静态编入，release 单文件不依赖系统 `libssl`。用户名支持 `DOMAIN\user` 或 `user@domain`。
 
 ## Oracle
 

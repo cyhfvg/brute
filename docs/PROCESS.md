@@ -12,6 +12,7 @@
 - `oracle`
 - `tomcat manager`
 - `smb`
+- `rdp`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -38,10 +39,11 @@
 - `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；两者均支持多值与字典文件，并与 `-u`/`-p` 做 `identifier × user × password` 笛卡尔展开；支持 Oracle Database 11g R2 (11.2)+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 11g 兼容与 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
 - `tomcat`: 基于 `reqwest` + Basic Auth
 - `smb`: 基于纯 Rust 的 `smb2`（SMB2/3 + NTLM），默认端口 `445`；不提供 `-x`/`--execute`；可选 `--shares` 在认证成功后枚举 share 名称与 Access（tree-connect 为 READ，磁盘 share 可额外探测 WRITE）；share 枚举失败不回退为认证失败；目标探测在服务可达时输出简要就绪信息
+- `rdp`: 基于纯 Rust 协议栈 `rdp-rs`（NLA/CredSSP + NTLM），默认端口 `3389`；仅登录/爆破，不提供 `-x`/`--execute`；用户名支持 `DOMAIN\\user` / `user@domain`。依赖选择说明：IronRDP 0.8+ 与现有 `smb2` 在 `aes-gcm` 版本上冲突且禁止 vendor patch，故采用 `rdp-rs`；TLS 经 `native-tls` 走 OpenSSL 时使用 `openssl` 的 `vendored` 特性静态编入，避免运行时依赖 `libssl.so`
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat`、`smb` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
 
 `smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
@@ -74,7 +76,7 @@ SSH banner 获取从单次登录尝试中前移到 target 级预探测阶段。�
 
 SSH 单次登录中的连接、session 创建、handshake 等传输层错误会内部重试一次；重试后仍失败时按普通认证失败行输出，不暴露 `Failed getting banner` 等低层错误细节。
 
-调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流，并用单目标 `--target-threads` 信号量限制单目标并发。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads`、`--target-threads` 和 `--timeout-ms` 必须大于 0；`--target-threads` 默认值为 1，优先保证 SSH 场景下的稳健性。SSH 传输层重试次数由 `--retries` 控制，默认 3 次，并使用短退避降低握手碰撞概率。
+调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流：跨目标与凭据的同时进行尝试数不超过该值。不再使用 `--target-threads` 或单目标信号量。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads` 和 `--timeout-ms` 必须大于 0。RDP 尝试走 `spawn_blocking`（`run_blocking_with_timeout`），不在模块内加全局互斥锁。SSH 传输层重试次数由 `--retries` 控制，默认 3 次，并使用短退避降低握手碰撞概率。
 
 默认情况下，每个 target 命中 1 组成功凭据后会停止该 target 的后续尝试；`--continue-on-success` 用于显式开启继续爆破模式。
 
@@ -86,7 +88,6 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 ### 已保留接口但未实现
 
-- `rdp`
 - `winrm`
 - `http`
 - `vnc`
@@ -96,8 +97,9 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 1. 为已排队但尚未执行的 target 任务增加更强的主动取消控制
 2. 增加 JSON/NDJSON 输出模式，便于脚本接入
 3. 为 HTTP 模块做通用表单爆破与 Basic/Digest Auth 支持
-4. 为 WinRM/RDP 选择合适 Rust 库或封装外部安全测试组件
+4. 为 WinRM 选择合适 Rust 库或封装外部安全测试组件
 5. 增强 SMB 目标探测，在可解析时输出 `name:` / `domain:`（当前为服务可达性探测）
+6. 若 IronRDP 与 `smb2` 的 `aes-gcm` 依赖冲突消除，可评估迁移 RDP 至 IronRDP 并去掉 vendored OpenSSL
 
 ### 输出前缀
 
