@@ -10,6 +10,7 @@ pub mod smb;
 pub mod ssh;
 pub mod stub;
 pub mod tomcat;
+pub mod winrm;
 
 use std::time::Duration;
 
