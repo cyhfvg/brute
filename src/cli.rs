@@ -95,9 +95,9 @@ pub enum ProtocolArgs {
     #[command(
         about = "own stuff using WINRM",
         override_usage = "brute winrm <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute winrm 192.168.5.5 -u admin -p 123456"
+        after_help = "Example:\n  brute winrm 192.168.5.5 -u admin -p 123456\n  brute winrm 192.168.5.5 -u admin -p 123456 -x 'whoami'\n  brute winrm 192.168.5.5 -u admin -p 123456 --shell-type cmd -x 'whoami'\n  brute winrm 192.168.5.5 -u admin -p 123456 --shell-type powershell\n  brute winrm 192.168.5.5 -u admin -p 123456 --shell-type cmd -x @script.bat\n  brute winrm 192.168.5.5 -u admin -p 123456 -x @script.ps1"
     )]
-    Winrm(CommonArgs),
+    Winrm(WinrmArgs),
 
     #[command(
         about = "own stuff using ORACLE",
@@ -132,7 +132,8 @@ impl ProtocolArgs {
             | Self::Redis(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
-            Self::Rdp(args) | Self::Winrm(args) | Self::Vnc(args) => args,
+            Self::Winrm(args) => &args.common,
+            Self::Rdp(args) | Self::Vnc(args) => args,
             Self::Tomcat(args) => &args.common,
             Self::Http(args) => &args.common,
         }
@@ -158,6 +159,26 @@ impl ProtocolArgs {
             | Self::Postgresql(args)
             | Self::Redis(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
+            Self::Winrm(args) => args.execute.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Returns the WinRM remote shell type when the protocol is WinRM.
+    ///
+    /// # Returns
+    ///
+    /// [`Some`] shell type for `brute winrm ...`; [`None`] for every other protocol.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let shell = protocol_args.shell_type();
+    /// ```
+    #[allow(dead_code)]
+    pub fn shell_type(&self) -> Option<WinrmShellType> {
+        match self {
+            Self::Winrm(args) => args.shell_type,
             _ => None,
         }
     }
@@ -259,6 +280,56 @@ pub struct ExecuteArgs {
     /// Execute the specified command after a successful login.
     #[arg(short = 'x', long = "execute", value_name = "COMMAND")]
     pub execute: Option<String>,
+}
+
+/// Remote shell type used by WinRM command execution and login probes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum WinrmShellType {
+    /// Run commands through `cmd.exe`.
+    Cmd,
+    /// Run commands through PowerShell / PSRP (default for `-x` when omitted).
+    #[default]
+    Powershell,
+}
+
+impl WinrmShellType {
+    /// Returns the stable lowercase shell-type name used in messages and help text.
+    ///
+    /// # Returns
+    ///
+    /// `"cmd"` or `"powershell"`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// assert_eq!(WinrmShellType::Powershell.as_str(), "powershell");
+    /// ```
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cmd => "cmd",
+            Self::Powershell => "powershell",
+        }
+    }
+}
+
+/// WinRM-specific options: common credentials, post-auth execute, and shell type.
+#[derive(Debug, Clone, Args)]
+pub struct WinrmArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+    /// Execute the specified command after a successful login.
+    ///
+    /// Prefix with `@` to load a local script file and run its contents remotely
+    /// (for example `-x @script.bat` or `-x @script.ps1`).
+    #[arg(short = 'x', long = "execute", value_name = "COMMAND")]
+    pub execute: Option<String>,
+    /// Remote shell for `-x` and for no-`-x` capability probes.
+    ///
+    /// When omitted with `-x`, defaults to `powershell`. When omitted without `-x`,
+    /// login probes powershell first then cmd (short-circuit). When set, only that
+    /// shell is used for execute and for no-`-x` probes.
+    #[arg(long = "shell-type", value_enum)]
+    pub shell_type: Option<WinrmShellType>,
 }
 
 /// Oracle-specific options including the required database service identifier.
@@ -466,7 +537,7 @@ impl ProtocolArgs {
 mod tests {
     use clap::Parser;
 
-    use super::{Cli, Command, Protocol, ProtocolArgs};
+    use super::{Cli, Command, Protocol, ProtocolArgs, WinrmShellType};
 
     /// Verifies that Oracle Service Name and `-x` query arguments are parsed into the execution options.
     #[test]
@@ -683,6 +754,113 @@ mod tests {
         assert!(
             with_execute.is_err(),
             "rdp must not accept -x/--execute: {with_execute:?}"
+        );
+    }
+
+    /// Verifies WinRM parses `-x`, omits `--shell-type` as None (default PS at execute), and accepts explicit values.
+    #[test]
+    fn parses_winrm_execute_and_shell_type() {
+        let default_shell = Cli::try_parse_from([
+            "brute",
+            "winrm",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "-x",
+            "whoami",
+        ])
+        .expect("winrm -x should parse");
+        let Command::Protocol(ProtocolArgs::Winrm(args)) = default_shell.command else {
+            panic!("expected winrm protocol arguments");
+        };
+        assert_eq!(args.common.targets, ["192.168.10.5"]);
+        assert_eq!(args.execute.as_deref(), Some("whoami"));
+        // Omitted flag must stay None so no-x can auto-serial probe; -x defaults later.
+        assert_eq!(args.shell_type, None);
+        assert_eq!(WinrmShellType::default(), WinrmShellType::Powershell);
+        assert_eq!(ProtocolArgs::Winrm(args.clone()).execute(), Some("whoami"));
+        assert_eq!(ProtocolArgs::Winrm(args).shell_type(), None);
+
+        let powershell = Cli::try_parse_from([
+            "brute",
+            "winrm",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--shell-type",
+            "powershell",
+            "-x",
+            "@script.ps1",
+        ])
+        .expect("winrm powershell shell-type should parse");
+        let Command::Protocol(ProtocolArgs::Winrm(args)) = powershell.command else {
+            panic!("expected winrm protocol arguments");
+        };
+        assert_eq!(args.shell_type, Some(WinrmShellType::Powershell));
+        assert_eq!(args.execute.as_deref(), Some("@script.ps1"));
+        assert_eq!(
+            ProtocolArgs::Winrm(args).shell_type(),
+            Some(WinrmShellType::Powershell)
+        );
+
+        let cmd_shell = Cli::try_parse_from([
+            "brute",
+            "winrm",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--shell-type",
+            "cmd",
+            "-x",
+            "@script.bat",
+        ])
+        .expect("winrm cmd shell-type should parse");
+        let Command::Protocol(ProtocolArgs::Winrm(args)) = cmd_shell.command else {
+            panic!("expected winrm protocol arguments");
+        };
+        assert_eq!(args.shell_type, Some(WinrmShellType::Cmd));
+        assert_eq!(args.execute.as_deref(), Some("@script.bat"));
+
+        let no_x_auto = Cli::try_parse_from([
+            "brute",
+            "winrm",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+        ])
+        .expect("winrm without -x should parse");
+        let Command::Protocol(ProtocolArgs::Winrm(args)) = no_x_auto.command else {
+            panic!("expected winrm");
+        };
+        assert_eq!(args.shell_type, None);
+        assert_eq!(args.execute, None);
+    }
+
+    /// Verifies invalid `--shell-type` values are rejected.
+    #[test]
+    fn rejects_invalid_winrm_shell_type() {
+        let result = Cli::try_parse_from([
+            "brute",
+            "winrm",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--shell-type",
+            "bash",
+        ]);
+        assert!(
+            result.is_err(),
+            "invalid shell-type must be rejected: {result:?}"
         );
     }
 }

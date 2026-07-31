@@ -37,10 +37,10 @@ Implemented modules:
 - `tomcat-manager` alias: `tomcat`
 - `smb` (no `-x`; optional `--shares` for share/Access enumeration)
 - `rdp` (login/brute only, no `-x`)
+- `winrm` (`-x` + `--shell-type {cmd,powershell}`, default **powershell**;
 
 Reserved but not implemented yet:
 
-- `winrm`
 - `http`
 - `vnc`
 
@@ -109,6 +109,11 @@ brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
+brute winrm 192.168.10.5 -u users.txt -p pass.txt --port 5985
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x 'whoami'
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type cmd -x @script.bat
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
 ```
 
 ## Common Options
@@ -136,14 +141,29 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `postgresql`: SQL query, for example `-x 'select version();'`
 - `oracle`: SQL query, for example `-x 'select * from dual'`
 - `redis`: Redis command, for example `-x 'INFO server'`
+- `winrm`: remote command via `--shell-type powershell` (default when `-x` omits the flag) or `cmd`; use `-x @path` to load a local script;
 
 Example:
 
 ```bash
 brute ssh 192.168.10.5 -u admin -p 123456 -x 'id'
+brute winrm 192.168.10.5 -u admin -p 123456 --shell-type powershell -x 'whoami'
 ```
 
 Once authentication succeeds, a post-auth command error is reported separately and the verified credential is still saved to the current workspace.
+
+## WinRM
+
+Login and dictionary spray against WinRM HTTP (default port `5985`)
+
+```bash
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd'
+brute winrm 192.168.10.5 -u users.txt -p pass.txt --port 5985 --threads 16
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
+```
+
+Usernames support `DOMAIN\user` or `user@domain`. Connection and protocol errors print a non-empty reason on the error line. HTTPS (5986), Kerberos, CredSSP, and NTLM hash login are not implemented yet.
 
 ## SMB
 

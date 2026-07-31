@@ -36,10 +36,10 @@
 - `tomcat-manager`，别名 `tomcat`
 - `smb`（无 `-x`；可选 `--shares` 枚举 share/Access）
 - `rdp`（仅登录/爆破，无 `-x`）
+- `winrm`
 
 已预留但尚未实现：
 
-- `winrm`
 - `http`
 - `vnc`
 
@@ -108,6 +108,11 @@ brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
+brute winrm 192.168.10.5 -u users.txt -p pass.txt --port 5985
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x 'whoami'
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type cmd -x @script.bat
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
 ```
 
 ## 常用参数
@@ -135,14 +140,30 @@ brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
 - `postgresql`: SQL 查询，例如 `-x 'select version();'`
 - `oracle`: SQL 查询，例如 `-x 'select * from dual'`
 - `redis`: Redis 命令，例如 `-x 'INFO server'`
+- `winrm`: 通过 `--shell-type powershell`（`-x` 省略时默认）或 `cmd` 执行远程命令；
+  使用`-x @path`加载本地脚本
 
 示例：
 
 ```bash
 brute ssh 192.168.10.5 -u admin -p 123456 -x 'id'
+brute winrm 192.168.10.5 -u admin -p 123456 --shell-type powershell -x 'whoami'
 ```
 
 认证已成功但认证后命令执行失败时，工具会单独输出命令错误，并仍将已验证凭据保存到当前 workspace。
+
+## WinRM
+
+针对 WinRM HTTP（默认端口 `5985`）的登录与字典爆破
+
+```bash
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd'
+brute winrm 192.168.10.5 -u users.txt -p pass.txt --port 5985 --threads 16
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
+brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
+```
+
+用户名支持 `DOMAIN\user` 或 `user@domain`。连接/协议错误会在错误行输出非空原因。HTTPS（5986）、Kerberos、CredSSP 与 NTLM hash 登录尚未实现。
 
 ## SMB
 

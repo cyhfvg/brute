@@ -13,6 +13,7 @@
 - `tomcat manager`
 - `smb`
 - `rdp`
+- `winrm`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -40,10 +41,11 @@
 - `tomcat`: 基于 `reqwest` + Basic Auth
 - `smb`: 基于纯 Rust 的 `smb2`（SMB2/3 + NTLM），默认端口 `445`；不提供 `-x`/`--execute`；可选 `--shares` 在认证成功后枚举 share 名称与 Access（tree-connect 为 READ，磁盘 share 可额外探测 WRITE）；share 枚举失败不回退为认证失败；目标探测在服务可达时输出简要就绪信息
 - `rdp`: 基于纯 Rust 协议栈 `rdp-rs`（NLA/CredSSP + NTLM），默认端口 `3389`；仅登录/爆破，不提供 `-x`/`--execute`；用户名支持 `DOMAIN\\user` / `user@domain`。依赖选择说明：IronRDP 0.8+ 与现有 `smb2` 在 `aes-gcm` 版本上冲突且禁止 vendor patch，故采用 `rdp-rs`；TLS 经 `native-tls` 走 OpenSSL 时使用 `openssl` 的 `vendored` 特性静态编入，避免运行时依赖 `libssl.so`
+- `winrm`: 基于 git 依赖 [`cyhfvg/winrm-rs`](https://github.com/cyhfvg/winrm-rs)（密封 NTLM + 真 PSRP），默认端口 `5985`；支持登录/并发爆破、`-x`/`--execute` 与 `--shell-type {cmd,powershell}`（**默认 powershell**；省略时 `-x` 用 powershell）；`-x @path` 本地脚本；
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
 
 `smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
@@ -88,7 +90,6 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 ### 已保留接口但未实现
 
-- `winrm`
 - `http`
 - `vnc`
 
@@ -97,7 +98,7 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 1. 为已排队但尚未执行的 target 任务增加更强的主动取消控制
 2. 增加 JSON/NDJSON 输出模式，便于脚本接入
 3. 为 HTTP 模块做通用表单爆破与 Basic/Digest Auth 支持
-4. 为 WinRM 选择合适 Rust 库或封装外部安全测试组件
+4. 为 WinRM 增加 HTTPS(5986)、Kerberos、CredSSP 与 NTLM hash 登录（按需）
 5. 增强 SMB 目标探测，在可解析时输出 `name:` / `domain:`（当前为服务可达性探测）
 6. 若 IronRDP 与 `smb2` 的 `aes-gcm` 依赖冲突消除，可评估迁移 RDP 至 IronRDP 并去掉 vendored OpenSSL
 

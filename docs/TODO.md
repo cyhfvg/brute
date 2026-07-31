@@ -22,13 +22,16 @@
 - `rdp`: pure-Rust `rdp-rs` NLA/CredSSP login/brute (default port 3389); no `-x`/`--execute`.
   IronRDP could not be used: aes-gcm pin conflict with `smb2` (no vendor patch). OpenSSL is
   vendored statically so release binaries do not require system `libssl`.
+- `winrm`: git dependency [`cyhfvg/winrm-rs`](https://github.com/cyhfvg/winrm-rs) (fork with
+  sealed NTLM + real PSRP; default port 5985). Login/brute under global `--threads`;
+  `-x`/`--execute` with `--shell-type {cmd,powershell}` (default **powershell** for `-x` when
+  omitted). No-`-x` sprays: auto serial probe powershell then cmd (short-circuit);
 - Scheduler concurrency: only `--threads` (removed `--target-threads` / per-host semaphore);
-  global `for_each_concurrent` is sufficient for concurrent RDP and other protocol sprays.
+  global `for_each_concurrent` is sufficient for concurrent RDP/WinRM and other protocol sprays.
 
 ## Unsupported Protocols
 
 The following protocol modules are reserved in the CLI but not implemented yet:
 
-- `winrm`
 - `http`
 - `vnc`
