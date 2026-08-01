@@ -14,6 +14,7 @@
 - `smb`
 - `rdp`
 - `winrm`
+- `vnc`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -42,10 +43,11 @@
 - `smb`: 基于纯 Rust 的 `smb2`（SMB2/3 + NTLM），默认端口 `445`；不提供 `-x`/`--execute`；可选 `--shares` 在认证成功后枚举 share 名称与 Access（tree-connect 为 READ，磁盘 share 可额外探测 WRITE）；share 枚举失败不回退为认证失败；目标探测在服务可达时输出简要就绪信息
 - `rdp`: 基于纯 Rust 协议栈 `rdp-rs`（NLA/CredSSP + NTLM），默认端口 `3389`；仅登录/爆破，不提供 `-x`/`--execute`；用户名支持 `DOMAIN\\user` / `user@domain`。依赖选择说明：IronRDP 0.8+ 与现有 `smb2` 在 `aes-gcm` 版本上冲突且禁止 vendor patch，故采用 `rdp-rs`；TLS 经 `native-tls` 走 OpenSSL 时使用 `openssl` 的 `vendored` 特性静态编入，避免运行时依赖 `libssl.so`
 - `winrm`: 基于 git 依赖 [`cyhfvg/winrm-rs`](https://github.com/cyhfvg/winrm-rs)（密封 NTLM + 真 PSRP），默认端口 `5985`；支持登录/并发爆破、`-x`/`--execute` 与 `--shell-type {cmd,powershell}`（**默认 powershell**；省略时 `-x` 用 powershell）；`-x @path` 本地脚本；
+- `vnc`: 纯 Rust RFB 握手 + VNC Authentication（security type 2，DES challenge-response，密码有效 8 字节 bit-reverse 密钥），默认端口 `5900`；仅登录/爆破，不提供 `-x`/`--execute`。经典 VNC Auth 为密码-only（CLI 仍接受 `-u`，与 NetExec 一致可忽略用户名）。若对端未发送 RFB banner（常见于 linuxserver webtop / noVNC 等 HTTPS 网关），则回退为 HTTPS HTTP Basic Auth，用 `-u`/`-p` 校验凭据。无模块级全局互斥锁，并发走调度层 `--threads`。源码按职责拆分为 `protocol/vnc/{mod,auth,rfb,web,util}.rs`（单文件 ≤600 行）
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp`、`vnc` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
 
 `smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
@@ -91,7 +93,6 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 ### 已保留接口但未实现
 
 - `http`
-- `vnc`
 
 ## 后续建议
 

@@ -28,10 +28,15 @@
   omitted). No-`-x` sprays: auto serial probe powershell then cmd (short-circuit);
 - Scheduler concurrency: only `--threads` (removed `--target-threads` / per-host semaphore);
   global `for_each_concurrent` is sufficient for concurrent RDP/WinRM and other protocol sprays.
+- `vnc`: pure-Rust RFB 003.003/003.007/003.008 handshake + VNC Authentication type 2 (DES
+  challenge-response with bit-reversed 8-byte key); default port 5900; login/brute only (no `-x`).
+  Username accepted by CLI and ignored for classic password-only VNC Auth. When the peer does not
+  speak RFB (HTTPS web-VNC gateways), falls back to HTTPS HTTP Basic Auth so user/password pairs
+  against linuxserver-style frontends can be validated. Concurrent sprays use global `--threads`
+  only (no module mutex). Source layout: `protocol/vnc/{mod,auth,rfb,web,util}.rs` (≤600 lines each).
 
 ## Unsupported Protocols
 
 The following protocol modules are reserved in the CLI but not implemented yet:
 
 - `http`
-- `vnc`

@@ -38,11 +38,11 @@ Implemented modules:
 - `smb` (no `-x`; optional `--shares` for share/Access enumeration)
 - `rdp` (login/brute only, no `-x`)
 - `winrm` (`-x` + `--shell-type {cmd,powershell}`, default **powershell**;
+- `vnc` (login/brute only, no `-x`;)
 
 Reserved but not implemented yet:
 
 - `http`
-- `vnc`
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -109,6 +109,8 @@ brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
+brute vnc 192.168.10.5 -u '' -p 'secret' --port 5900
+brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5901 --threads 16
 brute winrm 192.168.10.5 -u users.txt -p pass.txt --port 5985
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x 'whoami'
@@ -187,6 +189,17 @@ brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389 --threads 16
 ```
 
 Uses pure-Rust `rdp-rs` for NLA/CredSSP (NTLM). OpenSSL is vendored statically so release binaries do not depend on system `libssl`. Usernames may include `DOMAIN\user` or `user@domain`.
+
+## VNC
+
+Login and dictionary brute only (no `-x` / `--execute`):
+
+```bash
+brute vnc 192.168.10.5 -u '' -p 'secret'
+brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5900 --threads 16
+```
+
+Classic RFB path uses VNC Authentication (security type 2, DES challenge-response; password effectively truncated to 8 characters). When the published port is a web-VNC HTTPS gateway (no RFB banner), the module falls back to HTTPS HTTP Basic Auth and validates `-u`/`-p` that way.
 
 ## Oracle
 

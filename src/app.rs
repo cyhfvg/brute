@@ -23,7 +23,7 @@ use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, TargetContext, TargetProbe, ftp::FtpModule,
     mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule,
     redis::RedisModule, smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule,
-    winrm::WinrmModule,
+    vnc::VncModule, winrm::WinrmModule,
 };
 use crate::targets::load_targets;
 
@@ -397,10 +397,7 @@ fn build_module(args: &ProtocolArgs) -> Arc<dyn BruteModule> {
         ProtocolArgs::Winrm(args) => {
             Arc::new(WinrmModule::new(args.common.timeout_ms, args.shell_type))
         } // `shell_type: None` means auto serial probe / default powershell for -x
-        ProtocolArgs::Vnc(common) => Arc::new(crate::protocol::stub::StubModule::new(
-            Protocol::Vnc,
-            common.timeout_ms,
-        )),
+        ProtocolArgs::Vnc(common) => Arc::new(VncModule::new(common.timeout_ms)),
         ProtocolArgs::Http(args) => Arc::new(crate::protocol::stub::StubModule::new(
             Protocol::Http,
             args.common.timeout_ms,

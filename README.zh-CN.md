@@ -37,11 +37,11 @@
 - `smb`（无 `-x`；可选 `--shares` 枚举 share/Access）
 - `rdp`（仅登录/爆破，无 `-x`）
 - `winrm`
+- `vnc`（仅登录/爆破，无 `-x`）
 
 已预留但尚未实现：
 
 - `http`
-- `vnc`
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -108,6 +108,8 @@ brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
+brute vnc 192.168.10.5 -u '' -p 'secret' --port 5900
+brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5901 --threads 16
 brute winrm 192.168.10.5 -u users.txt -p pass.txt --port 5985
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x 'whoami'
@@ -187,6 +189,17 @@ brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389 --threads 16
 ```
 
 使用纯 Rust `rdp-rs` 完成 NLA/CredSSP（NTLM）。OpenSSL 通过 `vendored` 静态编入，release 单文件不依赖系统 `libssl`。用户名支持 `DOMAIN\user` 或 `user@domain`。
+
+## VNC
+
+仅登录与字典爆破（无 `-x` / `--execute`）：
+
+```bash
+brute vnc 192.168.10.5 -u '' -p 'secret'
+brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5900 --threads 16
+```
+
+经典 RFB 路径使用 VNC Authentication（security type 2，DES challenge-response；密码有效长度 8 字节）。
 
 ## Oracle
 
