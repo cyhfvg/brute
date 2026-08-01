@@ -15,6 +15,7 @@
 - `rdp`
 - `winrm`
 - `vnc`
+- `http` (HTTP Basic Auth)
 
 同时为后续协议扩展保留统一抽象。
 
@@ -44,6 +45,7 @@
 - `rdp`: 基于纯 Rust 协议栈 `rdp-rs`（NLA/CredSSP + NTLM），默认端口 `3389`；仅登录/爆破，不提供 `-x`/`--execute`；用户名支持 `DOMAIN\\user` / `user@domain`。依赖选择说明：IronRDP 0.8+ 与现有 `smb2` 在 `aes-gcm` 版本上冲突且禁止 vendor patch，故采用 `rdp-rs`；TLS 经 `native-tls` 走 OpenSSL 时使用 `openssl` 的 `vendored` 特性静态编入，避免运行时依赖 `libssl.so`
 - `winrm`: 基于 git 依赖 [`cyhfvg/winrm-rs`](https://github.com/cyhfvg/winrm-rs)（密封 NTLM + 真 PSRP），默认端口 `5985`；支持登录/并发爆破、`-x`/`--execute` 与 `--shell-type {cmd,powershell}`（**默认 powershell**；省略时 `-x` 用 powershell）；`-x @path` 本地脚本；
 - `vnc`: 纯 Rust RFB 握手 + VNC Authentication（security type 2，DES challenge-response，密码有效 8 字节 bit-reverse 密钥），默认端口 `5900`；仅登录/爆破，不提供 `-x`/`--execute`。经典 VNC Auth 为密码-only（CLI 仍接受 `-u`，与 NetExec 一致可忽略用户名）。若对端未发送 RFB banner（常见于 linuxserver webtop / noVNC 等 HTTPS 网关），则回退为 HTTPS HTTP Basic Auth，用 `-u`/`-p` 校验凭据。无模块级全局互斥锁，并发走调度层 `--threads`。源码按职责拆分为 `protocol/vnc/{mod,auth,rfb,web,util}.rs`（单文件 ≤600 行）
+- `http`: 基于 `reqwest` 的 HTTP Basic Auth 登录/爆破，默认端口 `80`；`--path` 指定请求路径（默认 `/`）；`--protocol {http,https}` 选择 URL 方案（默认 `http`）；对 `{scheme}://host:port<path>` 发起带 `Authorization: Basic` 的 GET；`https` 时默认跳过 TLS 证书校验（自签名/无效证书可连）；`2xx` 与 `403` 记为凭据命中（403 表示认证通过但资源/角色受限），`401` 为认证失败，其它状态与传输错误记为 error。无模块级全局互斥锁，并发走调度层 `--threads`。不提供 `-x`/`--execute`。表单登录、Digest、NTLM、Bearer、Cookie、严格 CA 校验等后续扩展
 
 ### 命令执行
 
@@ -92,13 +94,13 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 ### 已保留接口但未实现
 
-- `http`
+（当前无 CLI 预留但未实现的协议占位）
 
 ## 后续建议
 
 1. 为已排队但尚未执行的 target 任务增加更强的主动取消控制
 2. 增加 JSON/NDJSON 输出模式，便于脚本接入
-3. 为 HTTP 模块做通用表单爆破与 Basic/Digest Auth 支持
+3. 为 HTTP 模块扩展表单爆破、Digest Auth、严格 CA 校验开关等（Basic Auth 与 `--protocol http|https` 已实现）
 4. 为 WinRM 增加 HTTPS(5986)、Kerberos、CredSSP 与 NTLM hash 登录（按需）
 5. 增强 SMB 目标探测，在可解析时输出 `name:` / `domain:`（当前为服务可达性探测）
 6. 若 IronRDP 与 `smb2` 的 `aes-gcm` 依赖冲突消除，可评估迁移 RDP 至 IronRDP 并去掉 vendored OpenSSL

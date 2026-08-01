@@ -22,10 +22,9 @@ impl StubModule {
 #[async_trait]
 impl BruteModule for StubModule {
     fn name(&self) -> &'static str {
-        match self.protocol {
-            Protocol::Http => "http",
-            _ => "unknown",
-        }
+        // Reserved for protocols still scaffolded; currently no CLI protocol uses this.
+        let _ = self.protocol;
+        "unknown"
     }
 
     async fn attempt(&self, _ctx: &AttemptContext) -> AttemptOutcome {
