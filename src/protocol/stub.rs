@@ -24,7 +24,6 @@ impl BruteModule for StubModule {
     fn name(&self) -> &'static str {
         match self.protocol {
             Protocol::Http => "http",
-            Protocol::Vnc => "vnc",
             _ => "unknown",
         }
     }

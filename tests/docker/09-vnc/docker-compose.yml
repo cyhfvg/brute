@@ -1,0 +1,58 @@
+name: vnc
+
+x-webtop-environment: &webtop-environment
+  PUID: "${PUID:-1000}"
+  PGID: "${PGID:-1000}"
+  TZ: "${TZ:-Asia/Shanghai}"
+  LC_ALL: "${LC_ALL:-C.UTF-8}"
+  PIXELFLUX_WAYLAND: "${PIXELFLUX_WAYLAND:-false}"
+  START_DOCKER: "false"
+  DISABLE_IPV6: "${DISABLE_IPV6:-true}"
+
+x-webtop-common: &webtop-common
+  image: "lscr.io/linuxserver/webtop:${WEBTOP_IMAGE_TAG:-ubuntu-xfce}"
+  restart: unless-stopped
+  shm_size: "${WEBTOP_SHM_SIZE:-1gb}"
+
+services:
+  vnc-test01:
+    <<: *webtop-common
+    container_name: vnc-test01
+    hostname: vnc-test01
+    environment:
+      <<: *webtop-environment
+      CUSTOM_USER: "${VNC_USER_01}"
+      PASSWORD: "${VNC_PASSWORD_01}"
+      TITLE: "VNC Test Desktop 01"
+    volumes:
+      - "./data/test01:/config"
+    ports:
+      - "${VNC_BIND_HOST:-127.0.0.1}:${VNC_HTTPS_PORT_01:-30011}:3001"
+
+  vnc-test02:
+    <<: *webtop-common
+    container_name: vnc-test02
+    hostname: vnc-test02
+    environment:
+      <<: *webtop-environment
+      CUSTOM_USER: "${VNC_USER_02}"
+      PASSWORD: "${VNC_PASSWORD_02}"
+      TITLE: "VNC Test Desktop 02"
+    volumes:
+      - "./data/test02:/config"
+    ports:
+      - "${VNC_BIND_HOST:-127.0.0.1}:${VNC_HTTPS_PORT_02:-30012}:3001"
+
+  vnc-test03:
+    <<: *webtop-common
+    container_name: vnc-test03
+    hostname: vnc-test03
+    environment:
+      <<: *webtop-environment
+      CUSTOM_USER: "${VNC_USER_03}"
+      PASSWORD: "${VNC_PASSWORD_03}"
+      TITLE: "VNC Test Desktop 03"
+    volumes:
+      - "./data/test03:/config"
+    ports:
+      - "${VNC_BIND_HOST:-127.0.0.1}:${VNC_HTTPS_PORT_03:-30013}:3001"

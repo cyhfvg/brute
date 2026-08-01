@@ -109,14 +109,14 @@ pub enum ProtocolArgs {
     #[command(
         about = "own stuff using HTTP",
         override_usage = "brute http <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute http 192.168.5.5 -u admin -p 123456 --path /login"
+        after_help = "Example:\n  brute http 192.168.10.5 -u admin -p 123456 --path /login"
     )]
     Http(HttpArgs),
 
     #[command(
         about = "own stuff using VNC",
         override_usage = "brute vnc <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute vnc 192.168.5.5 -u '' -p 123456"
+        after_help = "Example:\n  brute vnc 192.168.10.5 -u '' -p 123456\n  brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5900 --threads 16"
     )]
     Vnc(CommonArgs),
 }
