@@ -961,10 +961,7 @@ mod tests {
             "--protocol",
             "ftp",
         ]);
-        assert!(
-            result.is_err(),
-            "invalid --protocol value must be rejected"
-        );
+        assert!(result.is_err(), "invalid --protocol value must be rejected");
     }
 
     /// Verifies invalid `--shell-type` values are rejected.

@@ -277,7 +277,7 @@ mod tests {
             b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         let raw = format!("{user}:{pass}");
         let bytes = raw.as_bytes();
-        let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+        let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
         let mut i = 0;
         while i < bytes.len() {
             let b0 = bytes[i];
