@@ -14,15 +14,15 @@ use futures::{StreamExt, stream};
 use tokio::sync::Mutex;
 
 use crate::cli::{
-    Cli, Command, CredsAction, CredsArgs, Protocol, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
+    Cli, Command, CredsAction, CredsArgs, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
 };
 use crate::credentials::{LoadedCredentials, load_credentials, load_service_names, load_sids};
 use crate::database::{CredentialDatabase, SavedCredential};
 use crate::output::Console;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, TargetContext, TargetProbe, ftp::FtpModule,
-    mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule,
-    redis::RedisModule, smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule,
+    http::HttpBasicModule, mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule,
+    rdp::RdpModule, redis::RedisModule, smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule,
     vnc::VncModule, winrm::WinrmModule,
 };
 use crate::targets::load_targets;
@@ -398,10 +398,9 @@ fn build_module(args: &ProtocolArgs) -> Arc<dyn BruteModule> {
             Arc::new(WinrmModule::new(args.common.timeout_ms, args.shell_type))
         } // `shell_type: None` means auto serial probe / default powershell for -x
         ProtocolArgs::Vnc(common) => Arc::new(VncModule::new(common.timeout_ms)),
-        ProtocolArgs::Http(args) => Arc::new(crate::protocol::stub::StubModule::new(
-            Protocol::Http,
-            args.common.timeout_ms,
-        )),
+        ProtocolArgs::Http(args) => {
+            Arc::new(HttpBasicModule::new(args.common.timeout_ms, args.url_scheme))
+        }
     }
 }
 

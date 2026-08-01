@@ -146,8 +146,89 @@ fn zero_concurrency_options_are_rejected() {
 }
 
 #[test]
-fn scaffolded_protocol_reports_unimplemented_attempt() {
-    let home = TempHome::new("stub-protocol");
+fn http_help_exposes_path_protocol_and_is_implemented() {
+    let home = TempHome::new("http-help");
+
+    let output = run_with_home(&home, ["http", "--help"]);
+    assert_success(&output);
+    let help = stdout(&output);
+    assert!(
+        help.contains("--path"),
+        "http help should document --path:\n{help}"
+    );
+    assert!(
+        help.contains("--protocol"),
+        "http help should document --protocol:\n{help}"
+    );
+    assert!(
+        help.contains("http") && help.contains("https"),
+        "http help should list http/https scheme values:\n{help}"
+    );
+    assert!(
+        !help.to_ascii_lowercase().contains("not implemented")
+            && !help.to_ascii_lowercase().contains("scaffolded"),
+        "http help must not describe the module as unimplemented:\n{help}"
+    );
+    // clap option lines look like "      --execute" / "  -x, --execute"; prose may
+    // mention that -x is omitted, so only reject actual option definitions.
+    let defines_execute_option = help.lines().any(|line| {
+        let trimmed = line.trim_start();
+        trimmed.starts_with("-x,")
+            || trimmed.starts_with("--execute")
+            || trimmed.contains("-x, --execute")
+    });
+    assert!(
+        !defines_execute_option,
+        "http help must not define -x/--execute as an option:\n{help}"
+    );
+}
+
+#[test]
+fn http_attempt_against_closed_port_is_not_unimplemented_stub() {
+    let home = TempHome::new("http-closed-port");
+
+    // 127.0.0.1:1 is almost certainly closed; the shipped HTTP Basic module must
+    // report a transport/error outcome rather than the old scaffold stub.
+    let output = run_with_home(
+        &home,
+        [
+            "--no-color",
+            "http",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "-u",
+            "admin",
+            "-p",
+            "not-a-real-password",
+            "--threads",
+            "1",
+            "--timeout-ms",
+            "500",
+            "--retries",
+            "0",
+        ],
+    );
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(
+        !stdout.contains("scaffolded but not implemented"),
+        "http must not use the unimplemented stub:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("admin:not-a-real-password"),
+        "expected credential columns in output:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[!]") || stdout.contains("[-]"),
+        "expected failure or error marker for closed port:\n{stdout}"
+    );
+}
+
+#[test]
+fn http_https_scheme_against_closed_port_is_not_unimplemented_stub() {
+    let home = TempHome::new("http-https-closed-port");
 
     let output = run_with_home(
         &home,
@@ -155,21 +236,75 @@ fn scaffolded_protocol_reports_unimplemented_attempt() {
             "--no-color",
             "http",
             "127.0.0.1",
+            "--port",
+            "1",
+            "--protocol",
+            "https",
             "-u",
             "admin",
             "-p",
-            "secret",
+            "not-a-real-password",
             "--threads",
             "1",
             "--timeout-ms",
-            "1",
+            "500",
+            "--retries",
+            "0",
         ],
     );
 
     assert_success(&output);
     let stdout = stdout(&output);
-    assert!(stdout.contains("admin:secret"));
-    assert!(stdout.contains("http is scaffolded but not implemented in this build"));
+    assert!(
+        !stdout.contains("scaffolded but not implemented"),
+        "http --protocol https must not use the unimplemented stub:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("admin:not-a-real-password"),
+        "expected credential columns in output:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[!]") || stdout.contains("[-]"),
+        "expected failure or error marker for closed HTTPS port:\n{stdout}"
+    );
+    // Error text from reqwest typically embeds the attempted URL with https://
+    assert!(
+        stdout.contains("https://") || stdout.contains("http request failed"),
+        "expected https request path evidence:\n{stdout}"
+    );
+}
+
+#[test]
+fn http_rejects_invalid_protocol_scheme() {
+    let home = TempHome::new("http-bad-protocol");
+
+    let output = run_with_home(
+        &home,
+        [
+            "http",
+            "127.0.0.1",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--protocol",
+            "ftp",
+        ],
+    );
+
+    assert!(!output.status.success());
+    let err = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        err.to_ascii_lowercase().contains("possible values")
+            || err.to_ascii_lowercase().contains("invalid")
+            || err.contains("http")
+            || err.contains("https"),
+        "invalid --protocol should be rejected by clap:\n{err}"
+    );
 }
 
 #[test]

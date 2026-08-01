@@ -38,10 +38,7 @@
 - `rdp`（仅登录/爆破，无 `-x`）
 - `winrm`
 - `vnc`（仅登录/爆破，无 `-x`）
-
-已预留但尚未实现：
-
-- `http`
+- `http`（HTTP Basic Auth 登录/爆破；`--path`，默认 `/`；`--protocol {http,https}`，默认 `http`；HTTPS 默认跳过证书校验；无 `-x`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -105,6 +102,9 @@ brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select 
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute http 192.168.10.5 -u admin -p 123456 --path /
+brute http 192.168.10.5 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
+brute http 192.168.10.5 -u admin -p secret --protocol https --port 8443 --path /
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
@@ -319,6 +319,25 @@ brute ssh 192.168.10.5 --id 3
 
 `--id` 不校验协议一致性，这是有意设计，便于进行跨协议密码复用验证和密码喷洒。
 
+## HTTP Basic Auth
+
+通用 HTTP Basic Auth 登录与字典爆破（默认端口 `80`）。使用 `--path` 指定请求路径（默认 `/`）。使用 `--protocol {http,https}` 选择 URL 方案（默认 `http`）。当指定 `--protocol https` 时，默认跳过 TLS 证书校验（接受自签名与无效证书）。并发走全局 `--threads`。不提供 `-x` / `--execute`。
+
+```bash
+brute http 192.168.10.5 -u admin -p 123456 --path /
+brute http 192.168.10.5 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
+brute http 192.168.10.5 -u admin -p secret --protocol https --port 8443 --path /
+```
+
+判断逻辑：
+
+- `2xx`: 认证成功
+- `403 Forbidden`: 凭据被接受，但资源拒绝访问（仍记为命中）
+- `401 Unauthorized`: 认证失败
+- 其它状态码 / 传输错误: 记为 error
+
+表单登录、Digest、NTLM、Bearer、Cookie 流程与严格 CA 校验尚未实现。
+
 ## Tomcat Manager
 
 `tomcat-manager` 是针对 Tomcat Manager 的 HTTP Basic Auth 专项模块，支持 `tomcat` 别名。
@@ -353,6 +372,7 @@ src/
     oracle.rs
     redis.rs
     tomcat.rs
+    http.rs         # HTTP Basic Auth
     stub.rs         # 预留协议占位实现
 ```
 

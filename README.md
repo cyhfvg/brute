@@ -39,10 +39,7 @@ Implemented modules:
 - `rdp` (login/brute only, no `-x`)
 - `winrm` (`-x` + `--shell-type {cmd,powershell}`, default **powershell**;
 - `vnc` (login/brute only, no `-x`;)
-
-Reserved but not implemented yet:
-
-- `http`
+- `http` (HTTP Basic Auth login/brute; `--path`, default `/`; `--protocol {http,https}`, default `http`; HTTPS skips cert verify; no `-x`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -106,6 +103,9 @@ brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select 
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute http 192.168.10.5 -u admin -p 123456 --path /
+brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
+brute http 10.10.50.30 -u admin -p secret --protocol https --port 8443 --path /
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
@@ -319,6 +319,25 @@ brute ssh 192.168.10.5 --id 3
 
 `--id` does not enforce protocol matching. This is intentional so operators can test password reuse and credential spraying across protocols.
 
+## HTTP Basic Auth
+
+Generic HTTP Basic Auth login and dictionary spray (default port `80`). Use `--path` to set the request path (default `/`). Use `--protocol {http,https}` to select the URL scheme (default `http`). When `--protocol https` is set, TLS certificate verification is skipped by default (self-signed and invalid certificates are accepted). Concurrent sprays use global `--threads`. No `-x` / `--execute`.
+
+```bash
+brute http 192.168.10.5 -u admin -p 123456 --path /
+brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
+brute http 10.10.50.30 -u admin -p secret --protocol https --port 8443 --path /
+```
+
+Result handling:
+
+- `2xx`: authentication succeeded
+- `403 Forbidden`: credentials accepted, but the resource denied access (still reported as a hit)
+- `401 Unauthorized`: authentication failed
+- other statuses / transport errors: reported as errors
+
+Form-based login, Digest, NTLM, Bearer, cookie flows, and strict CA verification are not implemented.
+
 ## Tomcat Manager
 
 The `tomcat-manager` module is a dedicated HTTP Basic Auth module for Tomcat Manager. It supports `tomcat` as an alias.
@@ -353,6 +372,7 @@ src/
     oracle.rs
     redis.rs
     tomcat.rs
+    http.rs         # HTTP Basic Auth
     stub.rs         # reserved protocol placeholder
 ```
 

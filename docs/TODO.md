@@ -34,9 +34,12 @@
   speak RFB (HTTPS web-VNC gateways), falls back to HTTPS HTTP Basic Auth so user/password pairs
   against linuxserver-style frontends can be validated. Concurrent sprays use global `--threads`
   only (no module mutex). Source layout: `protocol/vnc/{mod,auth,rfb,web,util}.rs` (≤600 lines each).
+- `http`: HTTP Basic Auth login/brute via `reqwest` GET + `Authorization: Basic` (default port
+  `80`); `--path` sets the request path (default `/`); `--protocol {http,https}` selects the URL
+  scheme (default `http`). HTTPS skips TLS certificate verification by default. Concurrent sprays
+  use global `--threads` only (no module mutex). No `-x`/`--execute`. Form-based login, Digest,
+  NTLM, Bearer, cookies, and strict CA verification remain deferred.
 
 ## Unsupported Protocols
 
-The following protocol modules are reserved in the CLI but not implemented yet:
-
-- `http`
+(none currently reserved as unimplemented stubs)

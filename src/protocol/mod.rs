@@ -1,6 +1,7 @@
 //! Protocol implementations and shared abstractions.
 
 pub mod ftp;
+pub mod http;
 pub mod mysql;
 pub mod oracle;
 pub mod postgresql;

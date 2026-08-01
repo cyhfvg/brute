@@ -107,9 +107,9 @@ pub enum ProtocolArgs {
     Oracle(OracleArgs),
 
     #[command(
-        about = "own stuff using HTTP",
+        about = "own stuff using HTTP Basic Auth",
         override_usage = "brute http <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute http 192.168.10.5 -u admin -p 123456 --path /login"
+        after_help = "Example:\n  brute http 192.168.10.5 -u admin -p 123456 --path /\n  brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16\n  brute http 10.10.50.30 -u admin -p secret --protocol https --port 8443 --path /"
     )]
     Http(HttpArgs),
 
@@ -387,14 +387,51 @@ pub struct TomcatArgs {
     pub path: String,
 }
 
-/// Options for generic HTTP modules.
+/// URL scheme for the HTTP Basic Auth module (`--protocol`).
+///
+/// Distinct from the top-level CLI protocol selector (`brute http` / `Protocol::Http`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum HttpUrlScheme {
+    /// Plain HTTP (`http://`).
+    #[default]
+    Http,
+    /// HTTPS (`https://`); TLS certificate verification is skipped by default.
+    Https,
+}
+
+impl HttpUrlScheme {
+    /// Returns the URL scheme string used in request URLs.
+    ///
+    /// # Returns
+    ///
+    /// `"http"` or `"https"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use brute::cli::HttpUrlScheme;
+    /// assert_eq!(HttpUrlScheme::Http.as_str(), "http");
+    /// assert_eq!(HttpUrlScheme::Https.as_str(), "https");
+    /// ```
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Http => "http",
+            Self::Https => "https",
+        }
+    }
+}
+
+/// Options for generic HTTP Basic Auth login and spray.
 #[derive(Debug, Clone, Args)]
 pub struct HttpArgs {
     #[command(flatten)]
     pub common: CommonArgs,
-    /// Request path used by the HTTP module.
+    /// Request path used for the HTTP Basic Auth GET (default `/`).
     #[arg(long, default_value = "/")]
     pub path: String,
+    /// URL scheme: `http` (default) or `https`. HTTPS skips TLS certificate verification.
+    #[arg(long = "protocol", value_enum, default_value_t = HttpUrlScheme::Http)]
+    pub url_scheme: HttpUrlScheme,
 }
 
 /// Workspace management command.
@@ -485,7 +522,8 @@ impl Protocol {
             Self::Mysql => 3306,
             Self::Postgresql => 5432,
             Self::Redis => 6379,
-            Self::Tomcat | Self::Http => 8080,
+            Self::Tomcat => 8080,
+            Self::Http => 80,
             Self::Smb => 445,
             Self::Rdp => 3389,
             Self::Winrm => 5985,
@@ -537,7 +575,7 @@ impl ProtocolArgs {
 mod tests {
     use clap::Parser;
 
-    use super::{Cli, Command, Protocol, ProtocolArgs, WinrmShellType};
+    use super::{Cli, Command, HttpUrlScheme, Protocol, ProtocolArgs, WinrmShellType};
 
     /// Verifies that Oracle Service Name and `-x` query arguments are parsed into the execution options.
     #[test]
@@ -842,6 +880,91 @@ mod tests {
         };
         assert_eq!(args.shell_type, None);
         assert_eq!(args.execute, None);
+    }
+
+    /// Verifies protocol default service ports used when `--port` is omitted.
+    #[test]
+    fn http_default_port_is_80() {
+        assert_eq!(Protocol::Http.default_port(), 80);
+        assert_eq!(Protocol::Tomcat.default_port(), 8080);
+    }
+
+    /// Verifies HTTP `--protocol` defaults to http and accepts https.
+    #[test]
+    fn parses_http_url_scheme_protocol_flag() {
+        let default_http = Cli::try_parse_from([
+            "brute",
+            "http",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+        ])
+        .expect("http without --protocol should parse");
+        let Command::Protocol(ProtocolArgs::Http(args)) = default_http.command else {
+            panic!("expected http protocol arguments");
+        };
+        assert_eq!(args.url_scheme, HttpUrlScheme::Http);
+        assert_eq!(args.path, "/");
+
+        let https = Cli::try_parse_from([
+            "brute",
+            "http",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--protocol",
+            "https",
+            "--path",
+            "/manager/html",
+        ])
+        .expect("http --protocol https should parse");
+        let Command::Protocol(ProtocolArgs::Http(args)) = https.command else {
+            panic!("expected http protocol arguments");
+        };
+        assert_eq!(args.url_scheme, HttpUrlScheme::Https);
+        assert_eq!(args.path, "/manager/html");
+        assert_eq!(args.url_scheme.as_str(), "https");
+
+        let explicit_http = Cli::try_parse_from([
+            "brute",
+            "http",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--protocol",
+            "http",
+        ])
+        .expect("http --protocol http should parse");
+        let Command::Protocol(ProtocolArgs::Http(args)) = explicit_http.command else {
+            panic!("expected http");
+        };
+        assert_eq!(args.url_scheme, HttpUrlScheme::Http);
+    }
+
+    /// Verifies invalid HTTP `--protocol` values are rejected by clap.
+    #[test]
+    fn rejects_invalid_http_url_scheme() {
+        let result = Cli::try_parse_from([
+            "brute",
+            "http",
+            "192.168.10.5",
+            "-u",
+            "admin",
+            "-p",
+            "secret",
+            "--protocol",
+            "ftp",
+        ]);
+        assert!(
+            result.is_err(),
+            "invalid --protocol value must be rejected"
+        );
     }
 
     /// Verifies invalid `--shell-type` values are rejected.
