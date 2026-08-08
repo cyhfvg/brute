@@ -8,6 +8,7 @@ use rustls::{
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
     pki_types::{CertificateDer, ServerName, UnixTime},
 };
+use tokio_postgres::tls::MakeTlsConnect;
 use tokio_postgres::{Config, SimpleQueryMessage};
 use tokio_postgres_rustls::MakeRustlsConnect;
 
@@ -87,9 +88,12 @@ impl BruteModule for PostgreSqlModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
+        let host = ctx.target_host.clone();
+        let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
+        let proxy = ctx.target.proxy.clone();
         let mut config = Config::new();
-        config.host(&ctx.target_host);
-        config.port(ctx.target.port.unwrap_or(ctx.protocol.default_port()));
+        config.host(&host);
+        config.port(port);
         config.user(ctx.credential.username.as_deref().unwrap_or_default());
         config.password(ctx.credential.password.as_deref().unwrap_or_default());
         config.dbname("postgres");
@@ -101,11 +105,25 @@ impl BruteModule for PostgreSqlModule {
         tls_config
             .dangerous()
             .set_certificate_verifier(Arc::new(AcceptAnyCertificate));
-        let tls = MakeRustlsConnect::new(tls_config);
+        let mut tls = MakeRustlsConnect::new(tls_config);
 
         let attempt = async move {
+            // Always open the TCP socket ourselves so proxy and direct paths share one type.
+            let stream = match proxy {
+                Some(proxy) => crate::proxy::connect_async(&proxy, &host, port)
+                    .await
+                    .map_err(PostgreSqlAttemptError::Auth)?,
+                None => tokio::net::TcpStream::connect((host.as_str(), port))
+                    .await
+                    .map_err(|err| PostgreSqlAttemptError::Auth(err.to_string()))?,
+            };
+            let tls =
+                <MakeRustlsConnect as MakeTlsConnect<tokio::net::TcpStream>>::make_tls_connect(
+                    &mut tls, &host,
+                )
+                .map_err(|err| PostgreSqlAttemptError::Auth(err.to_string()))?;
             let (client, connection) = config
-                .connect(tls)
+                .connect_raw(stream, tls)
                 .await
                 .map_err(|err| PostgreSqlAttemptError::Auth(err.to_string()))?;
             tokio::spawn(async move {

@@ -136,22 +136,27 @@ pub fn apply_socket_timeouts(stream: &TcpStream, timeout: Duration) -> io::Resul
 /// ```ignore
 /// let msg = probe_vnc_port("10.0.0.1", 5900, Duration::from_secs(2));
 /// ```
-pub fn probe_vnc_port(host: &str, port: u16, timeout: Duration) -> Option<String> {
-    let addr = resolve_addr(host, port).ok()?;
-    match TcpStream::connect_timeout(&addr, timeout) {
-        Ok(mut stream) => {
-            let _ = apply_socket_timeouts(&stream, timeout.min(Duration::from_millis(500)));
-            let mut buf = [0u8; 12];
-            match stream.read(&mut buf) {
-                Ok(n) if n >= 4 && buf.starts_with(b"RFB ") => {
-                    let ver = String::from_utf8_lossy(&buf[..n.min(12)])
-                        .trim()
-                        .to_string();
-                    Some(format!("vnc service on {host}:{port} ({ver})"))
-                }
-                _ => Some(format!("vnc port open on {host}:{port}")),
-            }
+pub fn probe_vnc_port(
+    host: &str,
+    port: u16,
+    timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
+) -> Option<String> {
+    let mut stream = if let Some(proxy) = proxy {
+        crate::proxy::connect_std(proxy, host, port, timeout).ok()?
+    } else {
+        let addr = resolve_addr(host, port).ok()?;
+        TcpStream::connect_timeout(&addr, timeout).ok()?
+    };
+    let _ = apply_socket_timeouts(&stream, timeout.min(Duration::from_millis(500)));
+    let mut buf = [0u8; 12];
+    match stream.read(&mut buf) {
+        Ok(n) if n >= 4 && buf.starts_with(b"RFB ") => {
+            let ver = String::from_utf8_lossy(&buf[..n.min(12)])
+                .trim()
+                .to_string();
+            Some(format!("vnc service on {host}:{port} ({ver})"))
         }
-        Err(_) => None,
+        _ => Some(format!("vnc port open on {host}:{port}")),
     }
 }

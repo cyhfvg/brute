@@ -117,6 +117,13 @@ brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type cmd -x @script.bat
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
 ```
 
+## 顶级参数
+
+以下参数与 `--version` 同级，必须写在协议子命令**之前**：
+
+- `--proxy <PROXY_URL>`: 支持 `http` 与 `socks5`。URL 形式：`protocol://[username[:password]@]host:port`。示例：`brute --proxy socks5://user:pass@127.0.0.1:1080 ssh 10.0.0.1 -u admin -p pass`、`brute --proxy http://127.0.0.1:8080 http 10.0.0.1 -u admin -p pass`。
+- `--no-color`: 关闭彩色输出。
+
 ## 常用参数
 
 - `TARGET`: 目标 IP、主机名、FQDN，或包含目标列表的文件；可传入多个。
@@ -128,7 +135,6 @@ brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @scri
 - `--retries <N>`: 传输层临时错误重试次数，默认 `3`。
 - `--timeout-ms <MS>`: 单次尝试超时，默认 `5000`，最小值为 `1`。
 - `--continue-on-success`: 命中成功凭据后仍继续尝试该目标剩余凭据。
-- `--no-color`: 关闭彩色输出。
 
 `-u/-p` 与 `--id` 二选一：普通爆破使用 `-u/-p`，复用保存凭据使用 `--id`。
 

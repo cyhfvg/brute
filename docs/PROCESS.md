@@ -86,6 +86,16 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 默认情况下，每个 target 命中 1 组成功凭据后会停止该 target 的后续尝试；`--continue-on-success` 用于显式开启继续爆破模式。
 
+### 出站代理 (`--proxy`)
+
+`--proxy <PROXY_URL>` 是与 `--version` / `--no-color` 同级的**顶级** CLI 参数（定义在 `Cli` 上，写在协议子命令之前）。`run_protocol` 将其注入到运行时 `CommonArgs.proxy`（`#[arg(skip)]`，非子命令 flag）供各协议模块读取。URL 形式为 `protocol://[username[:password]@]host:port`，协议支持 `http`（HTTP CONNECT）与 `socks5`；用户名/密码可省略。解析与隧道逻辑集中在 `src/proxy.rs`：
+
+- HTTP 系（`http` / `tomcat` / `winrm` / VNC web Basic）：`reqwest::Proxy`（`reqwest` 启用 `socks` feature）；`winrm-rs` 使用 `WinrmConfig.proxy`
+- 可注入 stream 的协议（`ssh` / `ftp` / `postgresql` / `rdp` / `vnc` RFB）：SOCKS5 经 `tokio-socks`，HTTP CONNECT 经 `async-http-proxy`（async）或自实现握手（blocking）
+- 仅接受 `host:port` 的协议（`mysql` / `redis` / `oracle` / `smb`）：本机 `127.0.0.1:ephemeral` TCP bridge，将客户端连接经代理隧道转发到真实目标；bridge 生命周期与单次 attempt 绑定
+
+代理作用于登录、爆破、目标探测与认证后命令路径。
+
 ### 目标加载
 
 `TARGET` 支持直接传入多个目标，也支持传入文件路径。目标文件按行读取，忽略空行和以 `#` 开头的注释行。

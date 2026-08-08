@@ -118,6 +118,13 @@ brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type cmd -x @script.bat
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
 ```
 
+## Global Options
+
+These flags are top-level (same level as `--version`) and must appear **before** the protocol subcommand:
+
+- `--proxy <PROXY_URL>`: Supported schemes: `http` and `socks5`. URL form: `protocol://[username[:password]@]host:port`. Examples: `brute --proxy socks5://user:pass@127.0.0.1:1080 ssh 10.0.0.1 -u admin -p pass`, `brute --proxy http://127.0.0.1:8080 http 10.0.0.1 -u admin -p pass`.
+- `--no-color`: Disable colored output.
+
 ## Common Options
 
 - `TARGET`: Target IP, hostname, FQDN, or a file containing targets. Multiple targets are allowed.
@@ -129,7 +136,6 @@ brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @scri
 - `--retries <N>`: Retry count for transient transport errors. Default: `3`.
 - `--timeout-ms <MS>`: Per-attempt timeout in milliseconds. Default: `5000`; must be at least `1`.
 - `--continue-on-success`: Continue attempts against a target after a successful credential is found.
-- `--no-color`: Disable colored output.
 
 `-u/-p` and `--id` are mutually exclusive. Use `-u/-p` for normal spraying or brute force, and `--id` to reuse a saved credential.
 

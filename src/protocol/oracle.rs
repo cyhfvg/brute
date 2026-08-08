@@ -59,9 +59,24 @@ impl BruteModule for OracleModule {
         let password = ctx.credential.password.clone().unwrap_or_default();
         let service_name = ctx.credential.service_name.as_deref();
         let sid = ctx.credential.sid.as_deref();
-        let config = match oracle_config(
+
+        let endpoint = match crate::proxy::resolve_tcp_endpoint(
+            ctx.target.proxy.as_ref(),
             &ctx.target_host,
             port,
+        )
+        .await
+        {
+            Ok(endpoint) => endpoint,
+            Err(error) => {
+                return AttemptOutcome::Error(format!("oracle proxy bridge failed: {error}"));
+            }
+        };
+        let (connect_host, connect_port, _bridge) = endpoint;
+
+        let config = match oracle_config(
+            &connect_host,
+            connect_port,
             service_name,
             sid,
             &username,

@@ -2,6 +2,10 @@
 
 ## Completed Maintenance
 
+- Outbound top-level `--proxy` (same level as `--version`/`--no-color`) for all protocol modules
+  (`http`/`socks5`, optional credentials); injected into runtime `CommonArgs.proxy`; shared
+  `src/proxy.rs` parser + async/blocking tunnels + local TCP bridge for host:port-only clients;
+  CLI parse/reject tests and docs (README / PROCESS).
 - SQLite foreign-key enforcement, credential URL encoding, and regression coverage.
 - Lazy attempt scheduling with validated concurrency and timeout inputs.
 - Post-auth command failures preserve successfully verified credentials.

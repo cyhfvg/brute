@@ -41,7 +41,7 @@ pub async fn run() -> Result<()> {
 
     match cli.command {
         Command::Protocol(protocol_args) => {
-            run_protocol(cli.no_color, database, protocol_args).await
+            run_protocol(cli.no_color, cli.proxy, database, protocol_args).await
         }
         Command::Workspace(args) => run_workspace(database, args),
         Command::Creds(args) => run_creds(database, args),
@@ -49,8 +49,24 @@ pub async fn run() -> Result<()> {
 }
 
 /// Executes one protocol module with loaded or database-backed credentials.
+///
+/// # Parameters
+///
+/// - `no_color`: Disable ANSI colors when true.
+/// - `proxy`: Optional top-level `--proxy` configuration applied to all attempts.
+/// - `database`: Open credential database handle.
+/// - `protocol_args`: Parsed protocol subcommand arguments.
+///
+/// # Returns
+///
+/// `Ok(())` when the spray completes; errors on invalid targets/credentials or DB failures.
+///
+/// # Errors
+///
+/// Returns [`anyhow::Error`] when target/credential expansion fails or persistence fails fatally.
 async fn run_protocol(
     no_color: bool,
+    proxy: Option<crate::proxy::ProxyConfig>,
     database: CredentialDatabase,
     protocol_args: ProtocolArgs,
 ) -> Result<()> {
@@ -62,6 +78,10 @@ async fn run_protocol(
     let request_path = protocol_args.path().map(ToOwned::to_owned);
     let request_execute = protocol_args.execute().map(ToOwned::to_owned);
     let credentials = credentials.expand();
+
+    // Top-level `--proxy` is injected into CommonArgs for protocol modules.
+    let mut common = protocol_args.common().clone();
+    common.proxy = proxy;
 
     let console = Arc::new(Console::new(no_color));
     if targets.is_empty() {
@@ -77,7 +97,7 @@ async fn run_protocol(
         let target_ctx = TargetContext {
             protocol,
             target_host,
-            target: protocol_args.common().clone(),
+            target: common.clone(),
         };
 
         match module.probe_target(&target_ctx).await {
@@ -111,63 +131,60 @@ async fn run_protocol(
             .cloned()
             .map(move |target_host| (target_host, credential.clone()))
     }))
-    .for_each_concurrent(
-        protocol_args.common().threads,
-        |(target_host, credential)| {
-            let console = console.clone();
-            let module = module.clone();
-            let target = protocol_args.common().clone();
-            let path = request_path.clone();
-            let execute = request_execute.clone();
-            let target_success_flags = target_success_flags.clone();
-            let account_successes = account_successes.clone();
-            let database = database.clone();
-            let workspace = current_workspace.clone();
+    .for_each_concurrent(common.threads, |(target_host, credential)| {
+        let console = console.clone();
+        let module = module.clone();
+        let target = common.clone();
+        let path = request_path.clone();
+        let execute = request_execute.clone();
+        let target_success_flags = target_success_flags.clone();
+        let account_successes = account_successes.clone();
+        let database = database.clone();
+        let workspace = current_workspace.clone();
 
-            async move {
-                let success_flag = target_success_flags
-                    .get(&target_host)
-                    .expect("target success flag missing")
-                    .clone();
-                let account_key = account_success_key(
-                    &target_host,
-                    &credential.service_name,
-                    &credential.sid,
-                    &credential.username,
-                );
+        async move {
+            let success_flag = target_success_flags
+                .get(&target_host)
+                .expect("target success flag missing")
+                .clone();
+            let account_key = account_success_key(
+                &target_host,
+                &credential.service_name,
+                &credential.sid,
+                &credential.username,
+            );
 
-                if should_skip_attempt(
-                    target.continue_on_success,
-                    &success_flag,
-                    account_successes.lock().await.contains(&account_key),
-                ) {
-                    return;
-                }
-
-                let ctx = AttemptContext {
-                    protocol,
-                    target_host,
-                    target,
-                    path,
-                    execute,
-                    credential,
-                };
-
-                let outcome = module.attempt(&ctx).await;
-                if matches!(outcome, AttemptOutcome::Success(_)) {
-                    account_successes.lock().await.insert(account_key);
-                    if !ctx.target.continue_on_success {
-                        success_flag.store(true, Ordering::Relaxed);
-                    }
-
-                    if let Err(err) = save_successful_credential(&database, &workspace, &ctx) {
-                        eprintln!("failed to save credential: {err:#}");
-                    }
-                }
-                console.print_attempt(&ctx, &outcome);
+            if should_skip_attempt(
+                target.continue_on_success,
+                &success_flag,
+                account_successes.lock().await.contains(&account_key),
+            ) {
+                return;
             }
-        },
-    )
+
+            let ctx = AttemptContext {
+                protocol,
+                target_host,
+                target,
+                path,
+                execute,
+                credential,
+            };
+
+            let outcome = module.attempt(&ctx).await;
+            if matches!(outcome, AttemptOutcome::Success(_)) {
+                account_successes.lock().await.insert(account_key);
+                if !ctx.target.continue_on_success {
+                    success_flag.store(true, Ordering::Relaxed);
+                }
+
+                if let Err(err) = save_successful_credential(&database, &workspace, &ctx) {
+                    eprintln!("failed to save credential: {err:#}");
+                }
+            }
+            console.print_attempt(&ctx, &outcome);
+        }
+    })
     .await;
 
     Ok(())

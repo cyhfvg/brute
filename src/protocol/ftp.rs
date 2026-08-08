@@ -36,13 +36,25 @@ impl BruteModule for FtpModule {
             .clone()
             .unwrap_or_else(|| "anonymous".to_string());
         let password = ctx.credential.password.clone().unwrap_or_default();
-        let addr = ctx.addr();
+        let host = ctx.target_host.clone();
+        let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
+        let proxy = ctx.target.proxy.clone();
         let command = ctx.execute.clone();
 
         let future = async move {
-            let mut stream = AsyncRustlsFtpStream::connect(addr)
-                .await
-                .map_err(|err| FtpAttemptError::Auth(err.to_string()))?;
+            let mut stream = match proxy {
+                Some(proxy) => {
+                    let tcp = crate::proxy::connect_async(&proxy, &host, port)
+                        .await
+                        .map_err(FtpAttemptError::Auth)?;
+                    AsyncRustlsFtpStream::connect_with_stream(tcp)
+                        .await
+                        .map_err(|err| FtpAttemptError::Auth(err.to_string()))?
+                }
+                None => AsyncRustlsFtpStream::connect((host.as_str(), port))
+                    .await
+                    .map_err(|err| FtpAttemptError::Auth(err.to_string()))?,
+            };
             stream
                 .login(&username, &password)
                 .await

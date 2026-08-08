@@ -33,6 +33,7 @@ const ACCESS_MESSAGE: &str = "Windows - Shell access!";
 /// - `execute`: Optional post-auth command string, or `@path` to a local script file.
 /// - `shell_type`: Explicit CLI shell type, or `None` for defaults / auto probe plan.
 /// - `timeout`: Overall attempt timeout (also maps to client connect/operation timeouts).
+/// - `proxy`: Optional outbound proxy from CLI `--proxy`.
 ///
 /// # Returns
 ///
@@ -55,8 +56,10 @@ const ACCESS_MESSAGE: &str = "Windows - Shell access!";
 ///     Some("whoami"),
 ///     None, // -x defaults to powershell
 ///     Duration::from_secs(30),
+///     None,
 /// ).await;
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn try_winrm_login(
     host: &str,
     port: u16,
@@ -65,6 +68,7 @@ pub(super) async fn try_winrm_login(
     execute: Option<&str>,
     shell_type: Option<WinrmShellType>,
     timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
 ) -> AttemptOutcome {
     let payload = match execute {
         Some(raw) => match resolve_execute_payload(raw) {
@@ -82,7 +86,7 @@ pub(super) async fn try_winrm_login(
     } else {
         format!("{domain}\\{user}")
     };
-    let config = winrm_config_for_attempt(port, timeout);
+    let config = winrm_config_for_attempt(port, timeout, proxy);
     let credentials = WinrmCredentials::new(user, password, domain);
 
     let client = match WinrmClient::new(config, credentials) {
@@ -285,6 +289,7 @@ mod tests {
                 retries: 0,
                 timeout_ms: 300,
                 continue_on_success: false,
+                proxy: None,
             },
             path: None,
             execute: None,
