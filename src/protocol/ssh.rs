@@ -48,12 +48,16 @@ impl BruteModule for SshModule {
     }
 
     async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
-        let addr = ctx.addr();
+        let host = ctx.target_host.clone();
+        let port = ctx.port();
         let timeout = ctx.timeout();
+        let proxy = ctx.target.proxy.clone();
 
         match tokio::time::timeout(
             timeout,
-            tokio::task::spawn_blocking(move || read_ssh_banner(&addr, timeout)),
+            tokio::task::spawn_blocking(move || {
+                read_ssh_banner(&host, port, timeout, proxy.as_ref())
+            }),
         )
         .await
         {
@@ -63,22 +67,26 @@ impl BruteModule for SshModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        let addr = ctx.addr();
+        let host = ctx.target_host.clone();
+        let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
         let command = ctx.execute.clone();
         let retries = ctx.target.retries;
         let per_try_timeout = ctx.timeout();
+        let proxy = ctx.target.proxy.clone();
 
         for attempt in 0..=retries {
             let result = tokio::time::timeout(
                 per_try_timeout,
                 try_ssh_login_once(
-                    addr.clone(),
+                    host.clone(),
+                    port,
                     username.clone(),
                     password.clone(),
                     command.clone(),
                     per_try_timeout,
+                    proxy.clone(),
                 ),
             )
             .await;
@@ -101,18 +109,29 @@ impl BruteModule for SshModule {
 
 /// Performs one SSH login attempt; transport errors are intentionally hidden from output.
 async fn try_ssh_login_once(
-    addr: String,
+    host: String,
+    port: u16,
     username: String,
     password: String,
     command: Option<String>,
     timeout: Duration,
+    proxy: Option<crate::proxy::ProxyConfig>,
 ) -> Result<AttemptOutcome, ()> {
     let config = client::Config {
         inactivity_timeout: Some(timeout),
         nodelay: true,
         ..Default::default()
     };
-    let mut session = client::connect(Arc::new(config), addr, ClientHandler)
+    let stream = match &proxy {
+        Some(proxy) => crate::proxy::connect_async(proxy, &host, port)
+            .await
+            .map_err(|_| ())?,
+        None => tokio::net::TcpStream::connect((host.as_str(), port))
+            .await
+            .map_err(|_| ())?,
+    };
+    let _ = stream.set_nodelay(true);
+    let mut session = client::connect_stream(Arc::new(config), stream, ClientHandler)
         .await
         .map_err(|_| ())?;
 
@@ -201,19 +220,27 @@ fn keyboard_interactive_response(prompt: &str, echo: bool, password: &str) -> St
 }
 
 /// Reads a single SSH service banner without attempting authentication.
-fn read_ssh_banner(addr: &str, timeout: Duration) -> Option<String> {
-    let mut last_stream = None;
-    for socket_addr in addr.to_socket_addrs().ok()? {
-        match TcpStream::connect_timeout(&socket_addr, timeout) {
-            Ok(stream) => {
-                last_stream = Some(stream);
-                break;
+fn read_ssh_banner(
+    host: &str,
+    port: u16,
+    timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
+) -> Option<String> {
+    let stream = if let Some(proxy) = proxy {
+        crate::proxy::connect_std(proxy, host, port, timeout).ok()?
+    } else {
+        let mut last_stream = None;
+        for socket_addr in (host, port).to_socket_addrs().ok()? {
+            match TcpStream::connect_timeout(&socket_addr, timeout) {
+                Ok(stream) => {
+                    last_stream = Some(stream);
+                    break;
+                }
+                Err(_) => continue,
             }
-            Err(_) => continue,
         }
-    }
-
-    let stream = last_stream?;
+        last_stream?
+    };
     let _ = stream.set_read_timeout(Some(timeout));
     let _ = stream.set_write_timeout(Some(timeout));
     let mut reader = BufReader::new(stream);

@@ -30,13 +30,29 @@ impl BruteModule for MySqlModule {
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
         let command = ctx.execute.clone();
+        let timeout = ctx.timeout();
 
-        run_blocking_with_timeout(ctx.timeout(), move || {
+        let endpoint = match crate::proxy::resolve_tcp_endpoint(
+            ctx.target.proxy.as_ref(),
+            &host,
+            port,
+        )
+        .await
+        {
+            Ok(endpoint) => endpoint,
+            Err(err) => {
+                return AttemptOutcome::Error(format!("mysql proxy bridge failed: {err}"));
+            }
+        };
+        let (connect_host, connect_port, _bridge) = endpoint;
+
+        run_blocking_with_timeout(timeout, move || {
             let opts = OptsBuilder::default()
-                .ip_or_hostname(Some(host))
-                .tcp_port(port)
+                .ip_or_hostname(Some(connect_host))
+                .tcp_port(connect_port)
                 .user(Some(username))
                 .pass(Some(password))
+                .prefer_socket(false)
                 .stmt_cache_size(Some(0));
 
             match Conn::new(opts) {

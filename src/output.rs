@@ -163,6 +163,7 @@ mod tests {
                 retries: 3,
                 timeout_ms: 5_000,
                 continue_on_success: false,
+                proxy: None,
             },
         };
 

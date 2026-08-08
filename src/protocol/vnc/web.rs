@@ -31,12 +31,25 @@ use crate::protocol::{AttemptOutcome, AttemptSuccess};
 /// ```ignore
 /// assert!(looks_like_tls_or_http_gateway("example", 443, Duration::from_secs(2)));
 /// ```
-pub fn looks_like_tls_or_http_gateway(host: &str, port: u16, timeout: Duration) -> bool {
-    let Ok(addr) = resolve_addr(host, port) else {
-        return false;
-    };
-    let Ok(mut stream) = TcpStream::connect_timeout(&addr, timeout) else {
-        return false;
+pub fn looks_like_tls_or_http_gateway(
+    host: &str,
+    port: u16,
+    timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
+) -> bool {
+    let mut stream = if let Some(proxy) = proxy {
+        match crate::proxy::connect_std(proxy, host, port, timeout) {
+            Ok(stream) => stream,
+            Err(_) => return false,
+        }
+    } else {
+        let Ok(addr) = resolve_addr(host, port) else {
+            return false;
+        };
+        match TcpStream::connect_timeout(&addr, timeout) {
+            Ok(stream) => stream,
+            Err(_) => return false,
+        }
     };
     if apply_socket_timeouts(&stream, timeout).is_err() {
         return false;
@@ -63,6 +76,7 @@ pub fn looks_like_tls_or_http_gateway(host: &str, port: u16, timeout: Duration) 
 /// - `username`: HTTP Basic username.
 /// - `password`: HTTP Basic password.
 /// - `timeout`: Request timeout.
+/// - `proxy`: Optional outbound proxy from CLI `--proxy`.
 ///
 /// # Returns
 ///
@@ -75,7 +89,9 @@ pub fn looks_like_tls_or_http_gateway(host: &str, port: u16, timeout: Duration) 
 /// # Examples
 ///
 /// ```ignore
-/// let outcome = try_vnc_web_basic_login("192.168.10.5", 30011, "u", "p", Duration::from_secs(5)).await;
+/// let outcome = try_vnc_web_basic_login(
+///     "192.168.10.5", 30011, "u", "p", Duration::from_secs(5), None
+/// ).await;
 /// ```
 pub async fn try_vnc_web_basic_login(
     host: &str,
@@ -83,13 +99,21 @@ pub async fn try_vnc_web_basic_login(
     username: &str,
     password: &str,
     timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
 ) -> AttemptOutcome {
     let url = format!("https://{host}:{port}/");
-    let client = match Client::builder()
+    let mut builder = Client::builder()
         .danger_accept_invalid_certs(true)
-        .timeout(timeout)
-        .build()
-    {
+        .timeout(timeout);
+    if let Some(proxy) = proxy {
+        match proxy.to_reqwest_proxy() {
+            Ok(proxy) => builder = builder.proxy(proxy),
+            Err(err) => {
+                return AttemptOutcome::Error(format!("vnc web proxy config failed: {err}"));
+            }
+        }
+    }
+    let client = match builder.build() {
         Ok(client) => client,
         Err(err) => {
             return AttemptOutcome::Error(format!("vnc web client build failed: {err}"));

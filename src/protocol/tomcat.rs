@@ -32,11 +32,18 @@ impl BruteModule for TomcatManagerModule {
             normalize_path(ctx.path.as_deref().unwrap_or("/manager/html"))
         );
 
-        let client = match Client::builder()
+        let mut builder = Client::builder()
             .danger_accept_invalid_certs(true)
-            .timeout(ctx.timeout())
-            .build()
-        {
+            .timeout(ctx.timeout());
+        if let Some(proxy) = ctx.target.proxy.as_ref() {
+            match proxy.to_reqwest_proxy() {
+                Ok(proxy) => builder = builder.proxy(proxy),
+                Err(err) => {
+                    return AttemptOutcome::Error(format!("http proxy config failed: {err}"));
+                }
+            }
+        }
+        let client = match builder.build() {
             Ok(client) => client,
             Err(err) => return AttemptOutcome::Error(format!("http client build failed: {err}")),
         };

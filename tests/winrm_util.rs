@@ -103,7 +103,7 @@ fn split_domain_user_forms() {
 /// Verifies HTTP 5985 config stays cleartext NTLM; 5986 enables TLS + session_id.
 #[test]
 fn winrm_config_port_tls_mapping() {
-    let http = winrm_config_for_attempt(5985, Duration::from_millis(2500));
+    let http = winrm_config_for_attempt(5985, Duration::from_millis(2500), None);
     assert_eq!(http.port, 5985);
     assert!(!http.use_tls);
     assert!(matches!(http.auth_method, AuthMethod::Ntlm));
@@ -111,8 +111,9 @@ fn winrm_config_port_tls_mapping() {
     assert_eq!(http.operation_timeout_secs, 5);
     assert_eq!(http.max_envelope_size, 512_000);
     assert!(!http.session_id.is_nil());
+    assert!(http.proxy.is_none());
 
-    let https = winrm_config_for_attempt(5986, Duration::from_secs(10));
+    let https = winrm_config_for_attempt(5986, Duration::from_secs(10), None);
     assert_eq!(https.port, 5986);
     assert!(https.use_tls);
     assert!(https.accept_invalid_certs);
@@ -122,8 +123,8 @@ fn winrm_config_port_tls_mapping() {
 /// Verifies each attempt config gets a distinct SessionId (clone keeps the same).
 #[test]
 fn winrm_config_assigns_unique_session_id_per_attempt() {
-    let a = winrm_config_for_attempt(5985, Duration::from_secs(30));
-    let b = winrm_config_for_attempt(5985, Duration::from_secs(30));
+    let a = winrm_config_for_attempt(5985, Duration::from_secs(30), None);
+    let b = winrm_config_for_attempt(5985, Duration::from_secs(30), None);
     assert_ne!(a.session_id, b.session_id);
     assert!(!a.session_id.is_nil());
     assert!(!b.session_id.is_nil());

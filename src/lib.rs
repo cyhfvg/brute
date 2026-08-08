@@ -10,5 +10,6 @@ pub mod database;
 pub mod error;
 pub mod output;
 pub mod protocol;
+pub mod proxy;
 pub mod targets;
 pub mod tls;

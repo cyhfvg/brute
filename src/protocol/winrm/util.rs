@@ -15,6 +15,7 @@ use crate::cli::WinrmShellType;
 ///
 /// - `port`: Target WinRM port; `5986` enables HTTPS with invalid-cert acceptance for labs.
 /// - `timeout`: Attempt timeout used for connect and operation seconds (minimum 1s).
+/// - `proxy`: Optional outbound proxy from CLI `--proxy`.
 ///
 /// # Returns
 ///
@@ -28,12 +29,16 @@ use crate::cli::WinrmShellType;
 /// # Examples
 ///
 /// ```ignore
-/// let config = winrm_config_for_attempt(5985, Duration::from_millis(5000));
+/// let config = winrm_config_for_attempt(5985, Duration::from_millis(5000), None);
 /// assert_eq!(config.port, 5985);
 /// assert!(!config.use_tls);
 /// assert!(!config.session_id.is_nil());
 /// ```
-pub fn winrm_config_for_attempt(port: u16, timeout: Duration) -> WinrmConfig {
+pub fn winrm_config_for_attempt(
+    port: u16,
+    timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
+) -> WinrmConfig {
     // PSRP envelopes are larger than simple cmd shells; keep a roomy max size.
     // `..Default` preserves session_id and other fork defaults (SessionId SOAP header).
     let secs = timeout.as_secs().max(1).max(5);
@@ -48,6 +53,7 @@ pub fn winrm_config_for_attempt(port: u16, timeout: Duration) -> WinrmConfig {
         auth_method: AuthMethod::Ntlm,
         max_retries: 0,
         max_envelope_size: 512_000,
+        proxy: proxy.map(|p| p.to_url_string()),
         ..WinrmConfig::default()
     }
 }
@@ -250,7 +256,18 @@ pub fn split_domain_user(username: &str) -> (String, String) {
 /// # Returns
 ///
 /// [`Some`] readiness message when TCP connect succeeds; [`None`] otherwise.
-pub(crate) fn probe_winrm_port(host: &str, port: u16, timeout: Duration) -> Option<String> {
+pub(crate) fn probe_winrm_port(
+    host: &str,
+    port: u16,
+    timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
+) -> Option<String> {
+    if let Some(proxy) = proxy {
+        return crate::proxy::connect_std(proxy, host, port, timeout)
+            .ok()
+            .map(|_| format!("winrm port open on {host}:{port}"));
+    }
+
     let addr = format!("{host}:{port}");
     match TcpStream::connect_timeout(
         &addr.parse().ok().or_else(|| {

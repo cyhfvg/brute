@@ -87,8 +87,11 @@ impl BruteModule for WinrmModule {
         let host = ctx.target_host.clone();
         let port = ctx.port();
         let timeout = ctx.timeout();
+        let proxy = ctx.target.proxy.clone();
 
-        let probe = tokio::task::spawn_blocking(move || probe_winrm_port(&host, port, timeout));
+        let probe = tokio::task::spawn_blocking(move || {
+            probe_winrm_port(&host, port, timeout, proxy.as_ref())
+        });
         match tokio::time::timeout(timeout, probe).await {
             Ok(Ok(Some(message))) => TargetProbe::Ready(Some(message)),
             _ => TargetProbe::Ready(None),
@@ -103,6 +106,7 @@ impl BruteModule for WinrmModule {
         let execute = ctx.execute.clone();
         let shell_type = self.shell_type;
         let timeout = ctx.timeout();
+        let proxy = ctx.target.proxy.clone();
 
         // Dual shell probe (no -x) and PSRP execute need more headroom than a TCP probe.
         let attempt_timeout = if execute.is_some() {
@@ -121,6 +125,7 @@ impl BruteModule for WinrmModule {
                 execute.as_deref(),
                 shell_type,
                 attempt_timeout,
+                proxy.as_ref(),
             )
             .await
         };

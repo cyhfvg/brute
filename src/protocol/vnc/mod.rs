@@ -80,8 +80,11 @@ impl BruteModule for VncModule {
         let host = ctx.target_host.clone();
         let port = ctx.port();
         let timeout = ctx.timeout();
+        let proxy = ctx.target.proxy.clone();
 
-        let probe = tokio::task::spawn_blocking(move || probe_vnc_port(&host, port, timeout));
+        let probe = tokio::task::spawn_blocking(move || {
+            probe_vnc_port(&host, port, timeout, proxy.as_ref())
+        });
         match tokio::time::timeout(timeout, probe).await {
             Ok(Ok(Some(message))) => TargetProbe::Ready(Some(message)),
             _ => TargetProbe::Ready(None),
@@ -94,11 +97,13 @@ impl BruteModule for VncModule {
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
         let timeout = ctx.timeout();
+        let proxy = ctx.target.proxy.clone();
 
         // Peek off the async runtime: classic VNC speaks first; TLS/HTTP gateways do not.
         let host_peek = host.clone();
+        let proxy_peek = proxy.clone();
         let is_web_gateway = match tokio::task::spawn_blocking(move || {
-            looks_like_tls_or_http_gateway(&host_peek, port, timeout)
+            looks_like_tls_or_http_gateway(&host_peek, port, timeout, proxy_peek.as_ref())
         })
         .await
         {
@@ -110,10 +115,13 @@ impl BruteModule for VncModule {
 
         if is_web_gateway {
             // linuxserver webtop / noVNC-style HTTPS Basic Auth in front of the desktop.
-            try_vnc_web_basic_login(&host, port, &username, &password, timeout).await
-        } else {
-            run_blocking_with_timeout(timeout, move || try_rfb(&host, port, &password, timeout))
+            try_vnc_web_basic_login(&host, port, &username, &password, timeout, proxy.as_ref())
                 .await
+        } else {
+            run_blocking_with_timeout(timeout, move || {
+                try_rfb(&host, port, &password, timeout, proxy.as_ref())
+            })
+            .await
         }
     }
 }

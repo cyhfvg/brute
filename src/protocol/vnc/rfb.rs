@@ -39,6 +39,7 @@ pub enum RfbAuthResult {
 /// - `port`: VNC TCP port (typically 5900).
 /// - `password`: VNC password (effective length truncated to 8 characters).
 /// - `timeout`: Connection and I/O timeout.
+/// - `proxy`: Optional outbound proxy from CLI `--proxy`.
 ///
 /// # Returns
 ///
@@ -53,25 +54,34 @@ pub enum RfbAuthResult {
 /// # Examples
 ///
 /// ```ignore
-/// let outcome = try_vnc_rfb_login("127.0.0.1", 5900, "secret", Duration::from_secs(5));
+/// let outcome = try_vnc_rfb_login("127.0.0.1", 5900, "secret", Duration::from_secs(5), None);
 /// ```
 pub fn try_vnc_rfb_login(
     host: &str,
     port: u16,
     password: &str,
     timeout: Duration,
+    proxy: Option<&crate::proxy::ProxyConfig>,
 ) -> AttemptOutcome {
-    let server_addr = match resolve_addr(host, port) {
-        Ok(addr) => addr,
-        Err(err) => {
-            return AttemptOutcome::Error(format!("vnc resolve error: {err}"));
+    let mut stream = if let Some(proxy) = proxy {
+        match crate::proxy::connect_std(proxy, host, port, timeout) {
+            Ok(stream) => stream,
+            Err(err) => {
+                return AttemptOutcome::Error(format!("vnc transport error: {err}"));
+            }
         }
-    };
-
-    let mut stream = match TcpStream::connect_timeout(&server_addr, timeout) {
-        Ok(stream) => stream,
-        Err(err) => {
-            return AttemptOutcome::Error(format!("vnc transport error: {err}"));
+    } else {
+        let server_addr = match resolve_addr(host, port) {
+            Ok(addr) => addr,
+            Err(err) => {
+                return AttemptOutcome::Error(format!("vnc resolve error: {err}"));
+            }
+        };
+        match TcpStream::connect_timeout(&server_addr, timeout) {
+            Ok(stream) => stream,
+            Err(err) => {
+                return AttemptOutcome::Error(format!("vnc transport error: {err}"));
+            }
         }
     };
 
@@ -347,7 +357,7 @@ mod tests {
         let response = vnc_auth_response(password, &challenge);
 
         let port = spawn_mock_vnc_server("secret12");
-        let outcome = try_vnc_rfb_login("127.0.0.1", port, password, Duration::from_secs(2));
+        let outcome = try_vnc_rfb_login("127.0.0.1", port, password, Duration::from_secs(2), None);
         match outcome {
             AttemptOutcome::Success(s) => assert!(s.message.contains("VNC access")),
             other => panic!("expected Success, got {other:?}"),
@@ -359,7 +369,8 @@ mod tests {
     #[test]
     fn rfb_handshake_rejects_wrong_password() {
         let port = spawn_mock_vnc_server("correctpw");
-        let outcome = try_vnc_rfb_login("127.0.0.1", port, "wrongpass", Duration::from_secs(2));
+        let outcome =
+            try_vnc_rfb_login("127.0.0.1", port, "wrongpass", Duration::from_secs(2), None);
         match outcome {
             AttemptOutcome::Failure(msg) => {
                 assert!(
@@ -380,6 +391,7 @@ mod tests {
             1,
             "not-a-real-password",
             Duration::from_millis(400),
+            None,
         );
         match outcome {
             AttemptOutcome::Error(message) => {
@@ -420,7 +432,7 @@ mod tests {
         for i in 0..4 {
             let pw = if i % 2 == 0 { "concurpw" } else { "bad" };
             handles.push(std::thread::spawn(move || {
-                try_vnc_rfb_login("127.0.0.1", port, pw, Duration::from_secs(3))
+                try_vnc_rfb_login("127.0.0.1", port, pw, Duration::from_secs(3), None)
             }));
         }
         let mut ok = 0;

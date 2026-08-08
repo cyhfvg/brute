@@ -32,10 +32,27 @@ impl BruteModule for RedisModule {
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
         let command = ctx.execute.clone();
+        let host = ctx.target_host.clone();
+        let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
+
+        let endpoint = match crate::proxy::resolve_tcp_endpoint(
+            ctx.target.proxy.as_ref(),
+            &host,
+            port,
+        )
+        .await
+        {
+            Ok(endpoint) => endpoint,
+            Err(err) => {
+                return AttemptOutcome::Error(format!("redis proxy bridge failed: {err}"));
+            }
+        };
+        let (connect_host, connect_port, _bridge) = endpoint;
+        let addr = format!("{connect_host}:{connect_port}");
         let url = if username.is_empty() {
-            format!("redis://:{}@{}/", password, ctx.addr())
+            format!("redis://:{password}@{addr}/")
         } else {
-            format!("redis://{}:{}@{}/", username, password, ctx.addr())
+            format!("redis://{username}:{password}@{addr}/")
         };
 
         let attempt = async move {
