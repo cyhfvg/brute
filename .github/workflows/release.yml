@@ -84,8 +84,15 @@ jobs:
           key: ${{ matrix.target }}
 
       # Windows: use pwsh so PATH keeps Strawberry Perl ahead of Git Bash perl.
+      # Note: `shell` cannot reference the `runner` context; branch via matrix.os.
       - name: Build release binary
-        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: cargo build --locked --release --target ${{ matrix.target }}
+
+      - name: Build release binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: cargo build --locked --release --target ${{ matrix.target }}
 
       - name: Package release asset
