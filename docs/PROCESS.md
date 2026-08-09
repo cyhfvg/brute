@@ -114,10 +114,9 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 | ------ | ------ | ---- | ---- |
 | `x86_64-unknown-linux-musl` | `ubuntu-latest` | Linux musl 静态链接 | `.tar.gz` |
 | `x86_64-pc-windows-msvc` | `windows-latest` | Windows 原生 MSVC | `.zip` |
-| `x86_64-apple-darwin` | `macos-13` | Intel macOS 原生 | `.tar.gz` |
 | `aarch64-apple-darwin` | `macos-latest` | Apple Silicon 原生 | `.tar.gz` |
 
-各 target 共用同一套 checkout / toolchain / cache / `cargo build --locked --release` / 打包 / artifact 上传步骤（打包脚本统一 `shell: bash`）；Linux 额外安装 apt 依赖。`publish` job 在 `ubuntu-latest` 汇总 artifact、生成 `SHA256SUMS.txt` 与 release notes，再通过 `softprops/action-gh-release` 发布。
+各 target 共用 checkout / toolchain / cache / `cargo build --locked --release` / 打包 / artifact 上传步骤；打包脚本统一 `shell: bash`。Linux 额外安装 apt 依赖。Windows MSVC 因 `openssl` vendored 源码编译需要完整 Perl 与 NASM：安装 NASM，并将镜像自带的 Strawberry Perl 前置到 `PATH`；**构建步骤使用 `pwsh`**，避免 `shell: bash` 优先命中 Git/MSYS 残缺 `perl`（会报缺少 `Locale::Maketext::Simple`）。`publish` job 在 `ubuntu-latest` 汇总 artifact、生成 `SHA256SUMS.txt` 与 release notes，再通过 `softprops/action-gh-release` 发布。
 
 ## 后续建议
 

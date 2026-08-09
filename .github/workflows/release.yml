@@ -33,12 +33,6 @@ jobs:
             archive_ext: zip
             asset_suffix: .exe
             packages: ""
-          # Native Intel macOS build (no Apple cross-compile).
-          - target: x86_64-apple-darwin
-            os: macos-13
-            archive_ext: tar.gz
-            asset_suffix: ""
-            packages: ""
           # Native Apple Silicon macOS build.
           - target: aarch64-apple-darwin
             os: macos-latest
@@ -56,6 +50,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.packages }}
 
+      # openssl crate (vendored) on MSVC needs a full Perl + NASM.
+      # Git Bash ships an incomplete MSYS perl that fails OpenSSL Configure
+      # (missing Locale::Maketext::Simple). Prefer image Strawberry Perl via pwsh.
+      - name: Install Windows OpenSSL build tools
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
+
+      - name: Prefer Strawberry Perl on PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $strawberry = 'C:\Strawberry\perl\bin'
+          if (-not (Test-Path (Join-Path $strawberry 'perl.exe'))) {
+            choco install strawberryperl -y --no-progress
+          }
+          if (-not (Test-Path (Join-Path $strawberry 'perl.exe'))) {
+            throw "Strawberry Perl not found at $strawberry"
+          }
+          # Prepend so cargo/openssl-src does not pick Git\usr\bin\perl.
+          $strawberry | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $strawberry 'perl.exe') -v
+          & (Join-Path $strawberry 'perl.exe') -MLocale::Maketext::Simple -e "print qq(Locale::Maketext::Simple OK$/)"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -66,8 +83,9 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
+      # Windows: use pwsh so PATH keeps Strawberry Perl ahead of Git Bash perl.
       - name: Build release binary
-        shell: bash
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         run: cargo build --locked --release --target ${{ matrix.target }}
 
       - name: Package release asset

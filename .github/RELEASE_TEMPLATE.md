@@ -8,14 +8,12 @@
 
 - `x86_64-unknown-linux-musl` (`ubuntu-latest`)
 - `x86_64-pc-windows-msvc` (`windows-latest`)
-- `x86_64-apple-darwin` (`macos-13`, Intel)
 - `aarch64-apple-darwin` (`macos-latest`, Apple Silicon)
 
 ## Assets
 
 - `brute-{{ version }}-x86_64-unknown-linux-musl.tar.gz`
 - `brute-{{ version }}-x86_64-pc-windows-msvc.zip`
-- `brute-{{ version }}-x86_64-apple-darwin.tar.gz`
 - `brute-{{ version }}-aarch64-apple-darwin.tar.gz`
 - `SHA256SUMS.txt`
 
