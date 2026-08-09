@@ -16,25 +16,42 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Native Linux static build (musl toolchain on Ubuntu).
           - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
             archive_ext: tar.gz
             asset_suffix: ""
             packages: musl-tools
-          - target: x86_64-pc-windows-gnu
+          # Native Windows build (MSVC host/toolchain on windows-latest).
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
             archive_ext: zip
             asset_suffix: .exe
-            packages: gcc-mingw-w64-x86-64 zip
+            packages: ""
+          # Native Intel macOS build (no Apple cross-compile).
+          - target: x86_64-apple-darwin
+            os: macos-13
+            archive_ext: tar.gz
+            asset_suffix: ""
+            packages: ""
+          # Native Apple Silicon macOS build.
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive_ext: tar.gz
+            asset_suffix: ""
+            packages: ""
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install build dependencies
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux' && matrix.packages != ''
         run: |
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.packages }}
@@ -46,16 +63,22 @@ jobs:
 
       - name: Restore cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
 
       - name: Build release binary
+        shell: bash
         run: cargo build --locked --release --target ${{ matrix.target }}
 
       - name: Package release asset
+        shell: bash
         env:
           TARGET: ${{ matrix.target }}
           ARCHIVE_EXT: ${{ matrix.archive_ext }}
           ASSET_SUFFIX: ${{ matrix.asset_suffix }}
         run: |
+          set -euo pipefail
+
           TAG_NAME="${GITHUB_REF_NAME}"
           ASSET_BASENAME="${BINARY_NAME}-${TAG_NAME}-${TARGET}"
           mkdir -p dist
@@ -63,13 +86,21 @@ jobs:
           cp README.md LICENSE dist/
 
           if [ "${ARCHIVE_EXT}" = "tar.gz" ]; then
-            tar -C dist -czf "${ASSET_BASENAME}.tar.gz" "${BINARY_NAME}${ASSET_SUFFIX}" README.md LICENSE
-          else
+            tar -C dist -czf "${ASSET_BASENAME}.tar.gz" \
+              "${BINARY_NAME}${ASSET_SUFFIX}" README.md LICENSE
+          elif command -v zip >/dev/null 2>&1; then
             (
               cd dist
-              zip -9 "../${ASSET_BASENAME}.zip" "${BINARY_NAME}${ASSET_SUFFIX}" README.md LICENSE
+              zip -9 "../${ASSET_BASENAME}.zip" \
+                "${BINARY_NAME}${ASSET_SUFFIX}" README.md LICENSE
             )
+          else
+            # windows-latest may not ship zip(1); bsdtar can emit .zip via -a.
+            tar -C dist -a -cf "${ASSET_BASENAME}.zip" \
+              "${BINARY_NAME}${ASSET_SUFFIX}" README.md LICENSE
           fi
+
+          ls -la "${ASSET_BASENAME}.${ARCHIVE_EXT}"
 
       - name: Upload packaged asset
         uses: actions/upload-artifact@v6

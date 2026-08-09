@@ -2,6 +2,10 @@
 
 ## Completed Maintenance
 
+- Release CI matrix builds natively per OS runner: Linux musl on
+  `ubuntu-latest`, Windows MSVC on `windows-latest`, Intel macOS on `macos-13`,
+  Apple Silicon on `macos-latest` (no OS cross-compile); shared package/upload
+  path and GitHub Release publish job.
 - Outbound top-level `--proxy` (same level as `--version`/`--no-color`) for all protocol modules
   (`http`/`socks5`, optional credentials); injected into runtime `CommonArgs.proxy`; shared
   `src/proxy.rs` parser + async/blocking tunnels + local TCP bridge for host:port-only clients;

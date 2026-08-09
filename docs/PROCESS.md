@@ -106,6 +106,19 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 （当前无 CLI 预留但未实现的协议占位）
 
+## Release CI
+
+`.github/workflows/release.yml` 在推送 `v*` 标签后矩阵构建并打包发布资产。每个 target 使用对应平台的 GitHub-hosted runner **原生编译**，不做跨 OS 交叉编译：
+
+| Target | Runner | 说明 | 归档 |
+| ------ | ------ | ---- | ---- |
+| `x86_64-unknown-linux-musl` | `ubuntu-latest` | Linux musl 静态链接 | `.tar.gz` |
+| `x86_64-pc-windows-msvc` | `windows-latest` | Windows 原生 MSVC | `.zip` |
+| `x86_64-apple-darwin` | `macos-13` | Intel macOS 原生 | `.tar.gz` |
+| `aarch64-apple-darwin` | `macos-latest` | Apple Silicon 原生 | `.tar.gz` |
+
+各 target 共用同一套 checkout / toolchain / cache / `cargo build --locked --release` / 打包 / artifact 上传步骤（打包脚本统一 `shell: bash`）；Linux 额外安装 apt 依赖。`publish` job 在 `ubuntu-latest` 汇总 artifact、生成 `SHA256SUMS.txt` 与 release notes，再通过 `softprops/action-gh-release` 发布。
+
 ## 后续建议
 
 1. 为已排队但尚未执行的 target 任务增加更强的主动取消控制
