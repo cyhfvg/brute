@@ -7,7 +7,14 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 #[command(
     name = "brute",
     version,
+    author = "cyhfvg <https://github.com/cyhfvg/brute>",
     about = "A multi-protocol credential attack and login verification utility",
+    help_template = "\
+{before-help}{about-with-newline}\
+Author: {author-with-newline}\
+{usage-heading} {usage}
+
+{all-args}{after-help}",
     subcommand_value_name = "COMMAND",
     subcommand_help_heading = "commands"
 )]

@@ -255,7 +255,7 @@ SSH        192.168.10.5     22     uid=0(root) gid=0(root) groups=0(root)
 成功登录的凭据会自动保存到本地 SQLite 数据库：
 
 ```text
-~/.brute/brute.db
+~/.config/brute/brute.db
 ```
 
 首次运行时，`brute` 会初始化数据库、创建默认 workspace，并输出初始化信息。已有数据库会静默打开。
@@ -271,7 +271,7 @@ SSH        192.168.10.5     22     uid=0(root) gid=0(root) groups=0(root)
 - `password`
 - `conn_url`
 
-数据库以明文保存凭据，请根据项目授权范围和本地安全要求保护 `~/.brute/brute.db`。
+数据库以明文保存凭据，请根据项目授权范围和本地安全要求保护 `~/.config/brute/brute.db`。
 
 ### Workspace
 

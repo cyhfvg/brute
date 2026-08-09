@@ -10,8 +10,8 @@ use crate::{cli::Protocol, credentials::CredentialSet};
 /// Default workspace name used when the database is first created.
 pub const DEFAULT_WORKSPACE: &str = "default";
 
-/// Database path relative to the user's home directory.
-const DEFAULT_DATABASE_RELATIVE_PATH: &str = ".brute/brute.db";
+/// Database path relative to the user's home directory (`~/.config/brute/brute.db`).
+const DEFAULT_DATABASE_RELATIVE_PATH: &str = ".config/brute/brute.db";
 
 /// Local SQLite database wrapper.
 #[derive(Debug, Clone)]
@@ -40,13 +40,60 @@ pub struct SavedCredential {
 }
 
 impl CredentialDatabase {
-    /// Returns the default SQLite database path.
+    /// Returns the default SQLite database path under `~/.config/brute/brute.db`.
+    ///
+    /// # Parameters
+    ///
+    /// None. The path is derived from the `HOME` environment variable.
+    ///
+    /// # Returns
+    ///
+    /// Absolute path to `~/.config/brute/brute.db`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `HOME` is unset.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use brute::database::CredentialDatabase;
+    ///
+    /// let path = CredentialDatabase::default_path().expect("HOME must be set");
+    /// assert!(path.ends_with(".config/brute/brute.db"));
+    /// ```
     pub fn default_path() -> Result<PathBuf> {
         let home = env::var_os("HOME").context("HOME environment variable is not set")?;
         Ok(PathBuf::from(home).join(DEFAULT_DATABASE_RELATIVE_PATH))
     }
 
     /// Opens the default SQLite database and reports whether it had to be initialized.
+    ///
+    /// # Parameters
+    ///
+    /// None. Uses [`Self::default_path`].
+    ///
+    /// # Returns
+    ///
+    /// `(database, initialized)` where `initialized` is `true` when the file did not exist
+    /// before this call and was created during open.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the default path cannot be resolved, the parent directory cannot
+    /// be created, or the SQLite schema cannot be applied.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use brute::database::CredentialDatabase;
+    ///
+    /// let (database, initialized) = CredentialDatabase::open_default()?;
+    /// if initialized {
+    ///     println!("created {}", database.path().display());
+    /// }
+    /// # Ok::<(), anyhow::Error>(())
+    /// ```
     pub fn open_default() -> Result<(Self, bool)> {
         let path = Self::default_path()?;
         let initialized = !path.exists();
@@ -456,6 +503,16 @@ mod tests {
         assert_eq!(
             build_conn_url("ssh", &credential, "2001:db8::1", 22),
             "ssh://admin%40example.com:p%40ss@[2001:db8::1]:22"
+        );
+    }
+
+    #[test]
+    fn default_database_relative_path_is_under_config_brute() {
+        assert_eq!(DEFAULT_DATABASE_RELATIVE_PATH, ".config/brute/brute.db");
+        let joined = PathBuf::from("/home/example").join(DEFAULT_DATABASE_RELATIVE_PATH);
+        assert_eq!(
+            joined,
+            PathBuf::from("/home/example/.config/brute/brute.db")
         );
     }
 }

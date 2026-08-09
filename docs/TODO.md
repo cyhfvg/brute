@@ -2,6 +2,7 @@
 
 ## Completed Maintenance
 
+- Default SQLite path moved to `~/.config/brute/brute.db` (XDG-style config dir);
 - Release CI matrix builds natively per OS runner: Linux musl on
   `ubuntu-latest`, Windows MSVC on `windows-latest` (Strawberry Perl + NASM for
   vendored OpenSSL; pwsh build shell), Apple Silicon on `macos-latest`; Intel
