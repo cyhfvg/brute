@@ -77,6 +77,31 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("workspace"));
     assert!(stdout.contains("creds"));
     assert!(stdout.contains("ssh"));
+    assert!(
+        stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
+        "root --help must show author info\nstdout:\n{stdout}"
+    );
+}
+
+#[test]
+fn default_database_lives_under_config_brute() {
+    let home = TempHome::new("config-db");
+
+    let output = run_with_home(&home, ["workspace", "current"]);
+    assert_success(&output);
+
+    let expected = home.path().join(".config/brute/brute.db");
+    assert!(
+        expected.is_file(),
+        "expected default database at {}\nstdout:\n{}\nstderr:\n{}",
+        expected.display(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !home.path().join(".brute/brute.db").exists(),
+        "legacy ~/.brute/brute.db must not be created by default"
+    );
 }
 
 #[test]

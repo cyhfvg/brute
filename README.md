@@ -255,7 +255,7 @@ Successful credential pairs are highlighted when color output is enabled.
 Successful logins are saved automatically to a local SQLite database:
 
 ```text
-~/.brute/brute.db
+~/.config/brute/brute.db
 ```
 
 On first run, `brute` initializes the database, creates the default workspace, and prints an initialization message. Existing databases are opened silently.
@@ -271,7 +271,7 @@ Saved credential fields include:
 - `password`
 - `conn_url`
 
-Database values are stored in plaintext. Protect `~/.brute/brute.db` according to your engagement rules and local security requirements.
+Database values are stored in plaintext. Protect `~/.config/brute/brute.db` according to your engagement rules and local security requirements.
 
 ### Workspaces
 
