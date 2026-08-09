@@ -44,6 +44,20 @@
 
 ## 安装与构建
 
+### 直接下载 Release
+
+从 [GitHub Releases](https://github.com/cyhfvg/brute/releases) 下载预编译二进制，赋予执行权限后即可使用：
+
+```bash
+# 示例: Linux x86_64 musl 静态二进制
+chmod +x brute
+./brute --help
+```
+
+如有 musl / 静态构建产物，优先使用，可避免依赖系统动态库。
+
+### 从源码构建
+
 开发构建：
 
 ```bash

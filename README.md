@@ -45,6 +45,20 @@ See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
 ## Installation
 
+### Download prebuilt release
+
+Download the latest prebuilt binary from the [GitHub Releases](https://github.com/cyhfvg/brute/releases) page, make it executable, and run it:
+
+```bash
+# Example: Linux x86_64 musl static binary
+chmod +x brute
+./brute --help
+```
+
+Prefer the musl / static build when available so the binary can run without extra system libraries.
+
+### Build from source
+
 Build a normal development binary:
 
 ```bash
