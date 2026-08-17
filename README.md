@@ -16,6 +16,8 @@ Chinese documentation is available here: [README.zh-CN.md](README.zh-CN.md).
 - Clean terminal output with highlighted successful credentials.
 - Local SQLite credential storage with workspace isolation.
 
+- MCP stdio server so an LLM host can verify accounts, spray passwords, and query saved credentials.
+
 The intended workflow is simple: build once, copy one binary to an authorized test environment, run it without installing extra shared libraries.
 
 ## Acknowledgements
@@ -138,6 +140,41 @@ These flags are top-level (same level as `--version`) and must appear **before**
 
 - `--proxy <PROXY_URL>`: Supported schemes: `http` and `socks5`. URL form: `protocol://[username[:password]@]host:port`. Examples: `brute --proxy socks5://user:pass@127.0.0.1:1080 ssh 10.0.0.1 -u admin -p pass`, `brute --proxy http://127.0.0.1:8080 http 10.0.0.1 -u admin -p pass`.
 - `--no-color`: Disable colored output.
+
+## MCP Server
+
+`brute mcp` starts a stdio [Model Context Protocol](https://modelcontextprotocol.io/) server in the same static binary. The server talks JSON-RPC on stdin/stdout and must not be mixed with the colored CLI output.
+
+```bash
+brute mcp
+```
+
+Example host configuration:
+
+```json
+{
+  "mcpServers": {
+    "brute": {
+      "command": "/path/to/brute",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Tools exposed to the model:
+
+- `verify_account`: check one username/password (or a saved `--id`) against one target.
+- `spray_passwords`: spray username/password lists or wordlist paths across one or more targets.
+- `list_credentials`: query credentials already verified and stored in `~/.config/brute/brute.db`.
+- `list_workspaces`: list local workspaces and the current workspace.
+- `list_protocols`: list supported protocols and default ports.
+
+
+Detailed natural-language prompts and the matching tool JSON are in [docs/MCP.example.md](docs/MCP.example.md).
+
+Successful MCP verifications are saved to the selected workspace, same as the CLI. Use these tools only against authorized targets.
+
 
 ## Common Options
 
@@ -383,6 +420,9 @@ src/
   error.rs          # error types
   output.rs         # console rendering
   targets.rs        # target and target-file loading
+  engine/           # programmatic verify/spray/query engine
+  mcp/              # MCP stdio server and tool schemas
+
   protocol/
     mod.rs          # protocol abstraction
     ssh.rs

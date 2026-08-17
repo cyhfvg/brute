@@ -14,6 +14,8 @@
 - 类 NetExec 的协议优先命令结构。
 - 清晰终端输出，成功凭据高亮显示。
 - 本地 SQLite 凭据数据库，支持 workspace 隔离。
+- MCP stdio 服务, 供大模型验证账户、密码喷洒, 以及查询已保存凭据。
+
 
 目标工作流是：构建一次，复制单个二进制到授权测试环境，无需额外安装共享库即可运行。
 
@@ -137,6 +139,41 @@ brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @scri
 
 - `--proxy <PROXY_URL>`: 支持 `http` 与 `socks5`。URL 形式：`protocol://[username[:password]@]host:port`。示例：`brute --proxy socks5://user:pass@127.0.0.1:1080 ssh 10.0.0.1 -u admin -p pass`、`brute --proxy http://127.0.0.1:8080 http 10.0.0.1 -u admin -p pass`。
 - `--no-color`: 关闭彩色输出。
+
+## MCP 服务
+
+`brute mcp` 在同一静态单文件中启动 stdio [Model Context Protocol](https://modelcontextprotocol.io/) 服务。协议走标准输入/输出上的 JSON-RPC, 不能与彩色 CLI 输出混用。
+
+```bash
+brute mcp
+```
+
+宿主配置示例:
+
+```json
+{
+  "mcpServers": {
+    "brute": {
+      "command": "/path/to/brute",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+提供给大模型的工具:
+
+- `verify_account`: 用一组用户名/密码或已保存凭据 id 验证单个目标。
+- `spray_passwords`: 对一个或多个目标做用户名/密码列表或字典喷洒。
+- `list_credentials`: 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据。
+- `list_workspaces`: 列出本地 workspace 和当前 workspace。
+- `list_protocols`: 列出支持的协议和默认端口。
+
+MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。仅允许对授权目标使用。
+
+更完整的自然语言提问与对应 tool JSON 见 [docs/MCP.example.md](docs/MCP.example.md).
+
+
 
 ## 常用参数
 
@@ -383,6 +420,9 @@ src/
   error.rs          # 错误类型
   output.rs         # 控制台输出
   targets.rs        # 目标与目标文件加载
+  engine/           # 可编程验证/喷洒/查询引擎
+  mcp/              # MCP stdio 服务与工具 schema
+
   protocol/
     mod.rs          # 协议抽象
     ssh.rs

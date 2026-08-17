@@ -506,3 +506,10 @@ fn rejects_proxy_flag_under_protocol_subcommand() {
         "--proxy must be top-level only, not under protocol subcommands: {result:?}"
     );
 }
+
+/// Verifies `brute mcp` is accepted as a top-level command.
+#[test]
+fn parses_mcp_stdio_command() {
+    let cli = Cli::try_parse_from(["brute", "mcp"]).expect("mcp command should parse");
+    assert!(matches!(cli.command, Command::Mcp));
+}

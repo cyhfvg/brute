@@ -76,6 +76,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("commands"));
     assert!(stdout.contains("workspace"));
     assert!(stdout.contains("creds"));
+    assert!(stdout.contains("mcp"));
     assert!(stdout.contains("ssh"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),

@@ -1,6 +1,6 @@
 [package]
 name = "brute"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 description = "A Rust-based multi-protocol credential testing and login verification CLI for authorized security assessments."
 authors = ["cyhfvg"]
@@ -61,6 +61,11 @@ tokio-socks = "0.5"
 async-http-proxy = { version = "1.2", default-features = false, features = [
     "runtime-tokio",
     "basic-auth",
+] }
+rmcp = { version = "3.1.2", default-features = false, features = [
+    "server",
+    "macros",
+    "transport-io",
 ] }
 
 [dev-dependencies]

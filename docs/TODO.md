@@ -22,6 +22,8 @@
 - Oracle `--service-name` multi-value/wordlist enumeration with full `service × user × password` cartesian expansion, Service Name-aware console display and account skip keys.
 - Oracle `--sid` multi-value/wordlist enumeration with full `sid × user × password` cartesian expansion, SID-aware console display (`sid:SID/user:pass`) and account skip keys.
 
+- MCP stdio server (`brute mcp`) via official `rmcp`: `verify_account`, `spray_passwords`, `list_credentials`, plus workspace/protocol discovery. CLI and MCP share `src/engine`. Natural-language usage examples: `docs/MCP.example.md`.
+
 ## Completed Protocol Work
 
 - `smb`: pure-Rust `smb2` login/brute (default port 445); no `-x`/`--execute`; `--shares` enumerates

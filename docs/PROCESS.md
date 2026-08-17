@@ -30,6 +30,8 @@
 7. 将目标来源解析与协议尝试上下文分离，便于支持目标文件、CIDR 与范围扩展
 8. 将 SQLite 凭据存储封装为独立模块，避免协议实现直接感知数据库细节
 
+9. 将喷洒/验证与凭据查询抽成 `engine`, CLI 与 MCP 共用同一调度与 SQLite 持久化路径
+
 ## 当前实现范围
 
 ### 已实现
@@ -73,6 +75,20 @@
 每个 SQLite 连接都会启用外键约束，因此删除 workspace 会级联删除其凭据。认证成功后的命令执行错误会作为认证成功的附加状态输出，确保有效凭据仍会写入数据库。保存的 `conn_url` 会对用户名和密码进行 URL 编码，并为 IPv6 主机添加方括号。
 
 协议调度层在 `AttemptOutcome::Success` 时写入数据库，并用 `(workspace_id, protocol, host, port, username, password)` 去重。`workspace current/new/use/delete/list` 负责 workspace 管理；`delete` 会级联删除该 workspace 下的凭据，且不允许删除 `default`。`creds list` 负责按当前 workspace 或指定 `--workspace` 检索，支持 `--protocol`、`--host` 和 `--conn-url`。
+
+### MCP
+
+`brute mcp` 启动官方 `rmcp` stdio JSON-RPC 服务, 不向 stdout 打印 CLI 初始化横幅. 工具层调用 `engine::run_spray` / `query_credentials`:
+
+- `verify_account`: 单目标单账户验证
+- `spray_passwords`: 用户名 x 密码喷洒
+- `list_credentials`: 按 workspace/protocol/host 查询已验证凭据
+- `list_workspaces` / `list_protocols`: 发现本地 workspace 与协议能力
+
+成功凭据仍写入 `~/.config/brute/brute.db`, 与 CLI 共用同一 schema.
+自然语言提问与 tool 对照示例: [MCP.example.md](MCP.example.md).
+
+
 
 所有协议模块都支持 `--id <ID>`，用于从当前 workspace 读取已保存凭据并填充登录尝试。`--id` 与 `-u/-p` 互斥；读取时不校验凭据原始 protocol，允许密码喷洒和跨协议密码复用验证。
 

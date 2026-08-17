@@ -44,6 +44,8 @@ pub enum Command {
     Workspace(WorkspaceArgs),
     #[command(about = "Search saved credentials")]
     Creds(CredsArgs),
+    #[command(about = "Start the MCP stdio server for LLM tool use")]
+    Mcp,
 }
 
 /// Supported protocol subcommands.
