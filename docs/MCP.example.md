@@ -38,7 +38,7 @@
 - `username`/`password` 与 `credential_id` 互斥.
 - Oracle 必须且只能提供 `service_names` 或 `sids`.
 - 空用户名/空密码传 `""`, 不要省略字段后指望模型猜.
-- 字典文件路径存在且为文件时按行展开 (与 CLI `-u`/`-p` 相同).
+- 字典文件路径存在且为文件时按行展开 (与 CLI `-u`/`-p` 相同). `targets` 同样接受 IPv4 CIDR, 会展开为前缀内全部地址 (含网络/广播, 单个前缀最多 65536 个). 不支持 IPv6.
 - 成功登录会写入所选 workspace; 认证后命令失败不会丢掉已验证凭据.
 
 ---
@@ -262,6 +262,27 @@ SSH 192.168.10.5:22 上 admin / Summer2024! 验证成功, 已写入 workspace de
 ```
 
 路径必须是 **brute 进程能读到的本地文件**. 模型工作目录里的相对路径若 MCP 宿主 cwd 不同会读失败.
+
+### CIDR 目标
+
+```text
+对 10.10.50.24/29 做 Tomcat 喷洒, 用户 admin, 密码 admin123.
+```
+
+```json
+{
+  "tool": "spray_passwords",
+  "arguments": {
+    "protocol": "tomcat",
+    "targets": ["10.10.50.24/29"],
+    "usernames": ["admin"],
+    "passwords": ["admin123"]
+  }
+}
+```
+
+`10.10.50.24/29` 展开为 8 个主机 (`10.10.50.24` .. `10.10.50.31`), 再与用户名/密码做笛卡尔积.
+
 
 ### 模型应向用户转述
 
@@ -656,7 +677,7 @@ FTP 那台用 users.txt / pass.txt, 成功后 PWD.
 4. `list_credentials`
 5. `verify_account` (winrm + `credential_id` + `execute=whoami`)
 
-不要让模型把整段网段当 `targets` 传入. `TARGET` 只接受主机名/IP/FQDN 或目标文件, 当前不会展开 CIDR.
+`targets` 会展开 IPv4 CIDR (含网络/广播地址, 单个前缀最多 65536 个地址). 不要让模型把 `/8` 这类超大网段或 IPv6 直接喷进去; IPv6 与超限 CIDR 会报错.
 
 ---
 

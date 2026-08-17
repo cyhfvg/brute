@@ -118,6 +118,7 @@ brute postgresql 192.168.10.5 -u pg_users.txt -p pg_pass.txt -x 'select version(
 brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
+brute tomcat 10.10.50.24/29 -u admin -p admin123
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 brute http 192.168.10.5 -u admin -p 123456 --path /
 brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
@@ -178,7 +179,7 @@ Successful MCP verifications are saved to the selected workspace, same as the CL
 
 ## Common Options
 
-- `TARGET`: Target IP, hostname, FQDN, or a file containing targets. Multiple targets are allowed.
+- `TARGET`: Target IPv4 address, IPv4 CIDR, hostname, FQDN, or a file containing those values (one per line). IPv4 CIDR expands to every address in the prefix, including network and broadcast (`192.168.50.24/29` -> `192.168.50.24`..`192.168.50.31`). One CIDR may expand to at most 65536 addresses (`/16`). IPv6 is not supported. Multiple targets are allowed.
 - `-u, --username <USERNAME...>`: Username values or files containing usernames. Use `-u ''` for an empty username.
 - `-p, --password <PASSWORD...>`: Password values or files containing passwords. Use `-p ''` for an empty password.
 - `--id <ID>`: Load a saved credential from the current workspace. Mutually exclusive with `-u/-p`.

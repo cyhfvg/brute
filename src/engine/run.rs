@@ -61,7 +61,7 @@ pub async fn run_spray(
     let common = request.to_common_args();
     let module = build_module(&request);
     let credentials = load_request_credentials(database, &request, &workspace)?;
-    let targets = load_targets(&common)?;
+    let targets = load_targets(&common.targets)?;
     if targets.is_empty() {
         bail!("no targets were generated from the supplied TARGET arguments");
     }

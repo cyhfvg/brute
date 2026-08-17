@@ -25,7 +25,7 @@ pub trait SprayReporter: Send + Sync {
 pub struct SprayRequest {
     /// Protocol module to run.
     pub protocol: Protocol,
-    /// Target hosts, CIDR-less literals, or target-file paths.
+    /// Target IPv4 hosts, IPv4 CIDR prefixes, or target-file paths. IPv6 is not supported.
     pub targets: Vec<String>,
     /// Username literals or wordlist paths; ignored when `credential_id` is set.
     pub usernames: Vec<String>,

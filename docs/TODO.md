@@ -23,6 +23,10 @@
 - Oracle `--sid` multi-value/wordlist enumeration with full `sid × user × password` cartesian expansion, SID-aware console display (`sid:SID/user:pass`) and account skip keys.
 
 - MCP stdio server (`brute mcp`) via official `rmcp`: `verify_account`, `spray_passwords`, `list_credentials`, plus workspace/protocol discovery. CLI and MCP share `src/engine`. Natural-language usage examples: `docs/MCP.example.md`.
+- `TARGET` CIDR expansion in `src/targets.rs`: IPv4 prefixes (including
+  network and broadcast) for every protocol via shared `load_targets`; inline
+  and target-file tokens; 65536-address cap; IPv6 targets rejected; CLI/MCP
+  docs and unit/integration coverage.
 
 ## Completed Protocol Work
 

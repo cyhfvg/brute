@@ -118,6 +118,7 @@ brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select 
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
+brute tomcat 10.10.50.24/29 -u admin -p admin123
 brute http 192.168.10.5 -u admin -p 123456 --path /
 brute http 192.168.10.5 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
 brute http 192.168.10.5 -u admin -p secret --protocol https --port 8443 --path /
@@ -177,7 +178,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 
 ## 常用参数
 
-- `TARGET`: 目标 IP、主机名、FQDN，或包含目标列表的文件；可传入多个。
+- `TARGET`: 目标 IPv4 地址、IPv4 CIDR、主机名、FQDN，或包含上述内容的文件（每行一个）。IPv4 CIDR 会展开为前缀内全部地址，含网络地址与广播地址（`192.168.50.24/29` -> `192.168.50.24`..`192.168.50.31`）。单个 CIDR 最多展开 65536 个地址（`/16`）。不支持 IPv6。可传入多个。
 - `-u, --username <USERNAME...>`: 用户名或用户名文件；空用户名使用 `-u ''`。
 - `-p, --password <PASSWORD...>`: 密码或密码文件；空密码使用 `-p ''`。
 - `--id <ID>`: 从当前 workspace 读取已保存凭据；与 `-u/-p` 互斥。

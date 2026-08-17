@@ -43,7 +43,7 @@ pub struct ProtocolOptions {
 pub struct VerifyAccountParams {
     /// Protocol name: ssh, ftp, mysql, postgresql, redis, oracle, tomcat, smb, rdp, winrm, http, vnc.
     pub protocol: String,
-    /// Target IP, hostname, or FQDN.
+    /// Target IPv4 address, IPv4 CIDR, hostname, FQDN, or target-file path. IPv6 is not supported.
     pub target: String,
     /// Username. Use an empty string for password-only services. Required unless `credential_id` is set.
     pub username: Option<String>,
@@ -61,7 +61,7 @@ pub struct VerifyAccountParams {
 pub struct SprayPasswordsParams {
     /// Protocol name: ssh, ftp, mysql, postgresql, redis, oracle, tomcat, smb, rdp, winrm, http, vnc.
     pub protocol: String,
-    /// Target hosts and/or target-file paths.
+    /// Target IPv4 hosts, IPv4 CIDR prefixes, and/or target-file paths. IPv6 is not supported.
     pub targets: Vec<String>,
     /// Usernames and/or username wordlist paths. Required unless `credential_id` is set.
     #[serde(default)]

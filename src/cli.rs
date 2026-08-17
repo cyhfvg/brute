@@ -246,7 +246,7 @@ fn parse_positive_u64(value: &str) -> Result<u64, String> {
 /// Common options shared by all protocols.
 #[derive(Debug, Clone, Args)]
 pub struct CommonArgs {
-    /// Target IP(s), hostname(s), FQDN(s), or file path(s) containing targets.
+    /// Target IPv4 address(es), IPv4 CIDR(s), hostname(s), FQDN(s), or file path(s) containing those values.
     #[arg(required = true, num_args = 1.., value_name = "TARGET")]
     pub targets: Vec<String>,
     /// Username(s) or file path(s) containing usernames; required unless --id is used.

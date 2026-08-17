@@ -513,3 +513,23 @@ fn parses_mcp_stdio_command() {
     let cli = Cli::try_parse_from(["brute", "mcp"]).expect("mcp command should parse");
     assert!(matches!(cli.command, Command::Mcp));
 }
+
+/// Verifies protocol TARGET accepts a CIDR token for later expansion.
+#[test]
+fn parses_cidr_target_token() {
+    let cli = Cli::try_parse_from([
+        "brute",
+        "tomcat",
+        "10.10.50.24/29",
+        "-u",
+        "admin",
+        "-p",
+        "admin123",
+    ])
+    .expect("CIDR TARGET should parse as a target token");
+
+    let Command::Protocol(ProtocolArgs::Tomcat(args)) = cli.command else {
+        panic!("expected tomcat protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["10.10.50.24/29"]);
+}

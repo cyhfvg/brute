@@ -577,3 +577,82 @@ fn oracle_help_exposes_sql_query_execution() {
     assert!(stdout.contains("--sid <SID>"));
     assert!(stdout.contains("select * from dual"));
 }
+
+#[test]
+fn protocol_help_documents_cidr_targets() {
+    let home = TempHome::new("cidr-help");
+
+    let output = run_with_home(&home, ["tomcat", "--help"]);
+    assert_success(&output);
+    let help = stdout(&output);
+    assert!(
+        help.contains("CIDR"),
+        "tomcat help should document CIDR TARGET expansion:\n{help}"
+    );
+}
+
+#[test]
+fn cidr_target_is_expanded_across_protocol_spray() {
+    let home = TempHome::new("cidr-expand");
+
+    // 127.0.0.1/30 -> 127.0.0.0..127.0.0.3. Port 1 is almost certainly closed,
+    // so the spray should still emit one outcome line per expanded host.
+    let output = run_with_home(
+        &home,
+        [
+            "--no-color",
+            "tomcat",
+            "127.0.0.1/30",
+            "--port",
+            "1",
+            "-u",
+            "admin",
+            "-p",
+            "admin123",
+            "--threads",
+            "4",
+            "--timeout-ms",
+            "300",
+            "--retries",
+            "0",
+        ],
+    );
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    for host in ["127.0.0.0", "127.0.0.1", "127.0.0.2", "127.0.0.3"] {
+        assert!(
+            stdout.contains(host),
+            "expected expanded CIDR host {host} in spray output:\n{stdout}"
+        );
+    }
+    assert!(
+        !stdout.contains("127.0.0.1/30"),
+        "CIDR token must be expanded, not used as a literal host:\n{stdout}"
+    );
+}
+
+#[test]
+fn ipv6_target_is_rejected() {
+    let home = TempHome::new("ipv6-reject");
+
+    let output = run_with_home(
+        &home,
+        [
+            "--no-color",
+            "tomcat",
+            "2001:db8::1",
+            "-u",
+            "admin",
+            "-p",
+            "admin123",
+        ],
+    );
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("IPv6 targets are not supported"),
+        "expected IPv6 rejection on stderr:\n{stderr}"
+    );
+}
