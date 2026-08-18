@@ -136,6 +136,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute vnc 192.168.10.5 -u '' -p 123456\n  brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5900 --threads 16"
     )]
     Vnc(CommonArgs),
+
+    #[command(
+        about = "own stuff using ZOOKEEPER",
+        visible_alias = "zk",
+        override_usage = "brute zookeeper <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass'\n  brute zookeeper 192.168.5.10 -u '' -p ''\n  brute zookeeper 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'"
+    )]
+    Zookeeper(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -146,7 +154,8 @@ impl ProtocolArgs {
             | Self::Ftp(args)
             | Self::Mysql(args)
             | Self::Postgresql(args)
-            | Self::Redis(args) => &args.common,
+            | Self::Redis(args)
+            | Self::Zookeeper(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -174,7 +183,8 @@ impl ProtocolArgs {
             | Self::Ftp(args)
             | Self::Mysql(args)
             | Self::Postgresql(args)
-            | Self::Redis(args) => args.execute.as_deref(),
+            | Self::Redis(args)
+            | Self::Zookeeper(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -531,6 +541,7 @@ pub enum Protocol {
     Oracle,
     Http,
     Vnc,
+    Zookeeper,
 }
 
 impl Protocol {
@@ -549,6 +560,7 @@ impl Protocol {
             Self::Winrm => 5985,
             Self::Oracle => 1521,
             Self::Vnc => 5900,
+            Self::Zookeeper => 2181,
         }
     }
 
@@ -567,6 +579,7 @@ impl Protocol {
             Self::Oracle => "oracle",
             Self::Http => "http",
             Self::Vnc => "vnc",
+            Self::Zookeeper => "zookeeper",
         }
     }
 }
@@ -587,6 +600,7 @@ impl ProtocolArgs {
             Self::Oracle(_) => Protocol::Oracle,
             Self::Http(_) => Protocol::Http,
             Self::Vnc(_) => Protocol::Vnc,
+            Self::Zookeeper(_) => Protocol::Zookeeper,
         }
     }
 }

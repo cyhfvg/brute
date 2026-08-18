@@ -13,6 +13,7 @@ pub mod stub;
 pub mod tomcat;
 pub mod vnc;
 pub mod winrm;
+pub mod zookeeper;
 
 use std::time::Duration;
 

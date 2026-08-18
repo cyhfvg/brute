@@ -3,3 +3,4 @@
 - 代码修改后需要同步修改文档，包括docs/PROCESS.md、docs/TODO.md、多种语言的README.md等
 - 项目实现以编译、构建后单文件为最优先目标，不依赖外部动态链接库
 - 优先使用成熟的rust crate，如果遇到crate依赖冲突那么就选择使用rust实现，不允许使用vendor patch的方式实现
+- 提供新功能时，需要提供对应的MCP功能接口

@@ -1,0 +1,31 @@
+services:
+  zookeeper:
+    image: zookeeper:3.9
+    container_name: zookeeper
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    environment:
+      ZOO_4LW_COMMANDS_WHITELIST: ruok,srvr,mntr,conf,cons
+      # 启用认证需要挂载 JAAS 配置文件（见下方说明）
+      JVMFLAGS: "-Djava.security.auth.login.config=/conf/jaas.conf"
+    volumes:
+      - zookeeper_data:/data
+      - zookeeper_datalog:/datalog
+      - ./jaas.conf:/conf/jaas.conf:ro   # 认证配置文件
+    healthcheck:
+      test: ["CMD", "zkServer.sh", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - zk-net
+
+volumes:
+  zookeeper_data:
+  zookeeper_datalog:
+
+networks:
+  zk-net:
+    driver: bridge

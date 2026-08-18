@@ -16,6 +16,7 @@
 - `winrm`
 - `vnc`
 - `http` (HTTP Basic Auth)
+- `zookeeper`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -48,10 +49,11 @@
 - `winrm`: 基于 git 依赖 [`cyhfvg/winrm-rs`](https://github.com/cyhfvg/winrm-rs)（密封 NTLM + 真 PSRP），默认端口 `5985`；支持登录/并发爆破、`-x`/`--execute` 与 `--shell-type {cmd,powershell}`（**默认 powershell**；省略时 `-x` 用 powershell）；`-x @path` 本地脚本；
 - `vnc`: 纯 Rust RFB 握手 + VNC Authentication（security type 2，DES challenge-response，密码有效 8 字节 bit-reverse 密钥），默认端口 `5900`；仅登录/爆破，不提供 `-x`/`--execute`。经典 VNC Auth 为密码-only（CLI 仍接受 `-u`，与 NetExec 一致可忽略用户名）。若对端未发送 RFB banner（常见于 linuxserver webtop / noVNC 等 HTTPS 网关），则回退为 HTTPS HTTP Basic Auth，用 `-u`/`-p` 校验凭据。无模块级全局互斥锁，并发走调度层 `--threads`。源码按职责拆分为 `protocol/vnc/{mod,auth,rfb,web,util}.rs`（单文件 ≤600 行）
 - `http`: 基于 `reqwest` 的 HTTP Basic Auth 登录/爆破，默认端口 `80`；`--path` 指定请求路径（默认 `/`）；`--protocol {http,https}` 选择 URL 方案（默认 `http`）；对 `{scheme}://host:port<path>` 发起带 `Authorization: Basic` 的 GET；`https` 时默认跳过 TLS 证书校验（自签名/无效证书可连）；`2xx` 与 `403` 记为凭据命中（403 表示认证通过但资源/角色受限），`401` 为认证失败，其它状态与传输错误记为 error。无模块级全局互斥锁，并发走调度层 `--threads`。不提供 `-x`/`--execute`。表单登录、Digest、NTLM、Bearer、Cookie、严格 CA 校验等后续扩展
+- `zookeeper`: 基于 `zookeeper-client`（`tokio` + `sasl-digest-md5`），默认端口 `2181`，别名 `zk`。空用户名/空密码探测未授权 `getChildren("/")`；非空凭据走 SASL DIGEST-MD5（JAAS DigestLoginModule）。支持 `-x` zkCli 风格命令（`ls`/`get`/`stat`/`create`/`set`/`delete`/`deleteall`/`mkdir`）。目标探测发送 four-letter `srvr`。`host:port` 客户端经本机 TCP bridge 走 `--proxy`
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp`、`vnc` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm`、`zookeeper` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。`zookeeper` 的 `-x` 执行 zkCli 风格命令。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp`、`vnc` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
 
 `smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
@@ -108,7 +110,7 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 - HTTP 系（`http` / `tomcat` / `winrm` / VNC web Basic）：`reqwest::Proxy`（`reqwest` 启用 `socks` feature）；`winrm-rs` 使用 `WinrmConfig.proxy`
 - 可注入 stream 的协议（`ssh` / `ftp` / `postgresql` / `rdp` / `vnc` RFB）：SOCKS5 经 `tokio-socks`，HTTP CONNECT 经 `async-http-proxy`（async）或自实现握手（blocking）
-- 仅接受 `host:port` 的协议（`mysql` / `redis` / `oracle` / `smb`）：本机 `127.0.0.1:ephemeral` TCP bridge，将客户端连接经代理隧道转发到真实目标；bridge 生命周期与单次 attempt 绑定
+- 仅接受 `host:port` 的协议（`mysql` / `redis` / `oracle` / `smb` / `zookeeper`）：本机 `127.0.0.1:ephemeral` TCP bridge，将客户端连接经代理隧道转发到真实目标；bridge 生命周期与单次 attempt 绑定
 
 代理作用于登录、爆破、目标探测与认证后命令路径。
 

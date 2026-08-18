@@ -13,7 +13,7 @@ use super::connect::connect_async;
 
 /// Local TCP forwarder that accepts connections and tunnels them via `proxy`.
 ///
-/// Used by protocol libraries that only accept `host:port` (MySQL, Redis, Oracle, SMB).
+/// Used by protocol libraries that only accept `host:port` (MySQL, Redis, Oracle, SMB, ZooKeeper).
 /// Dropping the bridge shuts down the listener.
 #[derive(Debug)]
 pub struct ProxyTcpBridge {

@@ -19,7 +19,7 @@ pub struct ProtocolOptions {
     pub proxy: Option<String>,
     /// Workspace for `--id` lookup and success persistence. Defaults to current.
     pub workspace: Option<String>,
-    /// Post-auth command for ssh/ftp/mysql/postgresql/redis/oracle/winrm.
+    /// Post-auth command for ssh/ftp/mysql/postgresql/redis/oracle/winrm/zookeeper.
     pub execute: Option<String>,
     /// HTTP or Tomcat request path.
     pub path: Option<String>,
@@ -41,7 +41,7 @@ pub struct ProtocolOptions {
 /// Parameters for a single-account validity check.
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 pub struct VerifyAccountParams {
-    /// Protocol name: ssh, ftp, mysql, postgresql, redis, oracle, tomcat, smb, rdp, winrm, http, vnc.
+    /// Protocol name: ssh, ftp, mysql, postgresql, redis, oracle, tomcat, smb, rdp, winrm, http, vnc, zookeeper.
     pub protocol: String,
     /// Target IPv4 address, IPv4 CIDR, hostname, FQDN, or target-file path. IPv6 is not supported.
     pub target: String,
@@ -59,7 +59,7 @@ pub struct VerifyAccountParams {
 /// Parameters for a multi-account password spray.
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 pub struct SprayPasswordsParams {
-    /// Protocol name: ssh, ftp, mysql, postgresql, redis, oracle, tomcat, smb, rdp, winrm, http, vnc.
+    /// Protocol name: ssh, ftp, mysql, postgresql, redis, oracle, tomcat, smb, rdp, winrm, http, vnc, zookeeper.
     pub protocol: String,
     /// Target IPv4 hosts, IPv4 CIDR prefixes, and/or target-file paths. IPv6 is not supported.
     pub targets: Vec<String>,

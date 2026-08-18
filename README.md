@@ -42,6 +42,7 @@ Implemented modules:
 - `winrm` (`-x` + `--shell-type {cmd,powershell}`, default **powershell**;
 - `vnc` (login/brute only, no `-x`;)
 - `http` (HTTP Basic Auth login/brute; `--path`, default `/`; `--protocol {http,https}`, default `http`; HTTPS skips cert verify; no `-x`)
+- `zookeeper` (alias `zk`; login/brute/unauthorized; `-x` zkCli-style commands; default port `2181`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -133,6 +134,10 @@ brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x 'whoami'
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type cmd -x @script.bat
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
+brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass'
+brute zookeeper 192.168.5.10 -u '' -p ''
+brute zookeeper 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
 ```
 
 ## Global Options
@@ -202,6 +207,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `oracle`: SQL query, for example `-x 'select * from dual'`
 - `redis`: Redis command, for example `-x 'INFO server'`
 - `winrm`: remote command via `--shell-type powershell` (default when `-x` omits the flag) or `cmd`; use `-x @path` to load a local script;
+- `zookeeper`: zkCli-style command, for example `-x 'ls /'`
 
 Example:
 
@@ -258,6 +264,20 @@ brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5900 --threads 16
 ```
 
 Classic RFB path uses VNC Authentication (security type 2, DES challenge-response; password effectively truncated to 8 characters). When the published port is a web-VNC HTTPS gateway (no RFB banner), the module falls back to HTTPS HTTP Basic Auth and validates `-u`/`-p` that way.
+
+## ZooKeeper
+
+Login, dictionary spray, unauthorized access (`-u '' -p ''`), and post-auth zkCli-style commands (default port `2181`):
+
+```bash
+brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass'
+brute zookeeper 192.168.5.10 -u '' -p ''
+brute zookeeper 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
+```
+
+Empty credentials probe unauthenticated `getChildren("/")` and report unauthorized access when the cluster allows anonymous reads. Non-empty credentials use SASL DIGEST-MD5 (JAAS `DigestLoginModule`). `-x` accepts `ls`, `get`, `stat`, `create`, `set`, `delete`, `deleteall`, and `mkdir`. Command failures do not discard a verified login. Alias: `zk`.
+
 
 ## Oracle
 

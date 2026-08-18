@@ -54,6 +54,12 @@
   scheme (default `http`). HTTPS skips TLS certificate verification by default. Concurrent sprays
   use global `--threads` only (no module mutex). No `-x`/`--execute`. Form-based login, Digest,
   NTLM, Bearer, cookies, and strict CA verification remain deferred.
+- `zookeeper`: `zookeeper-client` SASL DIGEST-MD5 login/brute (default port 2181, alias `zk`);
+  empty `-u '' -p ''` probes unauthorized `getChildren("/")`; `-x` runs zkCli-style commands
+  (`ls`/`get`/`stat`/`create`/`set`/`delete`/`deleteall`/`mkdir`). Four-letter `srvr` target
+  probe. Host:port client uses the shared TCP proxy bridge. No vendor patch; `sasl-gssapi` is
+  not enabled so release binaries stay free of `libgssapi`.
+
 
 ## Unsupported Protocols
 

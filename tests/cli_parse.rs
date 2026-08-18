@@ -533,3 +533,43 @@ fn parses_cidr_target_token() {
     };
     assert_eq!(args.common.targets, ["10.10.50.24/29"]);
 }
+
+/// Verifies ZooKeeper default port and `-x` command parsing.
+#[test]
+fn parses_zookeeper_execute_and_default_port() {
+    assert_eq!(Protocol::Zookeeper.default_port(), 2181);
+    assert_eq!(Protocol::Zookeeper.as_str(), "zookeeper");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "zookeeper",
+        "192.168.5.10",
+        "-u",
+        "zkadmin",
+        "-p",
+        "secret",
+        "-x",
+        "ls /",
+    ])
+    .expect("zookeeper execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Zookeeper(args)) = cli.command else {
+        panic!("expected zookeeper protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.common.usernames, ["zkadmin"]);
+    assert_eq!(args.common.passwords, ["secret"]);
+    assert_eq!(args.execute.as_deref(), Some("ls /"));
+}
+
+/// Verifies the `zk` alias maps to the ZooKeeper subcommand.
+#[test]
+fn parses_zookeeper_zk_alias() {
+    let cli = Cli::try_parse_from(["brute", "zk", "192.168.5.10", "-u", "", "-p", ""])
+        .expect("zk alias should parse as zookeeper");
+
+    let Command::Protocol(ProtocolArgs::Zookeeper(args)) = cli.command else {
+        panic!("expected zookeeper protocol arguments from zk alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}

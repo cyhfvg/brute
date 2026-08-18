@@ -41,6 +41,7 @@
 - `winrm`
 - `vnc`（仅登录/爆破，无 `-x`）
 - `http`（HTTP Basic Auth 登录/爆破；`--path`，默认 `/`；`--protocol {http,https}`，默认 `http`；HTTPS 默认跳过证书校验；无 `-x`）
+- `zookeeper`（别名 `zk`；登录/爆破/未授权；`-x` zkCli 风格命令；默认端口 `2181`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -132,6 +133,10 @@ brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' -x 'whoami'
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x 'whoami'
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type cmd -x @script.bat
 brute winrm 192.168.10.5 -u admin -p 'P@ssw0rd' --shell-type powershell -x @script.ps1
+brute zookeeper 192.168.5.10 -u zkadmin -p '7ojb*tkzxKnsD]8Akgef'
+brute zookeeper 192.168.5.10 -u '' -p ''
+brute zookeeper 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
 ```
 
 ## 顶级参数
@@ -202,6 +207,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `redis`: Redis 命令，例如 `-x 'INFO server'`
 - `winrm`: 通过 `--shell-type powershell`（`-x` 省略时默认）或 `cmd` 执行远程命令；
   使用`-x @path`加载本地脚本
+- `zookeeper`: zkCli 风格命令，例如 `-x 'ls /'`
 
 示例：
 
@@ -258,6 +264,20 @@ brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5900 --threads 16
 ```
 
 经典 RFB 路径使用 VNC Authentication（security type 2，DES challenge-response；密码有效长度 8 字节）。
+
+## ZooKeeper
+
+登录、字典爆破、允许未授权（`-u '' -p ''`）以及认证后 zkCli 风格命令（默认端口 `2181`）：
+
+```bash
+brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass'
+brute zookeeper 192.168.5.10 -u '' -p ''
+brute zookeeper 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
+```
+
+空凭据会探测未授权 `getChildren("/")`，集群允许匿名读取时记为未授权访问。非空凭据使用 SASL DIGEST-MD5（JAAS `DigestLoginModule`）。`-x` 支持 `ls`、`get`、`stat`、`create`、`set`、`delete`、`deleteall`、`mkdir`。命令失败不会丢掉已验证登录。别名：`zk`。
+
 
 ## Oracle
 

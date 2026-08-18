@@ -78,6 +78,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("creds"));
     assert!(stdout.contains("mcp"));
     assert!(stdout.contains("ssh"));
+    assert!(stdout.contains("zookeeper"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -576,6 +577,19 @@ fn oracle_help_exposes_sql_query_execution() {
     assert!(stdout.contains("--service-name <SERVICE_NAME>"));
     assert!(stdout.contains("--sid <SID>"));
     assert!(stdout.contains("select * from dual"));
+}
+
+#[test]
+fn zookeeper_help_exposes_command_execution() {
+    let home = TempHome::new("zookeeper-help");
+
+    let output = run_with_home(&home, ["zookeeper", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("ls /"));
+    assert!(stdout.contains("192.168.5.10"));
 }
 
 #[test]
