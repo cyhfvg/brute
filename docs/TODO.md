@@ -85,6 +85,8 @@
   `files`). Empty credentials succeed only if the module has no password. No `-x`.
 - `mssql`: `tiberius` TDS (default port 1433, alias `sqlserver`); `-x` SQL
   preview (10 rows). Host:port TCP proxy bridge.
+- `kafka`: pure-Rust Kafka SASL/PLAIN (default port 9092); `SaslHandshake` +
+  `SaslAuthenticate`; `-x` Metadata. Stream-injectable `--proxy`.
 
 
 ## Unsupported Protocols
@@ -92,7 +94,7 @@
 - NFS
 
 
-- kafka
+
 - kibana
 
 (none currently reserved as unimplemented stubs)

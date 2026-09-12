@@ -910,3 +910,29 @@ fn parses_mssql_execute_and_sqlserver_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies Kafka default port and `-x` command parsing.
+#[test]
+fn parses_kafka_execute_and_default_port() {
+    assert_eq!(Protocol::Kafka.default_port(), 9092);
+    assert_eq!(Protocol::Kafka.as_str(), "kafka");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "kafka",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "kafka_pass",
+        "-x",
+        "metadata",
+    ])
+    .expect("kafka execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Kafka(args)) = cli.command else {
+        panic!("expected kafka protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("metadata"));
+}

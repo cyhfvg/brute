@@ -215,6 +215,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute mssql 192.168.5.10 -u sa -p 'Your_password1'\n  brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'"
     )]
     Mssql(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using KAFKA",
+        override_usage = "brute kafka <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute kafka 192.168.5.10 -u admin -p kafka_pass\n  brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata"
+    )]
+    Kafka(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -234,7 +241,8 @@ impl ProtocolArgs {
             | Self::Snmp(args)
             | Self::Activemq(args)
             | Self::Rabbitmq(args)
-            | Self::Mssql(args) => &args.common,
+            | Self::Mssql(args)
+            | Self::Kafka(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -273,7 +281,8 @@ impl ProtocolArgs {
             | Self::Snmp(args)
             | Self::Activemq(args)
             | Self::Rabbitmq(args)
-            | Self::Mssql(args) => args.execute.as_deref(),
+            | Self::Mssql(args)
+            | Self::Kafka(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -650,6 +659,7 @@ pub enum Protocol {
     Rabbitmq,
     Rsync,
     Mssql,
+    Kafka,
 }
 
 impl Protocol {
@@ -678,6 +688,7 @@ impl Protocol {
             Self::Rabbitmq => 5672,
             Self::Rsync => 873,
             Self::Mssql => 1433,
+            Self::Kafka => 9092,
         }
     }
 
@@ -706,6 +717,7 @@ impl Protocol {
             Self::Rabbitmq => "rabbitmq",
             Self::Rsync => "rsync",
             Self::Mssql => "mssql",
+            Self::Kafka => "kafka",
         }
     }
 }
@@ -736,6 +748,7 @@ impl ProtocolArgs {
             Self::Rabbitmq(_) => Protocol::Rabbitmq,
             Self::Rsync(_) => Protocol::Rsync,
             Self::Mssql(_) => Protocol::Mssql,
+            Self::Kafka(_) => Protocol::Kafka,
         }
     }
 }

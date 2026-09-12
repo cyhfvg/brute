@@ -51,6 +51,7 @@
 - `rabbitmq`（别名 `amqp`；AMQP 0-9-1；`-x` queue.declare；默认端口 `5672`）
 - `rsync`（daemon 模块 AUTHREQD；`--module`；默认端口 `873`）
 - `mssql`（别名 `sqlserver`；TDS 登录；`-x` SQL；默认端口 `1433`）
+- `kafka`（SASL/PLAIN；`-x` metadata；默认端口 `9092`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -168,6 +169,8 @@ brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 brute rsync 192.168.5.10 -u admin -p secret --module files
 brute mssql 192.168.5.10 -u sa -p 'Your_password1'
 brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
+brute kafka 192.168.5.10 -u admin -p kafka_pass
+brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
 ```
 
 ## 顶级参数
@@ -247,6 +250,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `mssql`: SQL 查询，例如 `-x 'SELECT @@VERSION'`
 - `activemq`: 向 `/queue/brute` STOMP SEND，例如 `-x 'hello'`
 - `rabbitmq`: queue.declare，例如 `-x 'brute'`
+- `kafka`: Metadata 请求，例如 `-x 'metadata'`
 
 示例：
 
@@ -432,6 +436,18 @@ brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
 ```
 
 通过 `tiberius` 做 SQL 认证。`-x` 执行 SQL 并最多预览 10 行。命令失败不会丢掉已验证登录。别名：`sqlserver`。
+
+
+## Kafka
+
+Kafka SASL/PLAIN 登录与字典爆破（默认端口 `9092`）：
+
+```bash
+brute kafka 192.168.5.10 -u admin -p kafka_pass
+brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
+```
+
+使用 Kafka `SaslHandshake` + `SaslAuthenticate` 与 PLAIN（`\0user\0pass`）。`-x` 发起 Metadata 请求。命令失败不会丢掉已验证登录。
 
 
 ## Oracle

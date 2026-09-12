@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 22] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 23] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -232,6 +232,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 22] = [
     Protocol::Rabbitmq,
     Protocol::Rsync,
     Protocol::Mssql,
+    Protocol::Kafka,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -281,6 +282,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "rabbitmq" | "amqp" => Ok(Protocol::Rabbitmq),
         "rsync" => Ok(Protocol::Rsync),
         "mssql" | "sqlserver" | "sql-server" => Ok(Protocol::Mssql),
+        "kafka" => Ok(Protocol::Kafka),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS

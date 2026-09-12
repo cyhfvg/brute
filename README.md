@@ -52,6 +52,7 @@ Implemented modules:
 - `rabbitmq` (alias `amqp`; AMQP 0-9-1; `-x` queue.declare; default port `5672`)
 - `rsync` (daemon module AUTHREQD; `--module`; default port `873`)
 - `mssql` (alias `sqlserver`; TDS login; `-x` SQL; default port `1433`)
+- `kafka` (SASL/PLAIN; `-x` metadata; default port `9092`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -169,6 +170,8 @@ brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 brute rsync 192.168.5.10 -u admin -p secret --module files
 brute mssql 192.168.5.10 -u sa -p 'Your_password1'
 brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
+brute kafka 192.168.5.10 -u admin -p kafka_pass
+brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
 ```
 
 ## Global Options
@@ -247,6 +250,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `mssql`: SQL query, for example `-x 'SELECT @@VERSION'`
 - `activemq`: STOMP SEND to `/queue/brute`, for example `-x 'hello'`
 - `rabbitmq`: queue.declare, for example `-x 'brute'`
+- `kafka`: Metadata request, for example `-x 'metadata'`
 
 Example:
 
@@ -432,6 +436,18 @@ brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
 ```
 
 SQL authentication via `tiberius`. `-x` runs a SQL batch and previews up to 10 rows. Command failures do not discard a verified login. Alias: `sqlserver`.
+
+
+## Kafka
+
+Kafka SASL/PLAIN login and dictionary spray (default port `9092`):
+
+```bash
+brute kafka 192.168.5.10 -u admin -p kafka_pass
+brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
+```
+
+Uses Kafka `SaslHandshake` + `SaslAuthenticate` with PLAIN (`\0user\0pass`). `-x` issues a Metadata request. Command failures do not discard a verified login.
 
 
 ## Oracle
