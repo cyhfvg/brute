@@ -17,10 +17,10 @@ use crate::credentials::{LoadedCredentials, load_credentials, load_service_names
 use crate::database::CredentialDatabase;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
-    ftp::FtpModule, http::HttpBasicModule, mysql::MySqlModule, oracle::OracleModule,
-    postgresql::PostgreSqlModule, rdp::RdpModule, redis::RedisModule, smb::SmbModule,
-    ssh::SshModule, tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule,
-    zookeeper::ZookeeperModule,
+    ftp::FtpModule, http::HttpBasicModule, memcached::MemcachedModule, mysql::MySqlModule,
+    oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule, redis::RedisModule,
+    smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule, vnc::VncModule,
+    winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -274,6 +274,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Vnc => Arc::new(VncModule::new(request.timeout_ms)),
         Protocol::Http => Arc::new(HttpBasicModule::new(request.timeout_ms, request.url_scheme)),
         Protocol::Zookeeper => Arc::new(ZookeeperModule::new(request.timeout_ms)),
+        Protocol::Memcached => Arc::new(MemcachedModule::new(request.timeout_ms)),
     }
 }
 

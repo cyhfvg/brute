@@ -43,6 +43,7 @@ Implemented modules:
 - `vnc` (login/brute only, no `-x`;)
 - `http` (HTTP Basic Auth login/brute; `--path`, default `/`; `--protocol {http,https}`, default `http`; HTTPS skips cert verify; no `-x`)
 - `zookeeper` (alias `zk`; login/brute/unauthorized; `-x` zkCli-style commands; default port `2181`)
+- `memcached` (alias `memcache`; login/brute/unauthorized; `-x` stats/get/set; default port `11211`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -138,6 +139,10 @@ brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass'
 brute zookeeper 192.168.5.10 -u '' -p ''
 brute zookeeper 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
 brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass'
+brute memcached 192.168.5.10 -u '' -p ''
+brute memcached 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
 ```
 
 ## Global Options
@@ -208,6 +213,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `redis`: Redis command, for example `-x 'INFO server'`
 - `winrm`: remote command via `--shell-type powershell` (default when `-x` omits the flag) or `cmd`; use `-x @path` to load a local script;
 - `zookeeper`: zkCli-style command, for example `-x 'ls /'`
+- `memcached`: ASCII/binary command, for example `-x 'stats'`
 
 Example:
 
@@ -278,6 +284,18 @@ brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
 
 Empty credentials probe unauthenticated `getChildren("/")` and report unauthorized access when the cluster allows anonymous reads. Non-empty credentials use SASL DIGEST-MD5 (JAAS `DigestLoginModule`). `-x` accepts `ls`, `get`, `stat`, `create`, `set`, `delete`, `deleteall`, and `mkdir`. Command failures do not discard a verified login. Alias: `zk`.
 
+## Memcached
+
+Login, dictionary spray, unauthorized access (`-u '' -p ''`), and post-auth commands (default port `11211`):
+
+```bash
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass'
+brute memcached 192.168.5.10 -u '' -p ''
+brute memcached 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
+```
+
+Empty credentials probe unauthenticated binary `STAT` and report unauthorized access when the daemon allows anonymous commands. Non-empty credentials use binary-protocol SASL PLAIN. `-x` accepts `stats`/`version`/`get`/`set`/`delete`/`flush_all`. Command failures do not discard a verified login. Alias: `memcache`.
 
 ## Oracle
 

@@ -79,6 +79,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("mcp"));
     assert!(stdout.contains("ssh"));
     assert!(stdout.contains("zookeeper"));
+    assert!(stdout.contains("memcached"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -589,6 +590,19 @@ fn zookeeper_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("ls /"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn memcached_help_exposes_command_execution() {
+    let home = TempHome::new("memcached-help");
+
+    let output = run_with_home(&home, ["memcached", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("stats"));
     assert!(stdout.contains("192.168.5.10"));
 }
 

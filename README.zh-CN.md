@@ -42,6 +42,7 @@
 - `vnc`（仅登录/爆破，无 `-x`）
 - `http`（HTTP Basic Auth 登录/爆破；`--path`，默认 `/`；`--protocol {http,https}`，默认 `http`；HTTPS 默认跳过证书校验；无 `-x`）
 - `zookeeper`（别名 `zk`；登录/爆破/未授权；`-x` zkCli 风格命令；默认端口 `2181`）
+- `memcached`（别名 `memcache`；登录/爆破/未授权；`-x` stats/get/set；默认端口 `11211`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -137,6 +138,10 @@ brute zookeeper 192.168.5.10 -u zkadmin -p '7ojb*tkzxKnsD]8Akgef'
 brute zookeeper 192.168.5.10 -u '' -p ''
 brute zookeeper 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
 brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass'
+brute memcached 192.168.5.10 -u '' -p ''
+brute memcached 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
 ```
 
 ## 顶级参数
@@ -208,6 +213,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `winrm`: 通过 `--shell-type powershell`（`-x` 省略时默认）或 `cmd` 执行远程命令；
   使用`-x @path`加载本地脚本
 - `zookeeper`: zkCli 风格命令，例如 `-x 'ls /'`
+- `memcached`: ASCII/binary 命令，例如 `-x 'stats'`
 
 示例：
 
@@ -278,6 +284,18 @@ brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'
 
 空凭据会探测未授权 `getChildren("/")`，集群允许匿名读取时记为未授权访问。非空凭据使用 SASL DIGEST-MD5（JAAS `DigestLoginModule`）。`-x` 支持 `ls`、`get`、`stat`、`create`、`set`、`delete`、`deleteall`、`mkdir`。命令失败不会丢掉已验证登录。别名：`zk`。
 
+## Memcached
+
+登录、字典爆破、允许未授权（`-u '' -p ''`）以及认证后命令（默认端口 `11211`）：
+
+```bash
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass'
+brute memcached 192.168.5.10 -u '' -p ''
+brute memcached 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
+```
+
+空凭据会探测未授权二进制 `STAT`，守护进程允许匿名命令时记为未授权访问。非空凭据使用二进制协议 SASL PLAIN。`-x` 支持 `stats`/`version`/`get`/`set`/`delete`/`flush_all`。命令失败不会丢掉已验证登录。别名：`memcache`。
 
 ## Oracle
 

@@ -59,8 +59,24 @@
   (`ls`/`get`/`stat`/`create`/`set`/`delete`/`deleteall`/`mkdir`). Four-letter `srvr` target
   probe. Host:port client uses the shared TCP proxy bridge. No vendor patch; `sasl-gssapi` is
   not enabled so release binaries stay free of `libgssapi`.
+- `memcached`: pure-Rust binary SASL PLAIN login/brute plus unauthorized `STAT`
+  (default port 11211, alias `memcache`); empty `-u '' -p ''` probes anonymous access;
+  `-x` runs `stats`/`version`/`get`/`set`/`delete`/`flush_all`. Binary VERSION target probe
+  with ASCII fallback. Stream-injectable `--proxy` via `connect_async`. No extra crate.
 
 
 ## Unsupported Protocols
+
+- NFS
+- rsync
+- mssql
+- mongodb
+- elasticsearch
+- snmp
+- rabbitMQ
+- kafka
+- ActiveMQ
+- docker api
+- kibana
 
 (none currently reserved as unimplemented stubs)

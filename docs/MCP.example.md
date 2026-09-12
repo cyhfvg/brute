@@ -14,7 +14,7 @@
 | `spray_passwords` | 多个目标、多个用户、多个密码, 或字典文件 |
 | `list_credentials` | 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据 |
 
-协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`).
+协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`).
 
 `verify_account` 与 `spray_passwords` 共用 `options`:
 
@@ -25,7 +25,7 @@
 | `retries` | 传输层临时错误重试次数 | `3` |
 | `proxy` | `http://[user[:pass]@]host:port` 或 `socks5://...` | 无 |
 | `workspace` | 保存成功凭据 / 读取 `--id` 的 workspace | 当前 workspace |
-| `execute` | 认证成功后的命令. 仅 `ssh`/`ftp`/`mysql`/`postgresql`/`redis`/`oracle`/`winrm`/`zookeeper` | 无 |
+| `execute` | 认证成功后的命令. 仅 `ssh`/`ftp`/`mysql`/`postgresql`/`redis`/`oracle`/`winrm`/`zookeeper`/`memcached` | 无 |
 | `path` | HTTP / Tomcat 请求路径 | http=`/`, tomcat=`/manager/html` |
 | `url_scheme` | `http` 或 `https` | `http` |
 | `service_names` | Oracle Service Name 或多值/字典路径. 与 `sids` 互斥 | 空 |
@@ -77,7 +77,8 @@
   { "name": "oracle", "default_port": 1521 },
   { "name": "http", "default_port": 80 },
   { "name": "vnc", "default_port": 5900 },
-  { "name": "zookeeper", "default_port": 2181 }
+  { "name": "zookeeper", "default_port": 2181 },
+  { "name": "memcached", "default_port": 11211 }
 ]
 ```
 
@@ -711,6 +712,8 @@ FTP 那台用 users.txt / pass.txt, 成功后 PWD.
 | 复用凭据 id 3 | `brute smb 192.168.10.5 --id 3 --shares` | `verify_account` + `credential_id=3` + `options.shares` |
 | 验 ZooKeeper / 未授权 | `brute zookeeper 192.168.5.10 -u '' -p ''` | `verify_account` protocol=zookeeper, username/password 为空串 |
 | 执行 zk 命令 | `brute zookeeper 192.168.5.10 -u zkadmin -p '...' -x 'ls /'` | `verify_account` + `options.execute` |
+| 验 Memcached / 未授权 | `brute memcached 192.168.5.10 -u '' -p ''` | `verify_account` protocol=memcached, username/password 为空串 |
+| 执行 memcached 命令 | `brute memcached 192.168.5.10 -u admin -p '...' -x 'stats'` | `verify_account` + `options.execute` |
 | 走代理 | `brute --proxy socks5://127.0.0.1:1080 ssh ...` | `options.proxy` |
 
 CLI 的 `--proxy` 是顶级参数, 写在子命令前. MCP 里代理放在 `options.proxy`.

@@ -573,3 +573,43 @@ fn parses_zookeeper_zk_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies Memcached default port and `-x` command parsing.
+#[test]
+fn parses_memcached_execute_and_default_port() {
+    assert_eq!(Protocol::Memcached.default_port(), 11211);
+    assert_eq!(Protocol::Memcached.as_str(), "memcached");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "memcached",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "secret",
+        "-x",
+        "stats",
+    ])
+    .expect("memcached execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Memcached(args)) = cli.command else {
+        panic!("expected memcached protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.common.usernames, ["admin"]);
+    assert_eq!(args.common.passwords, ["secret"]);
+    assert_eq!(args.execute.as_deref(), Some("stats"));
+}
+
+/// Verifies the `memcache` alias maps to the Memcached subcommand.
+#[test]
+fn parses_memcached_memcache_alias() {
+    let cli = Cli::try_parse_from(["brute", "memcache", "192.168.5.10", "-u", "", "-p", ""])
+        .expect("memcache alias should parse as memcached");
+
+    let Command::Protocol(ProtocolArgs::Memcached(args)) = cli.command else {
+        panic!("expected memcached protocol arguments from memcache alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}

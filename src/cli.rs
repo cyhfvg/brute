@@ -144,6 +144,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass'\n  brute zookeeper 192.168.5.10 -u '' -p ''\n  brute zookeeper 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute zookeeper 192.168.5.10 -u zkadmin -p 'zkadmin_pass' -x 'ls /'"
     )]
     Zookeeper(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using MEMCACHED",
+        visible_alias = "memcache",
+        override_usage = "brute memcached <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute memcached 192.168.5.10 -u admin -p 'memcached_pass'\n  brute memcached 192.168.5.10 -u '' -p ''\n  brute memcached 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'"
+    )]
+    Memcached(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -155,7 +163,8 @@ impl ProtocolArgs {
             | Self::Mysql(args)
             | Self::Postgresql(args)
             | Self::Redis(args)
-            | Self::Zookeeper(args) => &args.common,
+            | Self::Zookeeper(args)
+            | Self::Memcached(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -184,7 +193,8 @@ impl ProtocolArgs {
             | Self::Mysql(args)
             | Self::Postgresql(args)
             | Self::Redis(args)
-            | Self::Zookeeper(args) => args.execute.as_deref(),
+            | Self::Zookeeper(args)
+            | Self::Memcached(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -542,6 +552,7 @@ pub enum Protocol {
     Http,
     Vnc,
     Zookeeper,
+    Memcached,
 }
 
 impl Protocol {
@@ -561,6 +572,7 @@ impl Protocol {
             Self::Oracle => 1521,
             Self::Vnc => 5900,
             Self::Zookeeper => 2181,
+            Self::Memcached => 11211,
         }
     }
 
@@ -580,6 +592,7 @@ impl Protocol {
             Self::Http => "http",
             Self::Vnc => "vnc",
             Self::Zookeeper => "zookeeper",
+            Self::Memcached => "memcached",
         }
     }
 }
@@ -601,6 +614,7 @@ impl ProtocolArgs {
             Self::Http(_) => Protocol::Http,
             Self::Vnc(_) => Protocol::Vnc,
             Self::Zookeeper(_) => Protocol::Zookeeper,
+            Self::Memcached(_) => Protocol::Memcached,
         }
     }
 }
