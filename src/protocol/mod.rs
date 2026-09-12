@@ -13,6 +13,7 @@ pub mod postgresql;
 pub mod rabbitmq;
 pub mod rdp;
 pub mod redis;
+pub mod rsync;
 pub mod smb;
 pub mod snmp;
 pub mod ssh;

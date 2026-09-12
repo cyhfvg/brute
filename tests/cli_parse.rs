@@ -843,3 +843,29 @@ fn parses_rabbitmq_amqp_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies rsync default port and `--module` parsing.
+#[test]
+fn parses_rsync_module_and_default_port() {
+    assert_eq!(Protocol::Rsync.default_port(), 873);
+    assert_eq!(Protocol::Rsync.as_str(), "rsync");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "rsync",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "secret",
+        "--module",
+        "backup",
+    ])
+    .expect("rsync module arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Rsync(args)) = cli.command else {
+        panic!("expected rsync protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.module, "backup");
+}

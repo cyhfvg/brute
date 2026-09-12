@@ -24,6 +24,7 @@
 - `snmp`
 - `activemq`
 - `rabbitmq`
+- `rsync`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -64,6 +65,7 @@
 - `snmp`: 纯 Rust SNMPv2c，默认端口 `161/udp`。密码即 community；空凭据探测 `public`。用 `sysDescr.0` GET 校验。`-x` 点分 OID 或 `sysDescr`/`sysName`/`sysUptime`。UDP，不走 TCP `--proxy`
 - `activemq`: 纯 Rust STOMP CONNECT，默认端口 `61613`，别名 `amq`。空凭据探测匿名 CONNECT；非空凭据发 `login`/`passcode`。`-x` SEND 到 `/queue/brute`。TCP 流经 `--proxy` 注入
 - `rabbitmq`: `amqprs` AMQP 0-9-1，默认端口 `5672`，别名 `amqp`。空凭据探测 `guest`/`guest`；非空凭据 SASL PLAIN。`-x` `queue.declare`。`host:port` 经 TCP bridge 走 `--proxy`
+- `rsync`: 纯 Rust rsync daemon AUTHREQD，默认端口 `873`。`--module`（默认 `files`）选择模块。空凭据仅在模块无密码时成功。MD5(password||challenge)。TCP 流经 `--proxy` 注入。无 `-x`
 
 ### 命令执行
 
@@ -121,7 +123,7 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 ### 出站代理 (`--proxy`)
 
 `--proxy <PROXY_URL>` 是与 `--version` / `--no-color` 同级的**顶级** CLI 参数（定义在 `Cli` 上，写在协议子命令之前）。`run_protocol` 将其注入到运行时 `CommonArgs.proxy`（`#[arg(skip)]`，非子命令 flag）供各协议模块读取。URL 形式为 `protocol://[username[:password]@]host:port`，协议支持 `http`（HTTP CONNECT）与 `socks5`；用户名/密码可省略。解析与隧道逻辑集中在 `src/proxy.rs`：
-- 可注入 stream 的协议（`ssh` / `ftp` / `postgresql` / `rdp` / `vnc` RFB / `memcached` / `activemq`）：SOCKS5 经 `tokio-socks`，HTTP CONNECT 经 `async-http-proxy`（async）或自实现握手（blocking）
+- 可注入 stream 的协议（`ssh` / `ftp` / `postgresql` / `rdp` / `vnc` RFB / `memcached` / `activemq` / `rsync`）：SOCKS5 经 `tokio-socks`，HTTP CONNECT 经 `async-http-proxy`（async）或自实现握手（blocking）
 - HTTP 系（`http` / `tomcat` / `winrm` / VNC web Basic / `elasticsearch` / `docker`）：`reqwest::Proxy`（`reqwest` 启用 `socks` feature）；`winrm-rs` 使用 `WinrmConfig.proxy`
 - 仅接受 `host:port` 的协议（`mysql` / `redis` / `oracle` / `smb` / `zookeeper` / `mongodb` / `rabbitmq`）：本机 `127.0.0.1:ephemeral` TCP bridge，将客户端连接经代理隧道转发到真实目标；bridge 生命周期与单次 attempt 绑定
 

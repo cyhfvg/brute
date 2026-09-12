@@ -81,12 +81,14 @@
   probes anonymous CONNECT; `-x` SENDs to `/queue/brute`. Stream-injectable `--proxy`.
 - `rabbitmq`: `amqprs` AMQP 0-9-1 (default port 5672, alias `amqp`); empty `-u '' -p ''`
   probes `guest`/`guest`; `-x` `queue.declare`. Host:port TCP proxy bridge.
+- `rsync`: pure-Rust rsync daemon AUTHREQD (default port 873); `--module` (default
+  `files`). Empty credentials succeed only if the module has no password. No `-x`.
 
 
 ## Unsupported Protocols
 
 - NFS
-- rsync
+
 - mssql
 - kafka
 - kibana

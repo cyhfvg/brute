@@ -200,6 +200,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'\n  brute rabbitmq 192.168.5.10 -u '' -p ''\n  brute rabbitmq 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute"
     )]
     Rabbitmq(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using RSYNC",
+        override_usage = "brute rsync <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute rsync 192.168.5.10 -u admin -p secret\n  brute rsync 192.168.5.10 -u '' -p '' --module files\n  brute rsync 192.168.5.10 -u users.txt -p pass.txt --module files --threads 8"
+    )]
+    Rsync(RsyncArgs),
 }
 
 impl ProtocolArgs {
@@ -225,6 +232,7 @@ impl ProtocolArgs {
             Self::Rdp(args) | Self::Vnc(args) => args,
             Self::Tomcat(args) => &args.common,
             Self::Http(args) => &args.common,
+            Self::Rsync(args) => &args.common,
         }
     }
 
@@ -233,6 +241,7 @@ impl ProtocolArgs {
         match self {
             Self::Tomcat(args) => Some(&args.path),
             Self::Http(args) => Some(&args.path),
+            Self::Rsync(args) => Some(&args.module),
             _ => None,
         }
     }
@@ -534,6 +543,16 @@ pub struct HttpArgs {
     pub url_scheme: HttpUrlScheme,
 }
 
+/// Options for rsync daemon module login and spray.
+#[derive(Debug, Clone, Args)]
+pub struct RsyncArgs {
+    #[command(flatten)]
+    pub common: CommonArgs,
+    /// rsync daemon module name (default `files`).
+    #[arg(long, default_value = "files")]
+    pub module: String,
+}
+
 /// Workspace management command.
 #[derive(Debug, Args)]
 pub struct WorkspaceArgs {
@@ -619,6 +638,7 @@ pub enum Protocol {
     Snmp,
     Activemq,
     Rabbitmq,
+    Rsync,
 }
 
 impl Protocol {
@@ -645,6 +665,7 @@ impl Protocol {
             Self::Snmp => 161,
             Self::Activemq => 61613,
             Self::Rabbitmq => 5672,
+            Self::Rsync => 873,
         }
     }
 
@@ -671,6 +692,7 @@ impl Protocol {
             Self::Snmp => "snmp",
             Self::Activemq => "activemq",
             Self::Rabbitmq => "rabbitmq",
+            Self::Rsync => "rsync",
         }
     }
 }
@@ -699,6 +721,7 @@ impl ProtocolArgs {
             Self::Snmp(_) => Protocol::Snmp,
             Self::Activemq(_) => Protocol::Activemq,
             Self::Rabbitmq(_) => Protocol::Rabbitmq,
+            Self::Rsync(_) => Protocol::Rsync,
         }
     }
 }

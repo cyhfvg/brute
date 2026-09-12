@@ -49,6 +49,7 @@
 - `snmp`（SNMPv2c community；`-x` OID GET；默认端口 `161/udp`）
 - `activemq`（别名 `amq`；STOMP CONNECT；`-x` SEND；默认端口 `61613`）
 - `rabbitmq`（别名 `amqp`；AMQP 0-9-1；`-x` queue.declare；默认端口 `5672`）
+- `rsync`（daemon 模块 AUTHREQD；`--module`；默认端口 `873`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -163,6 +164,7 @@ brute activemq 192.168.5.10 -u admin -p admin
 brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
+brute rsync 192.168.5.10 -u admin -p secret --module files
 ```
 
 ## 顶级参数
@@ -401,6 +403,19 @@ brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 ```
 
 空凭据探测 `guest`/`guest`。非空凭据使用 SASL PLAIN。`-x` 声明指定队列（默认 `brute`）。命令失败不会丢掉已验证登录。别名：`amqp`。
+
+## rsync
+
+rsync daemon 模块登录与字典爆破（默认端口 `873`）：
+
+```bash
+brute rsync 192.168.5.10 -u admin -p secret
+brute rsync 192.168.5.10 -u '' -p '' --module files
+brute rsync 192.168.5.10 -u admin -p secret --module files
+```
+
+`--module` 选择 daemon 模块（默认 `files`）。空凭据仅在模块不要求密码时成功。AUTHREQD 使用 MD5(password || challenge)。不提供 `-x`/`--execute`。
+
 
 
 ## Oracle

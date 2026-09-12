@@ -86,6 +86,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("snmp"));
     assert!(stdout.contains("activemq"));
     assert!(stdout.contains("rabbitmq"));
+    assert!(stdout.contains("rsync"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -690,6 +691,17 @@ fn rabbitmq_help_exposes_command_execution() {
     assert!(stdout.contains("192.168.5.10"));
 }
 
+#[test]
+fn rsync_help_exposes_module_option() {
+    let home = TempHome::new("rsync-help");
+
+    let output = run_with_home(&home, ["rsync", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("--module"));
+    assert!(stdout.contains("192.168.5.10"));
+}
 #[test]
 fn protocol_help_documents_cidr_targets() {
     let home = TempHome::new("cidr-help");

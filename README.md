@@ -50,6 +50,7 @@ Implemented modules:
 - `snmp` (SNMPv2c community; `-x` OID GET; default port `161/udp`)
 - `activemq` (alias `amq`; STOMP CONNECT; `-x` SEND; default port `61613`)
 - `rabbitmq` (alias `amqp`; AMQP 0-9-1; `-x` queue.declare; default port `5672`)
+- `rsync` (daemon module AUTHREQD; `--module`; default port `873`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -164,6 +165,7 @@ brute activemq 192.168.5.10 -u admin -p admin
 brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
+brute rsync 192.168.5.10 -u admin -p secret --module files
 ```
 
 ## Global Options
@@ -401,6 +403,19 @@ brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 ```
 
 Empty credentials probe `guest`/`guest`. Non-empty credentials use SASL PLAIN. `-x` declares the named queue (default `brute`). Command failures do not discard a verified login. Alias: `amqp`.
+
+## rsync
+
+rsync daemon module login and dictionary spray (default port `873`):
+
+```bash
+brute rsync 192.168.5.10 -u admin -p secret
+brute rsync 192.168.5.10 -u '' -p '' --module files
+brute rsync 192.168.5.10 -u admin -p secret --module files
+```
+
+`--module` selects the daemon module (default `files`). Empty credentials succeed only when the module does not require a password. AUTHREQD uses MD5(password || challenge). No `-x`/`--execute`.
+
 
 
 ## Oracle

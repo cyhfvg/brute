@@ -14,7 +14,7 @@
 | `spray_passwords` | 多个目标、多个用户、多个密码, 或字典文件 |
 | `list_credentials` | 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据 |
 
-协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`), `mongodb` (别名 `mongo`), `elasticsearch` (别名 `es`), `docker` (别名 `docker-api`), `snmp`, `activemq` (别名 `amq`), `rabbitmq` (别名 `amqp`).
+协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`), `mongodb` (别名 `mongo`), `elasticsearch` (别名 `es`), `docker` (别名 `docker-api`), `snmp`, `activemq` (别名 `amq`), `rabbitmq` (别名 `amqp`), `rsync`.
 
 `verify_account` 与 `spray_passwords` 共用 `options`:
 
@@ -84,7 +84,8 @@
   { "name": "docker", "default_port": 2375 },
   { "name": "snmp", "default_port": 161 },
   { "name": "activemq", "default_port": 61613 },
-  { "name": "rabbitmq", "default_port": 5672 }
+  { "name": "rabbitmq", "default_port": 5672 },
+  { "name": "rsync", "default_port": 873 }
 ]
 ```
 
