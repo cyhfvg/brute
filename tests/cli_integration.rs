@@ -80,6 +80,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("ssh"));
     assert!(stdout.contains("zookeeper"));
     assert!(stdout.contains("memcached"));
+    assert!(stdout.contains("mongodb"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -603,6 +604,19 @@ fn memcached_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("stats"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn mongodb_help_exposes_command_execution() {
+    let home = TempHome::new("mongodb-help");
+
+    let output = run_with_home(&home, ["mongodb", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("listDatabases"));
     assert!(stdout.contains("192.168.5.10"));
 }
 

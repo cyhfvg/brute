@@ -43,6 +43,7 @@
 - `http`（HTTP Basic Auth 登录/爆破；`--path`，默认 `/`；`--protocol {http,https}`，默认 `http`；HTTPS 默认跳过证书校验；无 `-x`）
 - `zookeeper`（别名 `zk`；登录/爆破/未授权；`-x` zkCli 风格命令；默认端口 `2181`）
 - `memcached`（别名 `memcache`；登录/爆破/未授权；`-x` stats/get/set；默认端口 `11211`）
+- `mongodb`（别名 `mongo`；登录/爆破/未授权；`-x` ping/listDatabases；默认端口 `27017`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -142,6 +143,10 @@ brute memcached 192.168.5.10 -u admin -p 'memcached_pass'
 brute memcached 192.168.5.10 -u '' -p ''
 brute memcached 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
 brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass'
+brute mongodb 192.168.5.10 -u '' -p ''
+brute mongodb 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'
 ```
 
 ## 顶级参数
@@ -214,6 +219,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
   使用`-x @path`加载本地脚本
 - `zookeeper`: zkCli 风格命令，例如 `-x 'ls /'`
 - `memcached`: ASCII/binary 命令，例如 `-x 'stats'`
+- `mongodb`: admin 命令，例如 `-x 'listDatabases'`
 
 示例：
 
@@ -296,6 +302,20 @@ brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
 ```
 
 空凭据会探测未授权二进制 `STAT`，守护进程允许匿名命令时记为未授权访问。非空凭据使用二进制协议 SASL PLAIN。`-x` 支持 `stats`/`version`/`get`/`set`/`delete`/`flush_all`。命令失败不会丢掉已验证登录。别名：`memcache`。
+
+## MongoDB
+
+登录、字典爆破、允许未授权（`-u '' -p ''`）以及认证后命令（默认端口 `27017`）：
+
+```bash
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass'
+brute mongodb 192.168.5.10 -u '' -p ''
+brute mongodb 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'
+```
+
+空凭据会探测未授权 `admin.listDatabases`，部署允许匿名命令时记为未授权访问。非空凭据对 `authSource=admin` 做 SCRAM 认证。`-x` 接受 JSON 文档或简写 `ping`/`listDatabases`/`serverStatus`/`buildInfo`。命令失败不会丢掉已验证登录。别名：`mongo`。
+
 
 ## Oracle
 

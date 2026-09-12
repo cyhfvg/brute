@@ -44,6 +44,7 @@ Implemented modules:
 - `http` (HTTP Basic Auth login/brute; `--path`, default `/`; `--protocol {http,https}`, default `http`; HTTPS skips cert verify; no `-x`)
 - `zookeeper` (alias `zk`; login/brute/unauthorized; `-x` zkCli-style commands; default port `2181`)
 - `memcached` (alias `memcache`; login/brute/unauthorized; `-x` stats/get/set; default port `11211`)
+- `mongodb` (alias `mongo`; login/brute/unauthorized; `-x` ping/listDatabases; default port `27017`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -143,6 +144,10 @@ brute memcached 192.168.5.10 -u admin -p 'memcached_pass'
 brute memcached 192.168.5.10 -u '' -p ''
 brute memcached 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
 brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass'
+brute mongodb 192.168.5.10 -u '' -p ''
+brute mongodb 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'
 ```
 
 ## Global Options
@@ -214,6 +219,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `winrm`: remote command via `--shell-type powershell` (default when `-x` omits the flag) or `cmd`; use `-x @path` to load a local script;
 - `zookeeper`: zkCli-style command, for example `-x 'ls /'`
 - `memcached`: ASCII/binary command, for example `-x 'stats'`
+- `mongodb`: admin command, for example `-x 'listDatabases'`
 
 Example:
 
@@ -296,6 +302,20 @@ brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'
 ```
 
 Empty credentials probe unauthenticated binary `STAT` and report unauthorized access when the daemon allows anonymous commands. Non-empty credentials use binary-protocol SASL PLAIN. `-x` accepts `stats`/`version`/`get`/`set`/`delete`/`flush_all`. Command failures do not discard a verified login. Alias: `memcache`.
+
+## MongoDB
+
+Login, dictionary spray, unauthorized access (`-u '' -p ''`), and post-auth commands (default port `27017`):
+
+```bash
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass'
+brute mongodb 192.168.5.10 -u '' -p ''
+brute mongodb 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
+brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'
+```
+
+Empty credentials probe unauthenticated `listDatabases` on `admin` and report unauthorized access when the deployment allows anonymous commands. Non-empty credentials authenticate against `authSource=admin` (SCRAM). `-x` accepts JSON documents or shorthand `ping`/`listDatabases`/`serverStatus`/`buildInfo`. Command failures do not discard a verified login. Alias: `mongo`.
+
 
 ## Oracle
 

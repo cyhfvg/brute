@@ -152,6 +152,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute memcached 192.168.5.10 -u admin -p 'memcached_pass'\n  brute memcached 192.168.5.10 -u '' -p ''\n  brute memcached 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute memcached 192.168.5.10 -u admin -p 'memcached_pass' -x 'stats'"
     )]
     Memcached(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using MONGODB",
+        visible_alias = "mongo",
+        override_usage = "brute mongodb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass'\n  brute mongodb 192.168.5.10 -u '' -p ''\n  brute mongodb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'"
+    )]
+    Mongodb(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -164,7 +172,8 @@ impl ProtocolArgs {
             | Self::Postgresql(args)
             | Self::Redis(args)
             | Self::Zookeeper(args)
-            | Self::Memcached(args) => &args.common,
+            | Self::Memcached(args)
+            | Self::Mongodb(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -194,7 +203,8 @@ impl ProtocolArgs {
             | Self::Postgresql(args)
             | Self::Redis(args)
             | Self::Zookeeper(args)
-            | Self::Memcached(args) => args.execute.as_deref(),
+            | Self::Memcached(args)
+            | Self::Mongodb(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -553,6 +563,7 @@ pub enum Protocol {
     Vnc,
     Zookeeper,
     Memcached,
+    Mongodb,
 }
 
 impl Protocol {
@@ -573,6 +584,7 @@ impl Protocol {
             Self::Vnc => 5900,
             Self::Zookeeper => 2181,
             Self::Memcached => 11211,
+            Self::Mongodb => 27017,
         }
     }
 
@@ -593,6 +605,7 @@ impl Protocol {
             Self::Vnc => "vnc",
             Self::Zookeeper => "zookeeper",
             Self::Memcached => "memcached",
+            Self::Mongodb => "mongodb",
         }
     }
 }
@@ -615,6 +628,7 @@ impl ProtocolArgs {
             Self::Vnc(_) => Protocol::Vnc,
             Self::Zookeeper(_) => Protocol::Zookeeper,
             Self::Memcached(_) => Protocol::Memcached,
+            Self::Mongodb(_) => Protocol::Mongodb,
         }
     }
 }

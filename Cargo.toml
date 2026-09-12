@@ -72,6 +72,11 @@ zookeeper-client = { version = "0.11", default-features = false, features = [
     "tokio",
     "sasl-digest-md5",
 ] }
+mongodb = { version = "3.9.1", default-features = false, features = [
+    "bson-3",
+    "compat-3-3-0",
+    "rustls-tls",
+] }
 
 
 [dev-dependencies]

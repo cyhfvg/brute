@@ -3,6 +3,7 @@
 pub mod ftp;
 pub mod http;
 pub mod memcached;
+pub mod mongodb;
 pub mod mysql;
 pub mod oracle;
 pub mod postgresql;

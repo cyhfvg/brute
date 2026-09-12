@@ -1,0 +1,46 @@
+# MongoDB 5.0+ official images require AVX. This QEMU lab CPU does not provide it,
+# so the lab uses 4.4 which still exercises SCRAM auth, unauthorized access, and -x.
+
+services:
+  mongodb-open:
+    image: mongo:4.4
+    container_name: mongodb-open
+    restart: "no"
+    ports:
+      - "27017:27017"
+    command: ["mongod", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongo", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  mongodb-auth:
+    image: mongo:4.4
+    container_name: mongodb-auth
+    restart: "no"
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: mongodb_pass
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongo",
+          "--quiet",
+          "-u",
+          "admin",
+          "-p",
+          "mongodb_pass",
+          "--authenticationDatabase",
+          "admin",
+          "--eval",
+          "db.runCommand({ ping: 1 }).ok",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s

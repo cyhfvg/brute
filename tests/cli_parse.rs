@@ -613,3 +613,43 @@ fn parses_memcached_memcache_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies MongoDB default port and `-x` command parsing.
+#[test]
+fn parses_mongodb_execute_and_default_port() {
+    assert_eq!(Protocol::Mongodb.default_port(), 27017);
+    assert_eq!(Protocol::Mongodb.as_str(), "mongodb");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "mongodb",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "secret",
+        "-x",
+        "listDatabases",
+    ])
+    .expect("mongodb execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Mongodb(args)) = cli.command else {
+        panic!("expected mongodb protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.common.usernames, ["admin"]);
+    assert_eq!(args.common.passwords, ["secret"]);
+    assert_eq!(args.execute.as_deref(), Some("listDatabases"));
+}
+
+/// Verifies the `mongo` alias maps to the MongoDB subcommand.
+#[test]
+fn parses_mongodb_mongo_alias() {
+    let cli = Cli::try_parse_from(["brute", "mongo", "192.168.5.10", "-u", "", "-p", ""])
+        .expect("mongo alias should parse as mongodb");
+
+    let Command::Protocol(ProtocolArgs::Mongodb(args)) = cli.command else {
+        panic!("expected mongodb protocol arguments from mongo alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}

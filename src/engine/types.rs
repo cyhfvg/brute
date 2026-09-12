@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 14] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 15] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -224,6 +224,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 14] = [
     Protocol::Vnc,
     Protocol::Zookeeper,
     Protocol::Memcached,
+    Protocol::Mongodb,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -265,6 +266,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "vnc" => Ok(Protocol::Vnc),
         "zookeeper" | "zk" => Ok(Protocol::Zookeeper),
         "memcached" | "memcache" => Ok(Protocol::Memcached),
+        "mongodb" | "mongo" => Ok(Protocol::Mongodb),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS
@@ -449,6 +451,7 @@ mod tests {
         assert_eq!(parse_protocol("postgres").unwrap(), Protocol::Postgresql);
         assert_eq!(parse_protocol("zk").unwrap(), Protocol::Zookeeper);
         assert_eq!(parse_protocol("memcache").unwrap(), Protocol::Memcached);
+        assert_eq!(parse_protocol("mongo").unwrap(), Protocol::Mongodb);
         assert!(parse_protocol("ldap").is_err());
     }
 

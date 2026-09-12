@@ -63,6 +63,11 @@
   (default port 11211, alias `memcache`); empty `-u '' -p ''` probes anonymous access;
   `-x` runs `stats`/`version`/`get`/`set`/`delete`/`flush_all`. Binary VERSION target probe
   with ASCII fallback. Stream-injectable `--proxy` via `connect_async`. No extra crate.
+- `mongodb`: official `mongodb` crate (`bson-3` + `rustls-tls`, no `mongocrypt`) login/brute
+  (default port 27017, alias `mongo`); empty `-u '' -p ''` probes anonymous `admin.listDatabases`;
+  non-empty credentials use `authSource=admin` SCRAM; `-x` runs JSON or shorthand
+  `ping`/`listDatabases`/`serverStatus`/`buildInfo`. `buildInfo`/`hello` target probe.
+  Host:port client uses the shared TCP proxy bridge.
 
 
 ## Unsupported Protocols
@@ -70,7 +75,6 @@
 - NFS
 - rsync
 - mssql
-- mongodb
 - elasticsearch
 - snmp
 - rabbitMQ
