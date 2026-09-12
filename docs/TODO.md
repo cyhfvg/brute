@@ -68,6 +68,9 @@
   non-empty credentials use `authSource=admin` SCRAM; `-x` runs JSON or shorthand
   `ping`/`listDatabases`/`serverStatus`/`buildInfo`. `buildInfo`/`hello` target probe.
   Host:port client uses the shared TCP proxy bridge.
+- `elasticsearch`: `reqwest` HTTP Basic login/brute (default port 9200, alias `es`); empty
+  `-u '' -p ''` probes anonymous `GET /`; `-x` GETs `_cat/indices`, `_cluster/health`, or a
+  caller path. Root JSON `version.number` target probe. HTTP `--proxy` via `reqwest`.
 
 
 ## Unsupported Protocols
@@ -75,7 +78,6 @@
 - NFS
 - rsync
 - mssql
-- elasticsearch
 - snmp
 - rabbitMQ
 - kafka

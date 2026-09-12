@@ -653,3 +653,43 @@ fn parses_mongodb_mongo_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies Elasticsearch default port and `-x` command parsing.
+#[test]
+fn parses_elasticsearch_execute_and_default_port() {
+    assert_eq!(Protocol::Elasticsearch.default_port(), 9200);
+    assert_eq!(Protocol::Elasticsearch.as_str(), "elasticsearch");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "elasticsearch",
+        "192.168.5.10",
+        "-u",
+        "elastic",
+        "-p",
+        "secret",
+        "-x",
+        "indices",
+    ])
+    .expect("elasticsearch execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Elasticsearch(args)) = cli.command else {
+        panic!("expected elasticsearch protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.common.usernames, ["elastic"]);
+    assert_eq!(args.common.passwords, ["secret"]);
+    assert_eq!(args.execute.as_deref(), Some("indices"));
+}
+
+/// Verifies the `es` alias maps to the Elasticsearch subcommand.
+#[test]
+fn parses_elasticsearch_es_alias() {
+    let cli = Cli::try_parse_from(["brute", "es", "192.168.5.10", "-u", "", "-p", ""])
+        .expect("es alias should parse as elasticsearch");
+
+    let Command::Protocol(ProtocolArgs::Elasticsearch(args)) = cli.command else {
+        panic!("expected elasticsearch protocol arguments from es alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}

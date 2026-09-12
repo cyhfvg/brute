@@ -160,6 +160,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass'\n  brute mongodb 192.168.5.10 -u '' -p ''\n  brute mongodb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'"
     )]
     Mongodb(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using ELASTICSEARCH",
+        visible_alias = "es",
+        override_usage = "brute elasticsearch <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass'\n  brute elasticsearch 192.168.5.10 -u '' -p ''\n  brute elasticsearch 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'"
+    )]
+    Elasticsearch(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -173,7 +181,8 @@ impl ProtocolArgs {
             | Self::Redis(args)
             | Self::Zookeeper(args)
             | Self::Memcached(args)
-            | Self::Mongodb(args) => &args.common,
+            | Self::Mongodb(args)
+            | Self::Elasticsearch(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -204,7 +213,8 @@ impl ProtocolArgs {
             | Self::Redis(args)
             | Self::Zookeeper(args)
             | Self::Memcached(args)
-            | Self::Mongodb(args) => args.execute.as_deref(),
+            | Self::Mongodb(args)
+            | Self::Elasticsearch(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -564,6 +574,7 @@ pub enum Protocol {
     Zookeeper,
     Memcached,
     Mongodb,
+    Elasticsearch,
 }
 
 impl Protocol {
@@ -585,6 +596,7 @@ impl Protocol {
             Self::Zookeeper => 2181,
             Self::Memcached => 11211,
             Self::Mongodb => 27017,
+            Self::Elasticsearch => 9200,
         }
     }
 
@@ -606,6 +618,7 @@ impl Protocol {
             Self::Zookeeper => "zookeeper",
             Self::Memcached => "memcached",
             Self::Mongodb => "mongodb",
+            Self::Elasticsearch => "elasticsearch",
         }
     }
 }
@@ -629,6 +642,7 @@ impl ProtocolArgs {
             Self::Zookeeper(_) => Protocol::Zookeeper,
             Self::Memcached(_) => Protocol::Memcached,
             Self::Mongodb(_) => Protocol::Mongodb,
+            Self::Elasticsearch(_) => Protocol::Elasticsearch,
         }
     }
 }

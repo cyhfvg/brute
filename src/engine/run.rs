@@ -17,10 +17,11 @@ use crate::credentials::{LoadedCredentials, load_credentials, load_service_names
 use crate::database::CredentialDatabase;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
-    ftp::FtpModule, http::HttpBasicModule, memcached::MemcachedModule, mongodb::MongoDbModule,
-    mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule,
-    redis::RedisModule, smb::SmbModule, ssh::SshModule, tomcat::TomcatManagerModule,
-    vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
+    elasticsearch::ElasticsearchModule, ftp::FtpModule, http::HttpBasicModule,
+    memcached::MemcachedModule, mongodb::MongoDbModule, mysql::MySqlModule, oracle::OracleModule,
+    postgresql::PostgreSqlModule, rdp::RdpModule, redis::RedisModule, smb::SmbModule,
+    ssh::SshModule, tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule,
+    zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -276,6 +277,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Zookeeper => Arc::new(ZookeeperModule::new(request.timeout_ms)),
         Protocol::Memcached => Arc::new(MemcachedModule::new(request.timeout_ms)),
         Protocol::Mongodb => Arc::new(MongoDbModule::new(request.timeout_ms)),
+        Protocol::Elasticsearch => Arc::new(ElasticsearchModule::new(request.timeout_ms)),
     }
 }
 

@@ -45,6 +45,7 @@ Implemented modules:
 - `zookeeper` (alias `zk`; login/brute/unauthorized; `-x` zkCli-style commands; default port `2181`)
 - `memcached` (alias `memcache`; login/brute/unauthorized; `-x` stats/get/set; default port `11211`)
 - `mongodb` (alias `mongo`; login/brute/unauthorized; `-x` ping/listDatabases; default port `27017`)
+- `elasticsearch` (alias `es`; login/brute/unauthorized HTTP Basic; `-x` `_cat` paths; default port `9200`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -148,6 +149,9 @@ brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass'
 brute mongodb 192.168.5.10 -u '' -p ''
 brute mongodb 192.168.5.10 -u user.txt -p pass.txt --continue-on-success
 brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'
+brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass'
+brute elasticsearch 192.168.5.10 -u '' -p ''
+brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'
 ```
 
 ## Global Options
@@ -220,6 +224,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `zookeeper`: zkCli-style command, for example `-x 'ls /'`
 - `memcached`: ASCII/binary command, for example `-x 'stats'`
 - `mongodb`: admin command, for example `-x 'listDatabases'`
+- `elasticsearch`: HTTP GET path, for example `-x 'indices'`
 
 Example:
 
@@ -315,6 +320,19 @@ brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'
 ```
 
 Empty credentials probe unauthenticated `listDatabases` on `admin` and report unauthorized access when the deployment allows anonymous commands. Non-empty credentials authenticate against `authSource=admin` (SCRAM). `-x` accepts JSON documents or shorthand `ping`/`listDatabases`/`serverStatus`/`buildInfo`. Command failures do not discard a verified login. Alias: `mongo`.
+
+## Elasticsearch
+
+Login, dictionary spray, unauthorized access (`-u '' -p ''`), and post-auth HTTP API GETs (default port `9200`):
+
+```bash
+brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass'
+brute elasticsearch 192.168.5.10 -u '' -p ''
+brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'
+```
+
+Empty credentials send `GET /` without Authorization and report unauthorized access on 2xx. Non-empty credentials use HTTP Basic Auth. `-x` is a GET path (`indices`, `health`, `nodes`, or any absolute path). Command failures do not discard a verified login. Alias: `es`.
+
 
 
 ## Oracle
