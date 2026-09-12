@@ -53,6 +53,7 @@ Implemented modules:
 - `rsync` (daemon module AUTHREQD; `--module`; default port `873`)
 - `mssql` (alias `sqlserver`; TDS login; `-x` SQL; default port `1433`)
 - `kafka` (SASL/PLAIN; `-x` metadata; default port `9092`)
+- `kibana` (HTTP login; `-x` status API; default port `5601`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -172,6 +173,8 @@ brute mssql 192.168.5.10 -u sa -p 'Your_password1'
 brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
 brute kafka 192.168.5.10 -u admin -p kafka_pass
 brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
+brute kibana 192.168.5.10 -u elastic -p elastic_pass
+brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
 ```
 
 ## Global Options
@@ -251,6 +254,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `activemq`: STOMP SEND to `/queue/brute`, for example `-x 'hello'`
 - `rabbitmq`: queue.declare, for example `-x 'brute'`
 - `kafka`: Metadata request, for example `-x 'metadata'`
+- `kibana`: status API, for example `-x 'status'`
 
 Example:
 
@@ -448,6 +452,19 @@ brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
 ```
 
 Uses Kafka `SaslHandshake` + `SaslAuthenticate` with PLAIN (`\0user\0pass`). `-x` issues a Metadata request. Command failures do not discard a verified login.
+
+
+## Kibana
+
+Kibana login and dictionary spray (default port `5601`):
+
+```bash
+brute kibana 192.168.5.10 -u elastic -p elastic_pass
+brute kibana 192.168.5.10 -u '' -p ''
+brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
+```
+
+Empty credentials probe `GET /api/status` without a session. Non-empty credentials POST `/internal/security/login`. `-x` GETs a Kibana API path (default `/api/status`) using the login cookie. Command failures do not discard a verified login.
 
 
 ## Oracle

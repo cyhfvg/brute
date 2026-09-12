@@ -1,0 +1,41 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.28
+    container_name: kibana-es-brute-lab
+    restart: "no"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      ELASTIC_PASSWORD: elastic_pass
+      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf -u elastic:elastic_pass http://127.0.0.1:9200 >/dev/null",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.28
+    container_name: kibana-brute-lab
+    restart: "no"
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: elastic_pass
+      XPACK_SECURITY_ENABLED: "true"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:5601/api/status >/dev/null || curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:5601/login | grep -Eq '200|302'"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 40s

@@ -6,6 +6,7 @@ pub mod elasticsearch;
 pub mod ftp;
 pub mod http;
 pub mod kafka;
+pub mod kibana;
 pub mod memcached;
 pub mod mongodb;
 pub mod mssql;

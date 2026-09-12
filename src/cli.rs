@@ -222,6 +222,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute kafka 192.168.5.10 -u admin -p kafka_pass\n  brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata"
     )]
     Kafka(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using KIBANA",
+        override_usage = "brute kibana <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute kibana 192.168.5.10 -u elastic -p changeme\n  brute kibana 192.168.5.10 -u elastic -p changeme -x status"
+    )]
+    Kibana(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -242,7 +249,8 @@ impl ProtocolArgs {
             | Self::Activemq(args)
             | Self::Rabbitmq(args)
             | Self::Mssql(args)
-            | Self::Kafka(args) => &args.common,
+            | Self::Kafka(args)
+            | Self::Kibana(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -282,7 +290,8 @@ impl ProtocolArgs {
             | Self::Activemq(args)
             | Self::Rabbitmq(args)
             | Self::Mssql(args)
-            | Self::Kafka(args) => args.execute.as_deref(),
+            | Self::Kafka(args)
+            | Self::Kibana(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -660,6 +669,7 @@ pub enum Protocol {
     Rsync,
     Mssql,
     Kafka,
+    Kibana,
 }
 
 impl Protocol {
@@ -689,6 +699,7 @@ impl Protocol {
             Self::Rsync => 873,
             Self::Mssql => 1433,
             Self::Kafka => 9092,
+            Self::Kibana => 5601,
         }
     }
 
@@ -718,6 +729,7 @@ impl Protocol {
             Self::Rsync => "rsync",
             Self::Mssql => "mssql",
             Self::Kafka => "kafka",
+            Self::Kibana => "kibana",
         }
     }
 }
@@ -749,6 +761,7 @@ impl ProtocolArgs {
             Self::Rsync(_) => Protocol::Rsync,
             Self::Mssql(_) => Protocol::Mssql,
             Self::Kafka(_) => Protocol::Kafka,
+            Self::Kibana(_) => Protocol::Kibana,
         }
     }
 }

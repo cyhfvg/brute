@@ -936,3 +936,29 @@ fn parses_kafka_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("metadata"));
 }
+
+/// Verifies Kibana default port and `-x` command parsing.
+#[test]
+fn parses_kibana_execute_and_default_port() {
+    assert_eq!(Protocol::Kibana.default_port(), 5601);
+    assert_eq!(Protocol::Kibana.as_str(), "kibana");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "kibana",
+        "192.168.5.10",
+        "-u",
+        "elastic",
+        "-p",
+        "elastic_pass",
+        "-x",
+        "status",
+    ])
+    .expect("kibana execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Kibana(args)) = cli.command else {
+        panic!("expected kibana protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("status"));
+}

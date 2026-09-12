@@ -89,6 +89,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("rsync"));
     assert!(stdout.contains("mssql"));
     assert!(stdout.contains("kafka"));
+    assert!(stdout.contains("kibana"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -728,6 +729,19 @@ fn kafka_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("metadata"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn kibana_help_exposes_command_execution() {
+    let home = TempHome::new("kibana-help");
+
+    let output = run_with_home(&home, ["kibana", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("status"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

@@ -52,6 +52,7 @@
 - `rsync`（daemon 模块 AUTHREQD；`--module`；默认端口 `873`）
 - `mssql`（别名 `sqlserver`；TDS 登录；`-x` SQL；默认端口 `1433`）
 - `kafka`（SASL/PLAIN；`-x` metadata；默认端口 `9092`）
+- `kibana`（HTTP 登录；`-x` status API；默认端口 `5601`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -171,6 +172,8 @@ brute mssql 192.168.5.10 -u sa -p 'Your_password1'
 brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
 brute kafka 192.168.5.10 -u admin -p kafka_pass
 brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
+brute kibana 192.168.5.10 -u elastic -p elastic_pass
+brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
 ```
 
 ## 顶级参数
@@ -251,6 +254,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `activemq`: 向 `/queue/brute` STOMP SEND，例如 `-x 'hello'`
 - `rabbitmq`: queue.declare，例如 `-x 'brute'`
 - `kafka`: Metadata 请求，例如 `-x 'metadata'`
+- `kibana`: status API，例如 `-x 'status'`
 
 示例：
 
@@ -448,6 +452,19 @@ brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
 ```
 
 使用 Kafka `SaslHandshake` + `SaslAuthenticate` 与 PLAIN（`\0user\0pass`）。`-x` 发起 Metadata 请求。命令失败不会丢掉已验证登录。
+
+
+## Kibana
+
+Kibana 登录与字典爆破（默认端口 `5601`）：
+
+```bash
+brute kibana 192.168.5.10 -u elastic -p elastic_pass
+brute kibana 192.168.5.10 -u '' -p ''
+brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
+```
+
+空凭据探测无会话的 `GET /api/status`。非空凭据 POST `/internal/security/login`。`-x` 使用登录 cookie GET Kibana API 路径（默认 `/api/status`）。命令失败不会丢掉已验证登录。
 
 
 ## Oracle
