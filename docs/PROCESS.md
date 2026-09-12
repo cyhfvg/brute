@@ -20,6 +20,7 @@
 - `memcached`
 - `mongodb`
 - `elasticsearch`
+- `docker`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -56,10 +57,11 @@
 - `memcached`: 纯 Rust 二进制 SASL PLAIN，默认端口 `11211`，别名 `memcache`。空用户名/空密码探测未授权二进制 `STAT`；非空凭据走 SASL PLAIN。支持 `-x`（`stats`/`version`/`get`/`set`/`delete`/`flush_all`）。目标探测发送二进制 VERSION，必要时回退 ASCII `version`。TCP 流经 `--proxy` 注入（`connect_async`）
 - `mongodb`: 官方 `mongodb` crate（`bson-3` + `rustls-tls`，无 `mongocrypt`），默认端口 `27017`，别名 `mongo`。空用户名/空密码探测未授权 `admin.listDatabases`；非空凭据走 `authSource=admin` SCRAM。支持 `-x` JSON 或简写 `ping`/`listDatabases`/`serverStatus`/`buildInfo`。目标探测发送 `buildInfo`/`hello`。`host:port` 客户端经本机 TCP bridge 走 `--proxy`
 - `elasticsearch`: `reqwest` HTTP Basic 登录/爆破，默认端口 `9200`，别名 `es`。空用户名/空密码对 `GET /` 不带 Authorization；非空凭据走 Basic Auth。2xx/403 为命中，401 为认证失败。`-x` GET 路径（`indices`/`health`/`nodes` 或任意路径）。目标探测解析 root JSON `version.number`。HTTP 代理走 `reqwest::Proxy`
+- `docker`: `reqwest` Docker Engine API，默认端口 `2375`，别名 `docker-api`。空用户名/空密码对 `GET /version` 不带 Authorization；非空凭据走 HTTP Basic（反向代理）。2xx/403 为命中，401 为认证失败。`-x` GET 路径（`info`/`containers`/`images`/`version`）。HTTP 代理走 `reqwest::Proxy`
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm`、`zookeeper`、`memcached`、`mongodb`、`elasticsearch` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。`zookeeper` 的 `-x` 执行 zkCli 风格命令。`memcached` 的 `-x` 执行 `stats`/`version`/`get`/`set`/`delete`/`flush_all`。`mongodb` 的 `-x` 对 `admin` 执行 JSON/`ping`/`listDatabases` 等命令。`elasticsearch` 的 `-x` 对集群发起 HTTP GET。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp`、`vnc` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm`、`zookeeper`、`memcached`、`mongodb`、`elasticsearch`、`docker` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。`zookeeper` 的 `-x` 执行 zkCli 风格命令。`memcached` 的 `-x` 执行 `stats`/`version`/`get`/`set`/`delete`/`flush_all`。`mongodb` 的 `-x` 对 `admin` 执行 JSON/`ping`/`listDatabases` 等命令。`elasticsearch` 的 `-x` 对集群发起 HTTP GET。`docker` 的 `-x` 对 Engine API 发起 HTTP GET。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp`、`vnc` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
 
 `smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
@@ -114,7 +116,7 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 
 `--proxy <PROXY_URL>` 是与 `--version` / `--no-color` 同级的**顶级** CLI 参数（定义在 `Cli` 上，写在协议子命令之前）。`run_protocol` 将其注入到运行时 `CommonArgs.proxy`（`#[arg(skip)]`，非子命令 flag）供各协议模块读取。URL 形式为 `protocol://[username[:password]@]host:port`，协议支持 `http`（HTTP CONNECT）与 `socks5`；用户名/密码可省略。解析与隧道逻辑集中在 `src/proxy.rs`：
 
-- HTTP 系（`http` / `tomcat` / `winrm` / VNC web Basic / `elasticsearch`）：`reqwest::Proxy`（`reqwest` 启用 `socks` feature）；`winrm-rs` 使用 `WinrmConfig.proxy`
+- HTTP 系（`http` / `tomcat` / `winrm` / VNC web Basic / `elasticsearch` / `docker`）：`reqwest::Proxy`（`reqwest` 启用 `socks` feature）；`winrm-rs` 使用 `WinrmConfig.proxy`
 - 可注入 stream 的协议（`ssh` / `ftp` / `postgresql` / `rdp` / `vnc` RFB / `memcached`）：SOCKS5 经 `tokio-socks`，HTTP CONNECT 经 `async-http-proxy`（async）或自实现握手（blocking）
 - 仅接受 `host:port` 的协议（`mysql` / `redis` / `oracle` / `smb` / `zookeeper` / `mongodb`）：本机 `127.0.0.1:ephemeral` TCP bridge，将客户端连接经代理隧道转发到真实目标；bridge 生命周期与单次 attempt 绑定
 

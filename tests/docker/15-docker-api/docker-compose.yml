@@ -1,0 +1,12 @@
+# Exposes the host Docker Engine API on TCP 2375 without TLS.
+# Intended only for an authorized local lab. Do not publish 2375 on untrusted networks.
+services:
+  docker-api:
+    image: alpine/socat:1.8.0.1
+    container_name: docker-api
+    restart: "no"
+    ports:
+      - "2375:2375"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: TCP-LISTEN:2375,fork,reuseaddr UNIX-CONNECT:/var/run/docker.sock

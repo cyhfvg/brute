@@ -693,3 +693,41 @@ fn parses_elasticsearch_es_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies Docker API default port and `-x` command parsing.
+#[test]
+fn parses_docker_execute_and_default_port() {
+    assert_eq!(Protocol::Docker.default_port(), 2375);
+    assert_eq!(Protocol::Docker.as_str(), "docker");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "docker",
+        "192.168.5.10",
+        "-u",
+        "",
+        "-p",
+        "",
+        "-x",
+        "containers",
+    ])
+    .expect("docker execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Docker(args)) = cli.command else {
+        panic!("expected docker protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("containers"));
+}
+
+/// Verifies the `docker-api` alias maps to the Docker subcommand.
+#[test]
+fn parses_docker_api_alias() {
+    let cli = Cli::try_parse_from(["brute", "docker-api", "192.168.5.10", "-u", "", "-p", ""])
+        .expect("docker-api alias should parse as docker");
+
+    let Command::Protocol(ProtocolArgs::Docker(args)) = cli.command else {
+        panic!("expected docker protocol arguments from docker-api alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}

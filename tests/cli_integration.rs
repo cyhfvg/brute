@@ -82,6 +82,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("memcached"));
     assert!(stdout.contains("mongodb"));
     assert!(stdout.contains("elasticsearch"));
+    assert!(stdout.contains("docker"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -631,6 +632,19 @@ fn elasticsearch_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("indices"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn docker_help_exposes_command_execution() {
+    let home = TempHome::new("docker-help");
+
+    let output = run_with_home(&home, ["docker", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("containers"));
     assert!(stdout.contains("192.168.5.10"));
 }
 

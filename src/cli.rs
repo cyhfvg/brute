@@ -168,6 +168,15 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass'\n  brute elasticsearch 192.168.5.10 -u '' -p ''\n  brute elasticsearch 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'"
     )]
     Elasticsearch(ExecuteArgs),
+
+    #[command(
+        name = "docker",
+        visible_alias = "docker-api",
+        about = "own stuff using DOCKER API",
+        override_usage = "brute docker <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute docker 192.168.5.10 -u '' -p ''\n  brute docker 192.168.5.10 -u admin -p 'docker_pass'\n  brute docker 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute docker 192.168.5.10 -u '' -p '' -x 'containers'"
+    )]
+    Docker(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -182,7 +191,8 @@ impl ProtocolArgs {
             | Self::Zookeeper(args)
             | Self::Memcached(args)
             | Self::Mongodb(args)
-            | Self::Elasticsearch(args) => &args.common,
+            | Self::Elasticsearch(args)
+            | Self::Docker(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -214,7 +224,8 @@ impl ProtocolArgs {
             | Self::Zookeeper(args)
             | Self::Memcached(args)
             | Self::Mongodb(args)
-            | Self::Elasticsearch(args) => args.execute.as_deref(),
+            | Self::Elasticsearch(args)
+            | Self::Docker(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -575,6 +586,7 @@ pub enum Protocol {
     Memcached,
     Mongodb,
     Elasticsearch,
+    Docker,
 }
 
 impl Protocol {
@@ -597,6 +609,7 @@ impl Protocol {
             Self::Memcached => 11211,
             Self::Mongodb => 27017,
             Self::Elasticsearch => 9200,
+            Self::Docker => 2375,
         }
     }
 
@@ -619,6 +632,7 @@ impl Protocol {
             Self::Memcached => "memcached",
             Self::Mongodb => "mongodb",
             Self::Elasticsearch => "elasticsearch",
+            Self::Docker => "docker",
         }
     }
 }
@@ -643,6 +657,7 @@ impl ProtocolArgs {
             Self::Memcached(_) => Protocol::Memcached,
             Self::Mongodb(_) => Protocol::Mongodb,
             Self::Elasticsearch(_) => Protocol::Elasticsearch,
+            Self::Docker(_) => Protocol::Docker,
         }
     }
 }

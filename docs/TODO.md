@@ -71,6 +71,9 @@
 - `elasticsearch`: `reqwest` HTTP Basic login/brute (default port 9200, alias `es`); empty
   `-u '' -p ''` probes anonymous `GET /`; `-x` GETs `_cat/indices`, `_cluster/health`, or a
   caller path. Root JSON `version.number` target probe. HTTP `--proxy` via `reqwest`.
+- `docker`: `reqwest` Docker Engine API (default port 2375, alias `docker-api`); empty
+  `-u '' -p ''` probes anonymous `GET /version`; `-x` GETs `/info`, `/containers/json`,
+  `/images/json`, or a caller path. HTTP `--proxy` via `reqwest`.
 
 
 ## Unsupported Protocols
@@ -82,7 +85,6 @@
 - rabbitMQ
 - kafka
 - ActiveMQ
-- docker api
 - kibana
 
 (none currently reserved as unimplemented stubs)

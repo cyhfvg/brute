@@ -45,6 +45,7 @@
 - `memcached`（别名 `memcache`；登录/爆破/未授权；`-x` stats/get/set；默认端口 `11211`）
 - `mongodb`（别名 `mongo`；登录/爆破/未授权；`-x` ping/listDatabases；默认端口 `27017`）
 - `elasticsearch`（别名 `es`；登录/爆破/未授权 HTTP Basic；`-x` `_cat` 路径；默认端口 `9200`）
+- `docker`（别名 `docker-api`；未授权 Docker Engine API；`-x` `/info` `/containers/json`；默认端口 `2375`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -151,6 +152,8 @@ brute mongodb 192.168.5.10 -u admin -p 'mongodb_pass' -x 'listDatabases'
 brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass'
 brute elasticsearch 192.168.5.10 -u '' -p ''
 brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'
+brute docker 192.168.5.10 -u '' -p ''
+brute docker 192.168.5.10 -u '' -p '' -x 'containers'
 ```
 
 ## 顶级参数
@@ -225,6 +228,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `memcached`: ASCII/binary 命令，例如 `-x 'stats'`
 - `mongodb`: admin 命令，例如 `-x 'listDatabases'`
 - `elasticsearch`: HTTP GET 路径，例如 `-x 'indices'`
+- `docker`: Engine API GET 路径，例如 `-x 'containers'`
 
 示例：
 
@@ -333,6 +337,19 @@ brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'
 
 空凭据对 `GET /` 不带 Authorization，2xx 记为未授权访问。非空凭据使用 HTTP Basic Auth。`-x` 为 GET 路径（`indices`、`health`、`nodes` 或任意绝对路径）。命令失败不会丢掉已验证登录。别名：`es`。
 
+
+
+## Docker API
+
+未授权 Docker Engine API（`-u '' -p ''`）以及可选 HTTP Basic Auth（默认端口 `2375`）：
+
+```bash
+brute docker 192.168.5.10 -u '' -p ''
+brute docker 192.168.5.10 -u admin -p 'docker_pass'
+brute docker 192.168.5.10 -u '' -p '' -x 'containers'
+```
+
+空凭据对 `GET /version` 不带 Authorization，2xx 记为未授权访问。非空凭据使用 HTTP Basic Auth（反向代理场景）。`-x` 为 GET 路径（`info`、`containers`、`images`、`version` 或任意绝对路径）。命令失败不会丢掉已验证登录。别名：`docker-api`。
 
 
 ## Oracle
