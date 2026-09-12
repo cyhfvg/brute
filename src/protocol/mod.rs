@@ -10,6 +10,7 @@ pub mod mongodb;
 pub mod mysql;
 pub mod oracle;
 pub mod postgresql;
+pub mod rabbitmq;
 pub mod rdp;
 pub mod redis;
 pub mod smb;

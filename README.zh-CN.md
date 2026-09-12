@@ -48,6 +48,7 @@
 - `docker`（别名 `docker-api`；未授权 Docker Engine API；`-x` `/info` `/containers/json`；默认端口 `2375`）
 - `snmp`（SNMPv2c community；`-x` OID GET；默认端口 `161/udp`）
 - `activemq`（别名 `amq`；STOMP CONNECT；`-x` SEND；默认端口 `61613`）
+- `rabbitmq`（别名 `amqp`；AMQP 0-9-1；`-x` queue.declare；默认端口 `5672`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -160,6 +161,8 @@ brute snmp 192.168.5.10 -u '' -p secret
 brute snmp 192.168.5.10 -u '' -p secret -x sysName
 brute activemq 192.168.5.10 -u admin -p admin
 brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 ```
 
 ## 顶级参数
@@ -237,6 +240,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `docker`: Engine API GET 路径，例如 `-x 'containers'`
 - `snmp`: SNMPv2c GET，例如 `-x 'sysName'`
 - `activemq`: 向 `/queue/brute` STOMP SEND，例如 `-x 'hello'`
+- `rabbitmq`: queue.declare，例如 `-x 'brute'`
 
 示例：
 
@@ -384,6 +388,19 @@ brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 ```
 
 空凭据探测匿名 CONNECT。非空凭据发送 STOMP `login`/`passcode`。`-x` 把正文 SEND 到 `/queue/brute`。命令失败不会丢掉已验证登录。别名：`amq`。
+
+
+## RabbitMQ
+
+AMQP 0-9-1 登录与字典爆破（默认端口 `5672`）：
+
+```bash
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
+brute rabbitmq 192.168.5.10 -u '' -p ''
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
+```
+
+空凭据探测 `guest`/`guest`。非空凭据使用 SASL PLAIN。`-x` 声明指定队列（默认 `brute`）。命令失败不会丢掉已验证登录。别名：`amqp`。
 
 
 ## Oracle

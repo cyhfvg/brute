@@ -23,6 +23,7 @@
 - `docker`
 - `snmp`
 - `activemq`
+- `rabbitmq`
 
 同时为后续协议扩展保留统一抽象。
 
@@ -62,10 +63,11 @@
 - `docker`: `reqwest` Docker Engine API，默认端口 `2375`，别名 `docker-api`。空用户名/空密码对 `GET /version` 不带 Authorization；非空凭据走 HTTP Basic（反向代理）。2xx/403 为命中，401 为认证失败。`-x` GET 路径（`info`/`containers`/`images`/`version`）。HTTP 代理走 `reqwest::Proxy`
 - `snmp`: 纯 Rust SNMPv2c，默认端口 `161/udp`。密码即 community；空凭据探测 `public`。用 `sysDescr.0` GET 校验。`-x` 点分 OID 或 `sysDescr`/`sysName`/`sysUptime`。UDP，不走 TCP `--proxy`
 - `activemq`: 纯 Rust STOMP CONNECT，默认端口 `61613`，别名 `amq`。空凭据探测匿名 CONNECT；非空凭据发 `login`/`passcode`。`-x` SEND 到 `/queue/brute`。TCP 流经 `--proxy` 注入
+- `rabbitmq`: `amqprs` AMQP 0-9-1，默认端口 `5672`，别名 `amqp`。空凭据探测 `guest`/`guest`；非空凭据 SASL PLAIN。`-x` `queue.declare`。`host:port` 经 TCP bridge 走 `--proxy`
 
 ### 命令执行
 
-`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm`、`zookeeper`、`memcached`、`mongodb`、`elasticsearch`、`docker`、`snmp`、`activemq` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。`zookeeper` 的 `-x` 执行 zkCli 风格命令。`memcached` 的 `-x` 执行 `stats`/`version`/`get`/`set`/`delete`/`flush_all`。`mongodb` 的 `-x` 对 `admin` 执行 JSON/`ping`/`listDatabases` 等命令。`elasticsearch` 的 `-x` 对集群发起 HTTP GET。`docker` 的 `-x` 对 Engine API 发起 HTTP GET。`snmp` 的 `-x` 发起 SNMPv2c GET。`activemq` 的 `-x` 向 `/queue/brute` SEND。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp`、`vnc` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
+`ssh`、`ftp`、`mysql`、`postgresql`、`oracle`、`redis`、`winrm`、`zookeeper`、`memcached`、`mongodb`、`elasticsearch`、`docker`、`snmp`、`activemq`、`rabbitmq` 支持模块级 `-x, --execute <COMMAND>`。`oracle` 必须且只能指定 `--service-name` 或 `--sid`；两者均可传多个值或字典文件，调度层将数据库标识并入凭据维度并与用户名/密码做全组合展开，输出格式为 `SERVICE/user:pass` 或 `sid:SID/user:pass`。其 `-x` 执行 SQL 查询并最多预览 10 行结果。`winrm` 额外支持 `--shell-type` 选择 `cmd` 或 `powershell`，以及 `-x @script.bat` / `-x @script.ps1` 本地脚本装载。`zookeeper` 的 `-x` 执行 zkCli 风格命令。`memcached` 的 `-x` 执行 `stats`/`version`/`get`/`set`/`delete`/`flush_all`。`mongodb` 的 `-x` 对 `admin` 执行 JSON/`ping`/`listDatabases` 等命令。`elasticsearch` 的 `-x` 对集群发起 HTTP GET。`docker` 的 `-x` 对 Engine API 发起 HTTP GET。`snmp` 的 `-x` 发起 SNMPv2c GET。`activemq` 的 `-x` 向 `/queue/brute` SEND。`rabbitmq` 的 `-x` 声明队列。该参数不会出现在 `http`、`tomcat`、`smb`、`rdp`、`vnc` 等无命令执行语义的模块中；支持模块会在凭据认证成功后执行命令，并用独立输出行显示执行状态和结果。
 
 `smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
@@ -121,7 +123,7 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误会�
 `--proxy <PROXY_URL>` 是与 `--version` / `--no-color` 同级的**顶级** CLI 参数（定义在 `Cli` 上，写在协议子命令之前）。`run_protocol` 将其注入到运行时 `CommonArgs.proxy`（`#[arg(skip)]`，非子命令 flag）供各协议模块读取。URL 形式为 `protocol://[username[:password]@]host:port`，协议支持 `http`（HTTP CONNECT）与 `socks5`；用户名/密码可省略。解析与隧道逻辑集中在 `src/proxy.rs`：
 - 可注入 stream 的协议（`ssh` / `ftp` / `postgresql` / `rdp` / `vnc` RFB / `memcached` / `activemq`）：SOCKS5 经 `tokio-socks`，HTTP CONNECT 经 `async-http-proxy`（async）或自实现握手（blocking）
 - HTTP 系（`http` / `tomcat` / `winrm` / VNC web Basic / `elasticsearch` / `docker`）：`reqwest::Proxy`（`reqwest` 启用 `socks` feature）；`winrm-rs` 使用 `WinrmConfig.proxy`
-- 仅接受 `host:port` 的协议（`mysql` / `redis` / `oracle` / `smb` / `zookeeper` / `mongodb`）：本机 `127.0.0.1:ephemeral` TCP bridge，将客户端连接经代理隧道转发到真实目标；bridge 生命周期与单次 attempt 绑定
+- 仅接受 `host:port` 的协议（`mysql` / `redis` / `oracle` / `smb` / `zookeeper` / `mongodb` / `rabbitmq`）：本机 `127.0.0.1:ephemeral` TCP bridge，将客户端连接经代理隧道转发到真实目标；bridge 生命周期与单次 attempt 绑定
 
 代理作用于登录、爆破、目标探测与认证后命令路径。
 

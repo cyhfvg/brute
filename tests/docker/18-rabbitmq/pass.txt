@@ -1,0 +1,3 @@
+rabbit_pass
+guest
+wrongpass

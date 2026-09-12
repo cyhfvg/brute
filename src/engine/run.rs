@@ -19,9 +19,10 @@ use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
     activemq::ActiveMqModule, docker::DockerModule, elasticsearch::ElasticsearchModule,
     ftp::FtpModule, http::HttpBasicModule, memcached::MemcachedModule, mongodb::MongoDbModule,
-    mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule,
-    redis::RedisModule, smb::SmbModule, snmp::SnmpModule, ssh::SshModule,
-    tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
+    mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule,
+    rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, smb::SmbModule, snmp::SnmpModule,
+    ssh::SshModule, tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule,
+    zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -281,6 +282,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Docker => Arc::new(DockerModule::new(request.timeout_ms)),
         Protocol::Snmp => Arc::new(SnmpModule::new(request.timeout_ms)),
         Protocol::Activemq => Arc::new(ActiveMqModule::new(request.timeout_ms)),
+        Protocol::Rabbitmq => Arc::new(RabbitMqModule::new(request.timeout_ms)),
     }
 }
 

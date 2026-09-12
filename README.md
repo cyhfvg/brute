@@ -49,6 +49,7 @@ Implemented modules:
 - `docker` (alias `docker-api`; unauthorized Docker Engine API; `-x` `/info` `/containers/json`; default port `2375`)
 - `snmp` (SNMPv2c community; `-x` OID GET; default port `161/udp`)
 - `activemq` (alias `amq`; STOMP CONNECT; `-x` SEND; default port `61613`)
+- `rabbitmq` (alias `amqp`; AMQP 0-9-1; `-x` queue.declare; default port `5672`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -161,6 +162,8 @@ brute snmp 192.168.5.10 -u '' -p secret
 brute snmp 192.168.5.10 -u '' -p secret -x sysName
 brute activemq 192.168.5.10 -u admin -p admin
 brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 ```
 
 ## Global Options
@@ -237,6 +240,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `docker`: Engine API GET path, for example `-x 'containers'`
 - `snmp`: SNMPv2c GET, for example `-x 'sysName'`
 - `activemq`: STOMP SEND to `/queue/brute`, for example `-x 'hello'`
+- `rabbitmq`: queue.declare, for example `-x 'brute'`
 
 Example:
 
@@ -384,6 +388,19 @@ brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 ```
 
 Empty credentials probe anonymous CONNECT. Non-empty credentials send STOMP `login`/`passcode`. `-x` SENDs the body to `/queue/brute`. Command failures do not discard a verified login. Alias: `amq`.
+
+
+## RabbitMQ
+
+AMQP 0-9-1 login and dictionary spray (default port `5672`):
+
+```bash
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
+brute rabbitmq 192.168.5.10 -u '' -p ''
+brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
+```
+
+Empty credentials probe `guest`/`guest`. Non-empty credentials use SASL PLAIN. `-x` declares the named queue (default `brute`). Command failures do not discard a verified login. Alias: `amqp`.
 
 
 ## Oracle

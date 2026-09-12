@@ -79,6 +79,8 @@
   No TCP `--proxy`.
 - `activemq`: pure-Rust STOMP CONNECT (default port 61613, alias `amq`); empty `-u '' -p ''`
   probes anonymous CONNECT; `-x` SENDs to `/queue/brute`. Stream-injectable `--proxy`.
+- `rabbitmq`: `amqprs` AMQP 0-9-1 (default port 5672, alias `amqp`); empty `-u '' -p ''`
+  probes `guest`/`guest`; `-x` `queue.declare`. Host:port TCP proxy bridge.
 
 
 ## Unsupported Protocols
@@ -86,7 +88,6 @@
 - NFS
 - rsync
 - mssql
-- rabbitMQ
 - kafka
 - kibana
 

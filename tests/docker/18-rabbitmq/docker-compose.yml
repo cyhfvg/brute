@@ -1,0 +1,16 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    container_name: rabbitmq-brute-lab
+    restart: "no"
+    ports:
+      - "5672:5672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: rabbit_pass
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s

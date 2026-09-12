@@ -797,3 +797,49 @@ fn parses_activemq_amq_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies RabbitMQ default port and `-x` command parsing.
+#[test]
+fn parses_rabbitmq_execute_and_default_port() {
+    assert_eq!(Protocol::Rabbitmq.default_port(), 5672);
+    assert_eq!(Protocol::Rabbitmq.as_str(), "rabbitmq");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "rabbitmq",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "secret",
+        "-x",
+        "brute",
+    ])
+    .expect("rabbitmq execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Rabbitmq(args)) = cli.command else {
+        panic!("expected rabbitmq protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("brute"));
+}
+
+/// Verifies the `amqp` alias maps to the RabbitMQ subcommand.
+#[test]
+fn parses_rabbitmq_amqp_alias() {
+    let cli = Cli::try_parse_from([
+        "brute",
+        "amqp",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "secret",
+    ])
+    .expect("amqp alias should parse as rabbitmq");
+
+    let Command::Protocol(ProtocolArgs::Rabbitmq(args)) = cli.command else {
+        panic!("expected rabbitmq protocol arguments from amqp alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}

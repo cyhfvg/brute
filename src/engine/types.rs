@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 19] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 20] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -229,6 +229,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 19] = [
     Protocol::Docker,
     Protocol::Snmp,
     Protocol::Activemq,
+    Protocol::Rabbitmq,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -275,6 +276,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "docker" | "docker-api" => Ok(Protocol::Docker),
         "snmp" => Ok(Protocol::Snmp),
         "activemq" | "amq" => Ok(Protocol::Activemq),
+        "rabbitmq" | "amqp" => Ok(Protocol::Rabbitmq),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS
@@ -463,6 +465,7 @@ mod tests {
         assert_eq!(parse_protocol("es").unwrap(), Protocol::Elasticsearch);
         assert_eq!(parse_protocol("docker-api").unwrap(), Protocol::Docker);
         assert_eq!(parse_protocol("amq").unwrap(), Protocol::Activemq);
+        assert_eq!(parse_protocol("amqp").unwrap(), Protocol::Rabbitmq);
         assert!(parse_protocol("ldap").is_err());
     }
 

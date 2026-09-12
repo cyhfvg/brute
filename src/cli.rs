@@ -192,6 +192,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute activemq 192.168.5.10 -u admin -p admin\n  brute activemq 192.168.5.10 -u '' -p ''\n  brute activemq 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute activemq 192.168.5.10 -u admin -p admin -x 'hello'"
     )]
     Activemq(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using RABBITMQ",
+        visible_alias = "amqp",
+        override_usage = "brute rabbitmq <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'\n  brute rabbitmq 192.168.5.10 -u '' -p ''\n  brute rabbitmq 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute"
+    )]
+    Rabbitmq(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -209,7 +217,8 @@ impl ProtocolArgs {
             | Self::Elasticsearch(args)
             | Self::Docker(args)
             | Self::Snmp(args)
-            | Self::Activemq(args) => &args.common,
+            | Self::Activemq(args)
+            | Self::Rabbitmq(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -244,7 +253,8 @@ impl ProtocolArgs {
             | Self::Elasticsearch(args)
             | Self::Docker(args)
             | Self::Snmp(args)
-            | Self::Activemq(args) => args.execute.as_deref(),
+            | Self::Activemq(args)
+            | Self::Rabbitmq(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -608,6 +618,7 @@ pub enum Protocol {
     Docker,
     Snmp,
     Activemq,
+    Rabbitmq,
 }
 
 impl Protocol {
@@ -633,6 +644,7 @@ impl Protocol {
             Self::Docker => 2375,
             Self::Snmp => 161,
             Self::Activemq => 61613,
+            Self::Rabbitmq => 5672,
         }
     }
 
@@ -658,6 +670,7 @@ impl Protocol {
             Self::Docker => "docker",
             Self::Snmp => "snmp",
             Self::Activemq => "activemq",
+            Self::Rabbitmq => "rabbitmq",
         }
     }
 }
@@ -685,6 +698,7 @@ impl ProtocolArgs {
             Self::Docker(_) => Protocol::Docker,
             Self::Snmp(_) => Protocol::Snmp,
             Self::Activemq(_) => Protocol::Activemq,
+            Self::Rabbitmq(_) => Protocol::Rabbitmq,
         }
     }
 }
