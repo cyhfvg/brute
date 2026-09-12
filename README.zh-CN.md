@@ -50,6 +50,7 @@
 - `activemq`（别名 `amq`；STOMP CONNECT；`-x` SEND；默认端口 `61613`）
 - `rabbitmq`（别名 `amqp`；AMQP 0-9-1；`-x` queue.declare；默认端口 `5672`）
 - `rsync`（daemon 模块 AUTHREQD；`--module`；默认端口 `873`）
+- `mssql`（别名 `sqlserver`；TDS 登录；`-x` SQL；默认端口 `1433`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -165,6 +166,8 @@ brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 brute rsync 192.168.5.10 -u admin -p secret --module files
+brute mssql 192.168.5.10 -u sa -p 'Your_password1'
+brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
 ```
 
 ## 顶级参数
@@ -241,6 +244,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `elasticsearch`: HTTP GET 路径，例如 `-x 'indices'`
 - `docker`: Engine API GET 路径，例如 `-x 'containers'`
 - `snmp`: SNMPv2c GET，例如 `-x 'sysName'`
+- `mssql`: SQL 查询，例如 `-x 'SELECT @@VERSION'`
 - `activemq`: 向 `/queue/brute` STOMP SEND，例如 `-x 'hello'`
 - `rabbitmq`: queue.declare，例如 `-x 'brute'`
 
@@ -416,6 +420,18 @@ brute rsync 192.168.5.10 -u admin -p secret --module files
 
 `--module` 选择 daemon 模块（默认 `files`）。空凭据仅在模块不要求密码时成功。AUTHREQD 使用 MD5(password || challenge)。不提供 `-x`/`--execute`。
 
+
+
+## MSSQL
+
+SQL Server TDS 登录与字典爆破（默认端口 `1433`）：
+
+```bash
+brute mssql 192.168.5.10 -u sa -p 'Your_password1'
+brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
+```
+
+通过 `tiberius` 做 SQL 认证。`-x` 执行 SQL 并最多预览 10 行。命令失败不会丢掉已验证登录。别名：`sqlserver`。
 
 
 ## Oracle

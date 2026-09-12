@@ -83,13 +83,15 @@
   probes `guest`/`guest`; `-x` `queue.declare`. Host:port TCP proxy bridge.
 - `rsync`: pure-Rust rsync daemon AUTHREQD (default port 873); `--module` (default
   `files`). Empty credentials succeed only if the module has no password. No `-x`.
+- `mssql`: `tiberius` TDS (default port 1433, alias `sqlserver`); `-x` SQL
+  preview (10 rows). Host:port TCP proxy bridge.
 
 
 ## Unsupported Protocols
 
 - NFS
 
-- mssql
+
 - kafka
 - kibana
 

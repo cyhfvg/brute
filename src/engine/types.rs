@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 21] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 22] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -231,6 +231,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 21] = [
     Protocol::Activemq,
     Protocol::Rabbitmq,
     Protocol::Rsync,
+    Protocol::Mssql,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -279,6 +280,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "activemq" | "amq" => Ok(Protocol::Activemq),
         "rabbitmq" | "amqp" => Ok(Protocol::Rabbitmq),
         "rsync" => Ok(Protocol::Rsync),
+        "mssql" | "sqlserver" | "sql-server" => Ok(Protocol::Mssql),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS
@@ -464,6 +466,7 @@ mod tests {
         assert_eq!(parse_protocol("zk").unwrap(), Protocol::Zookeeper);
         assert_eq!(parse_protocol("memcache").unwrap(), Protocol::Memcached);
         assert_eq!(parse_protocol("mongo").unwrap(), Protocol::Mongodb);
+        assert_eq!(parse_protocol("sqlserver").unwrap(), Protocol::Mssql);
         assert_eq!(parse_protocol("es").unwrap(), Protocol::Elasticsearch);
         assert_eq!(parse_protocol("docker-api").unwrap(), Protocol::Docker);
         assert_eq!(parse_protocol("amq").unwrap(), Protocol::Activemq);

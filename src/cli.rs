@@ -207,6 +207,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute rsync 192.168.5.10 -u admin -p secret\n  brute rsync 192.168.5.10 -u '' -p '' --module files\n  brute rsync 192.168.5.10 -u users.txt -p pass.txt --module files --threads 8"
     )]
     Rsync(RsyncArgs),
+
+    #[command(
+        about = "own stuff using MSSQL",
+        visible_alias = "sqlserver",
+        override_usage = "brute mssql <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute mssql 192.168.5.10 -u sa -p 'Your_password1'\n  brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'"
+    )]
+    Mssql(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -225,7 +233,8 @@ impl ProtocolArgs {
             | Self::Docker(args)
             | Self::Snmp(args)
             | Self::Activemq(args)
-            | Self::Rabbitmq(args) => &args.common,
+            | Self::Rabbitmq(args)
+            | Self::Mssql(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -263,7 +272,8 @@ impl ProtocolArgs {
             | Self::Docker(args)
             | Self::Snmp(args)
             | Self::Activemq(args)
-            | Self::Rabbitmq(args) => args.execute.as_deref(),
+            | Self::Rabbitmq(args)
+            | Self::Mssql(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -639,6 +649,7 @@ pub enum Protocol {
     Activemq,
     Rabbitmq,
     Rsync,
+    Mssql,
 }
 
 impl Protocol {
@@ -666,6 +677,7 @@ impl Protocol {
             Self::Activemq => 61613,
             Self::Rabbitmq => 5672,
             Self::Rsync => 873,
+            Self::Mssql => 1433,
         }
     }
 
@@ -693,6 +705,7 @@ impl Protocol {
             Self::Activemq => "activemq",
             Self::Rabbitmq => "rabbitmq",
             Self::Rsync => "rsync",
+            Self::Mssql => "mssql",
         }
     }
 }
@@ -722,6 +735,7 @@ impl ProtocolArgs {
             Self::Activemq(_) => Protocol::Activemq,
             Self::Rabbitmq(_) => Protocol::Rabbitmq,
             Self::Rsync(_) => Protocol::Rsync,
+            Self::Mssql(_) => Protocol::Mssql,
         }
     }
 }

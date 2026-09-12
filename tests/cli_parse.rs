@@ -869,3 +869,44 @@ fn parses_rsync_module_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.module, "backup");
 }
+
+/// Verifies MSSQL default port, `-x`, and `sqlserver` alias.
+#[test]
+fn parses_mssql_execute_and_sqlserver_alias() {
+    assert_eq!(Protocol::Mssql.default_port(), 1433);
+    assert_eq!(Protocol::Mssql.as_str(), "mssql");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "mssql",
+        "192.168.5.10",
+        "-u",
+        "sa",
+        "-p",
+        "Your_password1",
+        "-x",
+        "SELECT @@VERSION",
+    ])
+    .expect("mssql execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Mssql(args)) = cli.command else {
+        panic!("expected mssql protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("SELECT @@VERSION"));
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "sqlserver",
+        "192.168.5.10",
+        "-u",
+        "sa",
+        "-p",
+        "Your_password1",
+    ])
+    .expect("sqlserver alias should parse as mssql");
+    let Command::Protocol(ProtocolArgs::Mssql(args)) = cli.command else {
+        panic!("expected mssql protocol arguments from sqlserver alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}

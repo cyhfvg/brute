@@ -87,6 +87,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("activemq"));
     assert!(stdout.contains("rabbitmq"));
     assert!(stdout.contains("rsync"));
+    assert!(stdout.contains("mssql"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -700,6 +701,19 @@ fn rsync_help_exposes_module_option() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(stdout.contains("--module"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn mssql_help_exposes_command_execution() {
+    let home = TempHome::new("mssql-help");
+
+    let output = run_with_home(&home, ["mssql", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("@@VERSION"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

@@ -51,6 +51,7 @@ Implemented modules:
 - `activemq` (alias `amq`; STOMP CONNECT; `-x` SEND; default port `61613`)
 - `rabbitmq` (alias `amqp`; AMQP 0-9-1; `-x` queue.declare; default port `5672`)
 - `rsync` (daemon module AUTHREQD; `--module`; default port `873`)
+- `mssql` (alias `sqlserver`; TDS login; `-x` SQL; default port `1433`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -166,6 +167,8 @@ brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass'
 brute rabbitmq 192.168.5.10 -u admin -p 'rabbit_pass' -x brute
 brute rsync 192.168.5.10 -u admin -p secret --module files
+brute mssql 192.168.5.10 -u sa -p 'Your_password1'
+brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
 ```
 
 ## Global Options
@@ -241,6 +244,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `elasticsearch`: HTTP GET path, for example `-x 'indices'`
 - `docker`: Engine API GET path, for example `-x 'containers'`
 - `snmp`: SNMPv2c GET, for example `-x 'sysName'`
+- `mssql`: SQL query, for example `-x 'SELECT @@VERSION'`
 - `activemq`: STOMP SEND to `/queue/brute`, for example `-x 'hello'`
 - `rabbitmq`: queue.declare, for example `-x 'brute'`
 
@@ -416,6 +420,18 @@ brute rsync 192.168.5.10 -u admin -p secret --module files
 
 `--module` selects the daemon module (default `files`). Empty credentials succeed only when the module does not require a password. AUTHREQD uses MD5(password || challenge). No `-x`/`--execute`.
 
+
+
+## MSSQL
+
+SQL Server TDS login and dictionary spray (default port `1433`):
+
+```bash
+brute mssql 192.168.5.10 -u sa -p 'Your_password1'
+brute mssql 192.168.5.10 -u sa -p 'Your_password1' -x 'SELECT @@VERSION'
+```
+
+SQL authentication via `tiberius`. `-x` runs a SQL batch and previews up to 10 rows. Command failures do not discard a verified login. Alias: `sqlserver`.
 
 
 ## Oracle

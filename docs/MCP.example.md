@@ -14,7 +14,7 @@
 | `spray_passwords` | 多个目标、多个用户、多个密码, 或字典文件 |
 | `list_credentials` | 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据 |
 
-协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`), `mongodb` (别名 `mongo`), `elasticsearch` (别名 `es`), `docker` (别名 `docker-api`), `snmp`, `activemq` (别名 `amq`), `rabbitmq` (别名 `amqp`), `rsync`.
+协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`), `mongodb` (别名 `mongo`), `elasticsearch` (别名 `es`), `docker` (别名 `docker-api`), `snmp`, `activemq` (别名 `amq`), `rabbitmq` (别名 `amqp`), `rsync`, `mssql` (别名 `sqlserver`).
 
 `verify_account` 与 `spray_passwords` 共用 `options`:
 
@@ -25,7 +25,7 @@
 | `retries` | 传输层临时错误重试次数 | `3` |
 | `proxy` | `http://[user[:pass]@]host:port` 或 `socks5://...` | 无 |
 | `workspace` | 保存成功凭据 / 读取 `--id` 的 workspace | 当前 workspace |
-| `execute` | 认证成功后的命令. 仅 `ssh`/`ftp`/`mysql`/`postgresql`/`redis`/`oracle`/`winrm`/`zookeeper`/`memcached`/`mongodb`/`elasticsearch`/`docker`/`snmp`/`activemq`/`rabbitmq` | 无 |
+| `execute` | 认证成功后的命令. 仅 `ssh`/`ftp`/`mysql`/`postgresql`/`redis`/`oracle`/`winrm`/`zookeeper`/`memcached`/`mongodb`/`elasticsearch`/`docker`/`snmp`/`activemq`/`rabbitmq`/`mssql` | 无 |
 | `path` | HTTP / Tomcat 请求路径 | http=`/`, tomcat=`/manager/html` |
 | `url_scheme` | `http` 或 `https` | `http` |
 | `service_names` | Oracle Service Name 或多值/字典路径. 与 `sids` 互斥 | 空 |
@@ -85,7 +85,8 @@
   { "name": "snmp", "default_port": 161 },
   { "name": "activemq", "default_port": 61613 },
   { "name": "rabbitmq", "default_port": 5672 },
-  { "name": "rsync", "default_port": 873 }
+  { "name": "rsync", "default_port": 873 },
+  { "name": "mssql", "default_port": 1433 }
 ]
 ```
 
