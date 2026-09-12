@@ -962,3 +962,29 @@ fn parses_kibana_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("status"));
 }
+
+/// Verifies NFS default port and `-x` command parsing.
+#[test]
+fn parses_nfs_execute_and_default_port() {
+    assert_eq!(Protocol::Nfs.default_port(), 2049);
+    assert_eq!(Protocol::Nfs.as_str(), "nfs");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "nfs",
+        "192.168.5.10",
+        "-u",
+        "",
+        "-p",
+        "",
+        "-x",
+        "dump",
+    ])
+    .expect("nfs execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Nfs(args)) = cli.command else {
+        panic!("expected nfs protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("dump"));
+}

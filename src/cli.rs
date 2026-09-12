@@ -229,6 +229,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute kibana 192.168.5.10 -u elastic -p changeme\n  brute kibana 192.168.5.10 -u elastic -p changeme -x status"
     )]
     Kibana(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using NFS",
+        override_usage = "brute nfs <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute nfs 192.168.5.10 -u '' -p ''\n  brute nfs 192.168.5.10 -u 0 -p '' -x dump"
+    )]
+    Nfs(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -250,7 +257,8 @@ impl ProtocolArgs {
             | Self::Rabbitmq(args)
             | Self::Mssql(args)
             | Self::Kafka(args)
-            | Self::Kibana(args) => &args.common,
+            | Self::Kibana(args)
+            | Self::Nfs(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -291,7 +299,8 @@ impl ProtocolArgs {
             | Self::Rabbitmq(args)
             | Self::Mssql(args)
             | Self::Kafka(args)
-            | Self::Kibana(args) => args.execute.as_deref(),
+            | Self::Kibana(args)
+            | Self::Nfs(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -670,6 +679,7 @@ pub enum Protocol {
     Mssql,
     Kafka,
     Kibana,
+    Nfs,
 }
 
 impl Protocol {
@@ -700,6 +710,7 @@ impl Protocol {
             Self::Mssql => 1433,
             Self::Kafka => 9092,
             Self::Kibana => 5601,
+            Self::Nfs => 2049,
         }
     }
 
@@ -730,6 +741,7 @@ impl Protocol {
             Self::Mssql => "mssql",
             Self::Kafka => "kafka",
             Self::Kibana => "kibana",
+            Self::Nfs => "nfs",
         }
     }
 }
@@ -762,6 +774,7 @@ impl ProtocolArgs {
             Self::Mssql(_) => Protocol::Mssql,
             Self::Kafka(_) => Protocol::Kafka,
             Self::Kibana(_) => Protocol::Kibana,
+            Self::Nfs(_) => Protocol::Nfs,
         }
     }
 }

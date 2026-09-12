@@ -11,6 +11,7 @@ pub mod memcached;
 pub mod mongodb;
 pub mod mssql;
 pub mod mysql;
+pub mod nfs;
 pub mod oracle;
 pub mod postgresql;
 pub mod rabbitmq;

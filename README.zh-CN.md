@@ -53,6 +53,7 @@
 - `mssql`（别名 `sqlserver`；TDS 登录；`-x` SQL；默认端口 `1433`）
 - `kafka`（SASL/PLAIN；`-x` metadata；默认端口 `9092`）
 - `kibana`（HTTP 登录；`-x` status API；默认端口 `5601`）
+- `nfs`（NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX；`-x` dump；默认端口 `2049`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -174,6 +175,8 @@ brute kafka 192.168.5.10 -u admin -p kafka_pass
 brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
 brute kibana 192.168.5.10 -u elastic -p elastic_pass
 brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
+brute nfs 192.168.5.10 -u '' -p ''
+brute nfs 192.168.5.10 -u 0 -p '' -x dump
 ```
 
 ## 顶级参数
@@ -255,6 +258,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `rabbitmq`: queue.declare，例如 `-x 'brute'`
 - `kafka`: Metadata 请求，例如 `-x 'metadata'`
 - `kibana`: status API，例如 `-x 'status'`
+- `nfs`: 尝试 MOUNT DUMP，例如 `-x 'dump'`
 
 示例：
 
@@ -465,6 +469,18 @@ brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
 ```
 
 空凭据探测无会话的 `GET /api/status`。非空凭据 POST `/internal/security/login`。`-x` 使用登录 cookie GET Kibana API 路径（默认 `/api/status`）。命令失败不会丢掉已验证登录。
+
+
+## NFS
+
+NFSv3 ONC RPC 探测（默认端口 `2049`）：
+
+```bash
+brute nfs 192.168.5.10 -u '' -p ''
+brute nfs 192.168.5.10 -u 0 -p '' -x dump
+```
+
+空凭据使用 AUTH_NULL。非空用户名在可解析时作为 UNIX uid（否则 uid 0）。NFS 没有密码。`-x` 在同一 TCP 会话尝试 MOUNT DUMP。
 
 
 ## Oracle

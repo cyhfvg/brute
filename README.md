@@ -54,6 +54,7 @@ Implemented modules:
 - `mssql` (alias `sqlserver`; TDS login; `-x` SQL; default port `1433`)
 - `kafka` (SASL/PLAIN; `-x` metadata; default port `9092`)
 - `kibana` (HTTP login; `-x` status API; default port `5601`)
+- `nfs` (NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX; `-x` dump; default port `2049`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -175,6 +176,8 @@ brute kafka 192.168.5.10 -u admin -p kafka_pass
 brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata
 brute kibana 192.168.5.10 -u elastic -p elastic_pass
 brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
+brute nfs 192.168.5.10 -u '' -p ''
+brute nfs 192.168.5.10 -u 0 -p '' -x dump
 ```
 
 ## Global Options
@@ -255,6 +258,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `rabbitmq`: queue.declare, for example `-x 'brute'`
 - `kafka`: Metadata request, for example `-x 'metadata'`
 - `kibana`: status API, for example `-x 'status'`
+- `nfs`: MOUNT DUMP attempt, for example `-x 'dump'`
 
 Example:
 
@@ -465,6 +469,18 @@ brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
 ```
 
 Empty credentials probe `GET /api/status` without a session. Non-empty credentials POST `/internal/security/login`. `-x` GETs a Kibana API path (default `/api/status`) using the login cookie. Command failures do not discard a verified login.
+
+
+## NFS
+
+NFSv3 ONC RPC probe (default port `2049`):
+
+```bash
+brute nfs 192.168.5.10 -u '' -p ''
+brute nfs 192.168.5.10 -u 0 -p '' -x dump
+```
+
+Empty credentials use AUTH_NULL. A non-empty username is treated as a UNIX uid when numeric (otherwise uid 0). NFS has no password. `-x` attempts a MOUNT DUMP on the same TCP session.
 
 
 ## Oracle

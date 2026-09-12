@@ -89,14 +89,10 @@
   `SaslAuthenticate`; `-x` Metadata. Stream-injectable `--proxy`.
 - `kibana`: `reqwest` Kibana login (default port 5601); empty credentials probe
   `GET /api/status`; `-x` GET API with session cookie. HTTP `--proxy`.
+- `nfs`: pure-Rust NFSv3 ONC RPC (default port 2049); AUTH_NULL for empty
+  credentials, AUTH_UNIX uid for non-empty username. `-x` MOUNT DUMP. No password.
 
 
 ## Unsupported Protocols
-
-- NFS
-
-
-
-
 
 (none currently reserved as unimplemented stubs)

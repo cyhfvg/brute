@@ -1,0 +1,16 @@
+services:
+  nfs:
+    image: alpine:3.20
+    container_name: nfs-brute-lab
+    restart: "no"
+    ports:
+      - "2049:2049"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache unfs3 >/dev/null
+        mkdir -p /data
+        echo hello > /data/readme.txt
+        echo '/data (ro,no_root_squash,insecure)' > /etc/exports
+        exec unfsd -e /etc/exports -n 2049 -t -d -p
