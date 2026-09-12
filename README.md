@@ -48,6 +48,7 @@ Implemented modules:
 - `elasticsearch` (alias `es`; login/brute/unauthorized HTTP Basic; `-x` `_cat` paths; default port `9200`)
 - `docker` (alias `docker-api`; unauthorized Docker Engine API; `-x` `/info` `/containers/json`; default port `2375`)
 - `snmp` (SNMPv2c community; `-x` OID GET; default port `161/udp`)
+- `activemq` (alias `amq`; STOMP CONNECT; `-x` SEND; default port `61613`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -158,6 +159,8 @@ brute docker 192.168.5.10 -u '' -p ''
 brute docker 192.168.5.10 -u '' -p '' -x 'containers'
 brute snmp 192.168.5.10 -u '' -p secret
 brute snmp 192.168.5.10 -u '' -p secret -x sysName
+brute activemq 192.168.5.10 -u admin -p admin
+brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 ```
 
 ## Global Options
@@ -233,6 +236,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `elasticsearch`: HTTP GET path, for example `-x 'indices'`
 - `docker`: Engine API GET path, for example `-x 'containers'`
 - `snmp`: SNMPv2c GET, for example `-x 'sysName'`
+- `activemq`: STOMP SEND to `/queue/brute`, for example `-x 'hello'`
 
 Example:
 
@@ -367,6 +371,19 @@ brute snmp 192.168.5.10 -u '' -p secret -x sysName
 ```
 
 A GET of `sysDescr.0` is used to validate the community. `-x` accepts a dotted OID or shorthand `sysDescr`/`sysName`/`sysUptime`. No TCP `--proxy` (UDP). Command failures do not discard a verified community.
+
+
+## ActiveMQ
+
+STOMP CONNECT login and dictionary spray (default port `61613`):
+
+```bash
+brute activemq 192.168.5.10 -u admin -p admin
+brute activemq 192.168.5.10 -u '' -p ''
+brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
+```
+
+Empty credentials probe anonymous CONNECT. Non-empty credentials send STOMP `login`/`passcode`. `-x` SENDs the body to `/queue/brute`. Command failures do not discard a verified login. Alias: `amq`.
 
 
 ## Oracle

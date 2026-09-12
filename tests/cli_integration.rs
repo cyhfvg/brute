@@ -84,6 +84,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("elasticsearch"));
     assert!(stdout.contains("docker"));
     assert!(stdout.contains("snmp"));
+    assert!(stdout.contains("activemq"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -659,6 +660,19 @@ fn snmp_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("sysName"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn activemq_help_exposes_command_execution() {
+    let home = TempHome::new("activemq-help");
+
+    let output = run_with_home(&home, ["activemq", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("hello"));
     assert!(stdout.contains("192.168.5.10"));
 }
 

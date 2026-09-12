@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 18] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 19] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -228,6 +228,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 18] = [
     Protocol::Elasticsearch,
     Protocol::Docker,
     Protocol::Snmp,
+    Protocol::Activemq,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -273,6 +274,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "elasticsearch" | "es" => Ok(Protocol::Elasticsearch),
         "docker" | "docker-api" => Ok(Protocol::Docker),
         "snmp" => Ok(Protocol::Snmp),
+        "activemq" | "amq" => Ok(Protocol::Activemq),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS
@@ -460,6 +462,7 @@ mod tests {
         assert_eq!(parse_protocol("mongo").unwrap(), Protocol::Mongodb);
         assert_eq!(parse_protocol("es").unwrap(), Protocol::Elasticsearch);
         assert_eq!(parse_protocol("docker-api").unwrap(), Protocol::Docker);
+        assert_eq!(parse_protocol("amq").unwrap(), Protocol::Activemq);
         assert!(parse_protocol("ldap").is_err());
     }
 

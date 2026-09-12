@@ -77,6 +77,8 @@
 - `snmp`: pure-Rust SNMPv2c (default port 161/udp); password is the community (empty
   credentials probe `public`); `-x` GETs a dotted OID or `sysDescr`/`sysName`/`sysUptime`.
   No TCP `--proxy`.
+- `activemq`: pure-Rust STOMP CONNECT (default port 61613, alias `amq`); empty `-u '' -p ''`
+  probes anonymous CONNECT; `-x` SENDs to `/queue/brute`. Stream-injectable `--proxy`.
 
 
 ## Unsupported Protocols
@@ -86,7 +88,6 @@
 - mssql
 - rabbitMQ
 - kafka
-- ActiveMQ
 - kibana
 
 (none currently reserved as unimplemented stubs)

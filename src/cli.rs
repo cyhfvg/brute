@@ -184,6 +184,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute snmp 192.168.5.10 -u '' -p public\n  brute snmp 192.168.5.10 -u '' -p ''\n  brute snmp 192.168.5.10 -u '' -p communities.txt --continue-on-success\n  brute snmp 192.168.5.10 -u '' -p secret -x sysName"
     )]
     Snmp(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using ACTIVEMQ",
+        visible_alias = "amq",
+        override_usage = "brute activemq <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute activemq 192.168.5.10 -u admin -p admin\n  brute activemq 192.168.5.10 -u '' -p ''\n  brute activemq 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute activemq 192.168.5.10 -u admin -p admin -x 'hello'"
+    )]
+    Activemq(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -200,7 +208,8 @@ impl ProtocolArgs {
             | Self::Mongodb(args)
             | Self::Elasticsearch(args)
             | Self::Docker(args)
-            | Self::Snmp(args) => &args.common,
+            | Self::Snmp(args)
+            | Self::Activemq(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -234,7 +243,8 @@ impl ProtocolArgs {
             | Self::Mongodb(args)
             | Self::Elasticsearch(args)
             | Self::Docker(args)
-            | Self::Snmp(args) => args.execute.as_deref(),
+            | Self::Snmp(args)
+            | Self::Activemq(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -597,6 +607,7 @@ pub enum Protocol {
     Elasticsearch,
     Docker,
     Snmp,
+    Activemq,
 }
 
 impl Protocol {
@@ -621,6 +632,7 @@ impl Protocol {
             Self::Elasticsearch => 9200,
             Self::Docker => 2375,
             Self::Snmp => 161,
+            Self::Activemq => 61613,
         }
     }
 
@@ -645,6 +657,7 @@ impl Protocol {
             Self::Elasticsearch => "elasticsearch",
             Self::Docker => "docker",
             Self::Snmp => "snmp",
+            Self::Activemq => "activemq",
         }
     }
 }
@@ -671,6 +684,7 @@ impl ProtocolArgs {
             Self::Elasticsearch(_) => Protocol::Elasticsearch,
             Self::Docker(_) => Protocol::Docker,
             Self::Snmp(_) => Protocol::Snmp,
+            Self::Activemq(_) => Protocol::Activemq,
         }
     }
 }

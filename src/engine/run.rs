@@ -17,11 +17,11 @@ use crate::credentials::{LoadedCredentials, load_credentials, load_service_names
 use crate::database::CredentialDatabase;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
-    docker::DockerModule, elasticsearch::ElasticsearchModule, ftp::FtpModule,
-    http::HttpBasicModule, memcached::MemcachedModule, mongodb::MongoDbModule, mysql::MySqlModule,
-    oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule, redis::RedisModule,
-    smb::SmbModule, snmp::SnmpModule, ssh::SshModule, tomcat::TomcatManagerModule, vnc::VncModule,
-    winrm::WinrmModule, zookeeper::ZookeeperModule,
+    activemq::ActiveMqModule, docker::DockerModule, elasticsearch::ElasticsearchModule,
+    ftp::FtpModule, http::HttpBasicModule, memcached::MemcachedModule, mongodb::MongoDbModule,
+    mysql::MySqlModule, oracle::OracleModule, postgresql::PostgreSqlModule, rdp::RdpModule,
+    redis::RedisModule, smb::SmbModule, snmp::SnmpModule, ssh::SshModule,
+    tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -280,6 +280,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Elasticsearch => Arc::new(ElasticsearchModule::new(request.timeout_ms)),
         Protocol::Docker => Arc::new(DockerModule::new(request.timeout_ms)),
         Protocol::Snmp => Arc::new(SnmpModule::new(request.timeout_ms)),
+        Protocol::Activemq => Arc::new(ActiveMqModule::new(request.timeout_ms)),
     }
 }
 

@@ -47,6 +47,7 @@
 - `elasticsearch`（别名 `es`；登录/爆破/未授权 HTTP Basic；`-x` `_cat` 路径；默认端口 `9200`）
 - `docker`（别名 `docker-api`；未授权 Docker Engine API；`-x` `/info` `/containers/json`；默认端口 `2375`）
 - `snmp`（SNMPv2c community；`-x` OID GET；默认端口 `161/udp`）
+- `activemq`（别名 `amq`；STOMP CONNECT；`-x` SEND；默认端口 `61613`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -157,6 +158,8 @@ brute docker 192.168.5.10 -u '' -p ''
 brute docker 192.168.5.10 -u '' -p '' -x 'containers'
 brute snmp 192.168.5.10 -u '' -p secret
 brute snmp 192.168.5.10 -u '' -p secret -x sysName
+brute activemq 192.168.5.10 -u admin -p admin
+brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
 ```
 
 ## 顶级参数
@@ -233,6 +236,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `elasticsearch`: HTTP GET 路径，例如 `-x 'indices'`
 - `docker`: Engine API GET 路径，例如 `-x 'containers'`
 - `snmp`: SNMPv2c GET，例如 `-x 'sysName'`
+- `activemq`: 向 `/queue/brute` STOMP SEND，例如 `-x 'hello'`
 
 示例：
 
@@ -367,6 +371,19 @@ brute snmp 192.168.5.10 -u '' -p secret -x sysName
 ```
 
 用 `sysDescr.0` GET 校验 community。`-x` 接受点分 OID 或简写 `sysDescr`/`sysName`/`sysUptime`。无 TCP `--proxy`（UDP）。命令失败不会丢掉已验证 community。
+
+
+## ActiveMQ
+
+STOMP CONNECT 登录与字典爆破（默认端口 `61613`）：
+
+```bash
+brute activemq 192.168.5.10 -u admin -p admin
+brute activemq 192.168.5.10 -u '' -p ''
+brute activemq 192.168.5.10 -u admin -p admin -x 'hello'
+```
+
+空凭据探测匿名 CONNECT。非空凭据发送 STOMP `login`/`passcode`。`-x` 把正文 SEND 到 `/queue/brute`。命令失败不会丢掉已验证登录。别名：`amq`。
 
 
 ## Oracle

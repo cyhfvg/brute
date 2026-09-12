@@ -1,0 +1,11 @@
+services:
+  activemq:
+    image: apache/activemq-artemis:2.39.0-alpine
+    container_name: activemq-brute-lab
+    restart: "no"
+    ports:
+      - "61613:61613"
+    environment:
+      ARTEMIS_USER: admin
+      ARTEMIS_PASSWORD: admin
+      EXTRA_ARGS: "--http-host 0.0.0.0 --relax-jolokia"

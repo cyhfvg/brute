@@ -1,5 +1,6 @@
 //! Protocol implementations and shared abstractions.
 
+pub mod activemq;
 pub mod docker;
 pub mod elasticsearch;
 pub mod ftp;

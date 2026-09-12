@@ -758,3 +758,42 @@ fn parses_snmp_execute_and_default_port() {
     assert_eq!(args.common.passwords, ["secret"]);
     assert_eq!(args.execute.as_deref(), Some("sysName"));
 }
+
+/// Verifies ActiveMQ default port and `-x` command parsing.
+#[test]
+fn parses_activemq_execute_and_default_port() {
+    assert_eq!(Protocol::Activemq.default_port(), 61613);
+    assert_eq!(Protocol::Activemq.as_str(), "activemq");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "activemq",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "admin",
+        "-x",
+        "hello",
+    ])
+    .expect("activemq execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Activemq(args)) = cli.command else {
+        panic!("expected activemq protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.common.usernames, ["admin"]);
+    assert_eq!(args.execute.as_deref(), Some("hello"));
+}
+
+/// Verifies the `amq` alias maps to the ActiveMQ subcommand.
+#[test]
+fn parses_activemq_amq_alias() {
+    let cli = Cli::try_parse_from(["brute", "amq", "192.168.5.10", "-u", "admin", "-p", "admin"])
+        .expect("amq alias should parse as activemq");
+
+    let Command::Protocol(ProtocolArgs::Activemq(args)) = cli.command else {
+        panic!("expected activemq protocol arguments from amq alias");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+}
