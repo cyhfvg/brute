@@ -12,6 +12,7 @@ pub mod postgresql;
 pub mod rdp;
 pub mod redis;
 pub mod smb;
+pub mod snmp;
 pub mod ssh;
 pub mod stub;
 pub mod tomcat;

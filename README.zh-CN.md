@@ -46,6 +46,7 @@
 - `mongodb`（别名 `mongo`；登录/爆破/未授权；`-x` ping/listDatabases；默认端口 `27017`）
 - `elasticsearch`（别名 `es`；登录/爆破/未授权 HTTP Basic；`-x` `_cat` 路径；默认端口 `9200`）
 - `docker`（别名 `docker-api`；未授权 Docker Engine API；`-x` `/info` `/containers/json`；默认端口 `2375`）
+- `snmp`（SNMPv2c community；`-x` OID GET；默认端口 `161/udp`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -154,6 +155,8 @@ brute elasticsearch 192.168.5.10 -u '' -p ''
 brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'
 brute docker 192.168.5.10 -u '' -p ''
 brute docker 192.168.5.10 -u '' -p '' -x 'containers'
+brute snmp 192.168.5.10 -u '' -p secret
+brute snmp 192.168.5.10 -u '' -p secret -x sysName
 ```
 
 ## 顶级参数
@@ -229,6 +232,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `mongodb`: admin 命令，例如 `-x 'listDatabases'`
 - `elasticsearch`: HTTP GET 路径，例如 `-x 'indices'`
 - `docker`: Engine API GET 路径，例如 `-x 'containers'`
+- `snmp`: SNMPv2c GET，例如 `-x 'sysName'`
 
 示例：
 
@@ -350,6 +354,19 @@ brute docker 192.168.5.10 -u '' -p '' -x 'containers'
 ```
 
 空凭据对 `GET /version` 不带 Authorization，2xx 记为未授权访问。非空凭据使用 HTTP Basic Auth（反向代理场景）。`-x` 为 GET 路径（`info`、`containers`、`images`、`version` 或任意绝对路径）。命令失败不会丢掉已验证登录。别名：`docker-api`。
+
+
+## SNMP
+
+SNMPv2c community 喷洒（默认端口 `161/udp`）。密码即 community；空凭据探测 `public`。
+
+```bash
+brute snmp 192.168.5.10 -u '' -p secret
+brute snmp 192.168.5.10 -u '' -p communities.txt --continue-on-success
+brute snmp 192.168.5.10 -u '' -p secret -x sysName
+```
+
+用 `sysDescr.0` GET 校验 community。`-x` 接受点分 OID 或简写 `sysDescr`/`sysName`/`sysUptime`。无 TCP `--proxy`（UDP）。命令失败不会丢掉已验证 community。
 
 
 ## Oracle

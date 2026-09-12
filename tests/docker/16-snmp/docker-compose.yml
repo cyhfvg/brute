@@ -1,0 +1,9 @@
+services:
+  snmp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: snmp-brute-lab
+    restart: "no"
+    ports:
+      - "161:161/udp"

@@ -731,3 +731,30 @@ fn parses_docker_api_alias() {
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
 }
+
+/// Verifies SNMP default port and `-x` OID parsing.
+#[test]
+fn parses_snmp_execute_and_default_port() {
+    assert_eq!(Protocol::Snmp.default_port(), 161);
+    assert_eq!(Protocol::Snmp.as_str(), "snmp");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "snmp",
+        "192.168.5.10",
+        "-u",
+        "",
+        "-p",
+        "secret",
+        "-x",
+        "sysName",
+    ])
+    .expect("snmp execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Snmp(args)) = cli.command else {
+        panic!("expected snmp protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.common.passwords, ["secret"]);
+    assert_eq!(args.execute.as_deref(), Some("sysName"));
+}

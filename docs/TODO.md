@@ -74,6 +74,9 @@
 - `docker`: `reqwest` Docker Engine API (default port 2375, alias `docker-api`); empty
   `-u '' -p ''` probes anonymous `GET /version`; `-x` GETs `/info`, `/containers/json`,
   `/images/json`, or a caller path. HTTP `--proxy` via `reqwest`.
+- `snmp`: pure-Rust SNMPv2c (default port 161/udp); password is the community (empty
+  credentials probe `public`); `-x` GETs a dotted OID or `sysDescr`/`sysName`/`sysUptime`.
+  No TCP `--proxy`.
 
 
 ## Unsupported Protocols
@@ -81,7 +84,6 @@
 - NFS
 - rsync
 - mssql
-- snmp
 - rabbitMQ
 - kafka
 - ActiveMQ

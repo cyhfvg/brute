@@ -177,6 +177,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute docker 192.168.5.10 -u '' -p ''\n  brute docker 192.168.5.10 -u admin -p 'docker_pass'\n  brute docker 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute docker 192.168.5.10 -u '' -p '' -x 'containers'"
     )]
     Docker(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using SNMP",
+        override_usage = "brute snmp <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute snmp 192.168.5.10 -u '' -p public\n  brute snmp 192.168.5.10 -u '' -p ''\n  brute snmp 192.168.5.10 -u '' -p communities.txt --continue-on-success\n  brute snmp 192.168.5.10 -u '' -p secret -x sysName"
+    )]
+    Snmp(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -192,7 +199,8 @@ impl ProtocolArgs {
             | Self::Memcached(args)
             | Self::Mongodb(args)
             | Self::Elasticsearch(args)
-            | Self::Docker(args) => &args.common,
+            | Self::Docker(args)
+            | Self::Snmp(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -225,7 +233,8 @@ impl ProtocolArgs {
             | Self::Memcached(args)
             | Self::Mongodb(args)
             | Self::Elasticsearch(args)
-            | Self::Docker(args) => args.execute.as_deref(),
+            | Self::Docker(args)
+            | Self::Snmp(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -587,6 +596,7 @@ pub enum Protocol {
     Mongodb,
     Elasticsearch,
     Docker,
+    Snmp,
 }
 
 impl Protocol {
@@ -610,6 +620,7 @@ impl Protocol {
             Self::Mongodb => 27017,
             Self::Elasticsearch => 9200,
             Self::Docker => 2375,
+            Self::Snmp => 161,
         }
     }
 
@@ -633,6 +644,7 @@ impl Protocol {
             Self::Mongodb => "mongodb",
             Self::Elasticsearch => "elasticsearch",
             Self::Docker => "docker",
+            Self::Snmp => "snmp",
         }
     }
 }
@@ -658,6 +670,7 @@ impl ProtocolArgs {
             Self::Mongodb(_) => Protocol::Mongodb,
             Self::Elasticsearch(_) => Protocol::Elasticsearch,
             Self::Docker(_) => Protocol::Docker,
+            Self::Snmp(_) => Protocol::Snmp,
         }
     }
 }

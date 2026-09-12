@@ -47,6 +47,7 @@ Implemented modules:
 - `mongodb` (alias `mongo`; login/brute/unauthorized; `-x` ping/listDatabases; default port `27017`)
 - `elasticsearch` (alias `es`; login/brute/unauthorized HTTP Basic; `-x` `_cat` paths; default port `9200`)
 - `docker` (alias `docker-api`; unauthorized Docker Engine API; `-x` `/info` `/containers/json`; default port `2375`)
+- `snmp` (SNMPv2c community; `-x` OID GET; default port `161/udp`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -155,6 +156,8 @@ brute elasticsearch 192.168.5.10 -u '' -p ''
 brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'
 brute docker 192.168.5.10 -u '' -p ''
 brute docker 192.168.5.10 -u '' -p '' -x 'containers'
+brute snmp 192.168.5.10 -u '' -p secret
+brute snmp 192.168.5.10 -u '' -p secret -x sysName
 ```
 
 ## Global Options
@@ -229,6 +232,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `mongodb`: admin command, for example `-x 'listDatabases'`
 - `elasticsearch`: HTTP GET path, for example `-x 'indices'`
 - `docker`: Engine API GET path, for example `-x 'containers'`
+- `snmp`: SNMPv2c GET, for example `-x 'sysName'`
 
 Example:
 
@@ -350,6 +354,19 @@ brute docker 192.168.5.10 -u '' -p '' -x 'containers'
 ```
 
 Empty credentials send `GET /version` without Authorization and report unauthorized access on 2xx. Non-empty credentials use HTTP Basic Auth (for reverse-proxied APIs). `-x` is a GET path (`info`, `containers`, `images`, `version`, or any absolute path). Command failures do not discard a verified login. Alias: `docker-api`.
+
+
+## SNMP
+
+SNMPv2c community spray (default port `161/udp`). The password is the community string; empty credentials probe `public`.
+
+```bash
+brute snmp 192.168.5.10 -u '' -p secret
+brute snmp 192.168.5.10 -u '' -p communities.txt --continue-on-success
+brute snmp 192.168.5.10 -u '' -p secret -x sysName
+```
+
+A GET of `sysDescr.0` is used to validate the community. `-x` accepts a dotted OID or shorthand `sysDescr`/`sysName`/`sysUptime`. No TCP `--proxy` (UDP). Command failures do not discard a verified community.
 
 
 ## Oracle
