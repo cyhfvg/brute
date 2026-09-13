@@ -120,6 +120,9 @@
 - `solr`: `reqwest` Solr HTTP (default port 8983); empty credentials probe
   `/solr/admin/info/system`; non-empty HTTP Basic Auth. `-x` cores/system.
   HTTP `--proxy`.
+- `minio`: `reqwest` MinIO console HTTP (default port 9001); POST `/api/v1/login`
+  with accessKey/secretKey; empty credentials are rejected when anonymous is
+  off. `-x` buckets/info. HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -134,10 +137,6 @@
 - hadoop
 - nacos
 
-
-
-
-- minio
 
 - kubelet
 

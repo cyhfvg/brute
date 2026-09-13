@@ -317,6 +317,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute solr 192.168.5.10 -u solr -p solr_pass\n  brute solr 192.168.5.10 -u '' -p ''\n  brute solr 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute solr 192.168.5.10 -u solr -p solr_pass -x cores"
     )]
     Solr(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using MINIO",
+        override_usage = "brute minio <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass\n  brute minio 192.168.5.10 -u '' -p ''\n  brute minio 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets"
+    )]
+    Minio(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -350,7 +357,8 @@ impl ProtocolArgs {
             | Self::Neo4j(args)
             | Self::Etcd(args)
             | Self::Influxdb(args)
-            | Self::Solr(args) => &args.common,
+            | Self::Solr(args)
+            | Self::Minio(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -403,7 +411,8 @@ impl ProtocolArgs {
             | Self::Neo4j(args)
             | Self::Etcd(args)
             | Self::Influxdb(args)
-            | Self::Solr(args) => args.execute.as_deref(),
+            | Self::Solr(args)
+            | Self::Minio(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -794,6 +803,7 @@ pub enum Protocol {
     Etcd,
     Influxdb,
     Solr,
+    Minio,
 }
 
 impl Protocol {
@@ -836,6 +846,7 @@ impl Protocol {
             Self::Etcd => 2379,
             Self::Influxdb => 8086,
             Self::Solr => 8983,
+            Self::Minio => 9001,
         }
     }
 
@@ -878,6 +889,7 @@ impl Protocol {
             Self::Etcd => "etcd",
             Self::Influxdb => "influxdb",
             Self::Solr => "solr",
+            Self::Minio => "minio",
         }
     }
 }
@@ -922,6 +934,7 @@ impl ProtocolArgs {
             Self::Etcd(_) => Protocol::Etcd,
             Self::Influxdb(_) => Protocol::Influxdb,
             Self::Solr(_) => Protocol::Solr,
+            Self::Minio(_) => Protocol::Minio,
         }
     }
 }

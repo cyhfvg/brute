@@ -15,6 +15,7 @@ pub mod kafka;
 pub mod kibana;
 pub mod ldap;
 pub mod memcached;
+pub mod minio;
 pub mod mongodb;
 pub mod mssql;
 pub mod mysql;

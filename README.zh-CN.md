@@ -65,6 +65,7 @@
 - `etcd`（v3 HTTP；`-x` version；默认端口 `2379`）
 - `influxdb`（别名 `influx`；InfluxQL HTTP；`-x` dbs；默认端口 `8086`）
 - `solr`（admin HTTP；`-x` cores；默认端口 `8983`）
+- `minio`（console HTTP；`-x` buckets；默认端口 `9001`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -221,6 +222,9 @@ brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
 brute solr 192.168.5.10 -u solr -p solr_pass
 brute solr 192.168.5.10 -u '' -p ''
 brute solr 192.168.5.10 -u solr -p solr_pass -x cores
+brute minio 192.168.5.10 -u minioadmin -p minio_pass
+brute minio 192.168.5.10 -u '' -p ''
+brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
 ```
 
 ## 顶级参数
@@ -314,6 +318,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `etcd`: version/range API，例如 `-x 'version'`
 - `influxdb`: InfluxQL，例如 `-x 'dbs'`
 - `solr`: Solr admin API，例如 `-x 'cores'`
+- `minio`: MinIO console API，例如 `-x 'buckets'`
 
 示例：
 
@@ -668,6 +673,19 @@ brute solr 192.168.5.10 -u solr -p solr_pass -x cores
 ```
 
 空凭据探测不带 Authorization 的 `GET /solr/admin/info/system`。非空凭据走 HTTP Basic Auth。`-x` GET cores/system（或路径）。命令失败不会丢掉已验证登录。
+
+## MinIO
+
+MinIO console 登录与字典喷洒（默认端口 `9001`）：
+
+```bash
+brute minio 192.168.5.10 -u minioadmin -p minio_pass
+brute minio 192.168.5.10 -u '' -p ''
+brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
+```
+
+空凭据对 `/api/v1/login` POST 空 accessKey/secretKey。非空凭据走同一登录接口。`-x` GET buckets/info（或路径）。命令失败不会丢掉已验证登录。
+
 
 
 

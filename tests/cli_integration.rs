@@ -102,6 +102,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("etcd"));
     assert!(stdout.contains("influxdb"));
     assert!(stdout.contains("solr"));
+    assert!(stdout.contains("minio"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -910,6 +911,19 @@ fn solr_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("cores"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn minio_help_exposes_command_execution() {
+    let home = TempHome::new("minio-help");
+
+    let output = run_with_home(&home, ["minio", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("buckets"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

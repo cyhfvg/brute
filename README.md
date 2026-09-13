@@ -66,6 +66,7 @@ Implemented modules:
 - `etcd` (v3 HTTP; `-x` version; default port `2379`)
 - `influxdb` (alias `influx`; InfluxQL HTTP; `-x` dbs; default port `8086`)
 - `solr` (admin HTTP; `-x` cores; default port `8983`)
+- `minio` (console HTTP; `-x` buckets; default port `9001`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -222,6 +223,9 @@ brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
 brute solr 192.168.5.10 -u solr -p solr_pass
 brute solr 192.168.5.10 -u '' -p ''
 brute solr 192.168.5.10 -u solr -p solr_pass -x cores
+brute minio 192.168.5.10 -u minioadmin -p minio_pass
+brute minio 192.168.5.10 -u '' -p ''
+brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
 ```
 
 ## Global Options
@@ -314,6 +318,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `etcd`: version/range API, for example `-x 'version'`
 - `influxdb`: InfluxQL, for example `-x 'dbs'`
 - `solr`: Solr admin API, for example `-x 'cores'`
+- `minio`: MinIO console API, for example `-x 'buckets'`
 
 Example:
 
@@ -668,6 +673,19 @@ brute solr 192.168.5.10 -u solr -p solr_pass -x cores
 ```
 
 Empty credentials probe `GET /solr/admin/info/system` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs cores/system (or a path). Command failures do not discard a verified login.
+
+## MinIO
+
+MinIO console login and dictionary spray (default port `9001`):
+
+```bash
+brute minio 192.168.5.10 -u minioadmin -p minio_pass
+brute minio 192.168.5.10 -u '' -p ''
+brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
+```
+
+Empty credentials POST `/api/v1/login` with blank keys. Non-empty credentials POST the same login API. `-x` GETs buckets/info (or a path). Command failures do not discard a verified login.
+
 
 
 

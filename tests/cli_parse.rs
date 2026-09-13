@@ -1274,3 +1274,29 @@ fn parses_solr_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("cores"));
 }
+
+/// Verifies MinIO default port and `-x` command parsing.
+#[test]
+fn parses_minio_execute_and_default_port() {
+    assert_eq!(Protocol::Minio.default_port(), 9001);
+    assert_eq!(Protocol::Minio.as_str(), "minio");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "minio",
+        "192.168.5.10",
+        "-u",
+        "minioadmin",
+        "-p",
+        "minio_pass",
+        "-x",
+        "buckets",
+    ])
+    .expect("minio execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Minio(args)) = cli.command else {
+        panic!("expected minio protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("buckets"));
+}
