@@ -126,12 +126,14 @@
 - `nacos`: `reqwest` Nacos HTTP (default port 8848); empty credentials probe
   config list; non-empty POST `/nacos/v1/auth/login`. `-x` namespaces/configs.
   HTTP `--proxy`.
+- `nexus`: `reqwest` Nexus REST (default port 8081); login GET
+  `/service/rest/v1/security/users` with HTTP Basic; empty credentials fail when
+  anonymous is off. `-x` repos/status. HTTP `--proxy`.
 
 ## Unsupported Protocols
 
 - gitlab
 - harbor
-- nexus
 - weblogic
 - jboss
 - websphere

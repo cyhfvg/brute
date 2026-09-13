@@ -331,6 +331,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute nacos 192.168.5.10 -u nacos -p nacos\n  brute nacos 192.168.5.10 -u '' -p ''\n  brute nacos 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces"
     )]
     Nacos(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using NEXUS",
+        override_usage = "brute nexus <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute nexus 192.168.5.10 -u admin -p nexus_pass\n  brute nexus 192.168.5.10 -u '' -p ''\n  brute nexus 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos"
+    )]
+    Nexus(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -366,7 +373,8 @@ impl ProtocolArgs {
             | Self::Influxdb(args)
             | Self::Solr(args)
             | Self::Minio(args)
-            | Self::Nacos(args) => &args.common,
+            | Self::Nacos(args)
+            | Self::Nexus(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -421,7 +429,8 @@ impl ProtocolArgs {
             | Self::Influxdb(args)
             | Self::Solr(args)
             | Self::Minio(args)
-            | Self::Nacos(args) => args.execute.as_deref(),
+            | Self::Nacos(args)
+            | Self::Nexus(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -814,6 +823,7 @@ pub enum Protocol {
     Solr,
     Minio,
     Nacos,
+    Nexus,
 }
 
 impl Protocol {
@@ -858,6 +868,7 @@ impl Protocol {
             Self::Solr => 8983,
             Self::Minio => 9001,
             Self::Nacos => 8848,
+            Self::Nexus => 8081,
         }
     }
 
@@ -902,6 +913,7 @@ impl Protocol {
             Self::Solr => "solr",
             Self::Minio => "minio",
             Self::Nacos => "nacos",
+            Self::Nexus => "nexus",
         }
     }
 }
@@ -948,6 +960,7 @@ impl ProtocolArgs {
             Self::Solr(_) => Protocol::Solr,
             Self::Minio(_) => Protocol::Minio,
             Self::Nacos(_) => Protocol::Nacos,
+            Self::Nexus(_) => Protocol::Nexus,
         }
     }
 }

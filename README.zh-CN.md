@@ -67,6 +67,7 @@
 - `solr`（admin HTTP；`-x` cores；默认端口 `8983`）
 - `minio`（console HTTP；`-x` buckets；默认端口 `9001`）
 - `nacos`（HTTP；`-x` namespaces；默认端口 `8848`）
+- `nexus`（REST HTTP；`-x` repos；默认端口 `8081`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -229,6 +230,9 @@ brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
 brute nacos 192.168.5.10 -u nacos -p nacos
 brute nacos 192.168.5.10 -u '' -p ''
 brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
+brute nexus 192.168.5.10 -u admin -p nexus_pass
+brute nexus 192.168.5.10 -u '' -p ''
+brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
 ```
 
 ## 顶级参数
@@ -324,6 +328,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `solr`: Solr admin API，例如 `-x 'cores'`
 - `minio`: MinIO console API，例如 `-x 'buckets'`
 - `nacos`: Nacos API，例如 `-x 'namespaces'`
+- `nexus`: Nexus REST API，例如 `-x 'repos'`
 
 示例：
 
@@ -702,6 +707,19 @@ brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
 ```
 
 空凭据探测无 token 的配置列表。非空凭据 POST `/nacos/v1/auth/login`。`-x` GET namespaces/configs（或路径）。命令失败不会丢掉已验证登录。
+
+## Nexus
+
+Nexus Repository Manager REST 登录与字典喷洒（默认端口 `8081`）：
+
+```bash
+brute nexus 192.168.5.10 -u admin -p nexus_pass
+brute nexus 192.168.5.10 -u '' -p ''
+brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
+```
+
+登录走 HTTP Basic 的 `GET /service/rest/v1/security/users`。关闭匿名时空凭据失败。`-x` GET repos/status（或路径）。命令失败不会丢掉已验证登录。
+
 
 
 

@@ -21,6 +21,7 @@ pub mod mssql;
 pub mod mysql;
 pub mod nacos;
 pub mod neo4j;
+pub mod nexus;
 pub mod nfs;
 pub mod oracle;
 pub mod postgresql;

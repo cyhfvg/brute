@@ -22,7 +22,7 @@ use crate::protocol::{
     grafana::GrafanaModule, http::HttpBasicModule, influxdb::InfluxDbModule,
     jenkins::JenkinsModule, kafka::KafkaModule, kibana::KibanaModule, ldap::LdapModule,
     memcached::MemcachedModule, minio::MinioModule, mongodb::MongoDbModule, mssql::MssqlModule,
-    mysql::MySqlModule, nacos::NacosModule, neo4j::Neo4jModule, nfs::NfsModule,
+    mysql::MySqlModule, nacos::NacosModule, neo4j::Neo4jModule, nexus::NexusModule, nfs::NfsModule,
     oracle::OracleModule, postgresql::PostgreSqlModule, prometheus::PrometheusModule,
     rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, rsync::RsyncModule,
     smb::SmbModule, snmp::SnmpModule, solr::SolrModule, ssh::SshModule, telnet::TelnetModule,
@@ -305,6 +305,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Minio => Arc::new(MinioModule::new(request.timeout_ms)),
         Protocol::Solr => Arc::new(SolrModule::new(request.timeout_ms)),
         Protocol::Nacos => Arc::new(NacosModule::new(request.timeout_ms)),
+        Protocol::Nexus => Arc::new(NexusModule::new(request.timeout_ms)),
     }
 }
 

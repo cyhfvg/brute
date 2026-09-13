@@ -1326,3 +1326,29 @@ fn parses_nacos_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("namespaces"));
 }
+
+/// Verifies Nexus default port and `-x` command parsing.
+#[test]
+fn parses_nexus_execute_and_default_port() {
+    assert_eq!(Protocol::Nexus.default_port(), 8081);
+    assert_eq!(Protocol::Nexus.as_str(), "nexus");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "nexus",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "nexus_pass",
+        "-x",
+        "repos",
+    ])
+    .expect("nexus execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Nexus(args)) = cli.command else {
+        panic!("expected nexus protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("repos"));
+}

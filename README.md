@@ -68,6 +68,7 @@ Implemented modules:
 - `solr` (admin HTTP; `-x` cores; default port `8983`)
 - `minio` (console HTTP; `-x` buckets; default port `9001`)
 - `nacos` (HTTP; `-x` namespaces; default port `8848`)
+- `nexus` (REST HTTP; `-x` repos; default port `8081`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -230,6 +231,9 @@ brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
 brute nacos 192.168.5.10 -u nacos -p nacos
 brute nacos 192.168.5.10 -u '' -p ''
 brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
+brute nexus 192.168.5.10 -u admin -p nexus_pass
+brute nexus 192.168.5.10 -u '' -p ''
+brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
 ```
 
 ## Global Options
@@ -324,6 +328,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `solr`: Solr admin API, for example `-x 'cores'`
 - `minio`: MinIO console API, for example `-x 'buckets'`
 - `nacos`: Nacos API, for example `-x 'namespaces'`
+- `nexus`: Nexus REST API, for example `-x 'repos'`
 
 Example:
 
@@ -702,6 +707,19 @@ brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
 ```
 
 Empty credentials probe the config list without a token. Non-empty credentials POST `/nacos/v1/auth/login`. `-x` GETs namespaces/configs (or a path). Command failures do not discard a verified login.
+
+## Nexus
+
+Nexus Repository Manager REST login and dictionary spray (default port `8081`):
+
+```bash
+brute nexus 192.168.5.10 -u admin -p nexus_pass
+brute nexus 192.168.5.10 -u '' -p ''
+brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
+```
+
+Login uses `GET /service/rest/v1/security/users` with HTTP Basic Auth. Empty credentials fail when anonymous is disabled. `-x` GETs repos/status (or a path). Command failures do not discard a verified login.
+
 
 
 
