@@ -74,6 +74,7 @@ Implemented modules:
 - `spark` (master UI; `-x` json; default port `8080`)
 - `hadoop` (alias `hdfs`; NameNode HTTP; `-x` jmx; default port `9870`)
 - `kubelet` (HTTPS; token in `-p`; `-x` pods; default port `10250`)
+- `gitlab` (HTTP; `-x` user; default port `80`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -254,6 +255,9 @@ brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
 brute kubelet 192.168.5.10 -u '' -p k8s-token
 brute kubelet 192.168.5.10 -u '' -p ''
 brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
+brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q
+brute gitlab 192.168.5.10 -u '' -p ''
+brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
 ```
 
 ## Global Options
@@ -354,6 +358,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `spark`: Spark master UI, for example `-x 'json'`
 - `hadoop`: Hadoop NameNode, for example `-x 'jmx'`
 - `kubelet`: kubelet HTTPS, for example `-x 'pods'`
+- `gitlab`: GitLab API, for example `-x 'user'`
 
 Example:
 
@@ -804,6 +809,18 @@ brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
 ```
 
 Empty credentials probe `GET /runningpods/` without Authorization. Non-empty `-p` is sent as `Authorization: Bearer`. HTTP 401 is auth failure; 403 and 2xx are credential hits. `-x` GETs pods/healthz (or a path). TLS certificate verification is skipped. Command failures do not discard a verified login.
+
+## GitLab
+
+GitLab HTTP login and dictionary spray (default port `80`):
+
+```bash
+brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q
+brute gitlab 192.168.5.10 -u '' -p ''
+brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
+```
+
+Empty credentials probe `GET /api/v4/user` without a token. Non-empty credentials POST `/oauth/token` with the password grant. `-x` GETs user/projects with the bearer token. Command failures do not discard a verified login.
 
 
 

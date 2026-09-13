@@ -1482,3 +1482,29 @@ fn parses_kubelet_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("pods"));
 }
+
+/// Verifies GitLab default port and `-x` command parsing.
+#[test]
+fn parses_gitlab_execute_and_default_port() {
+    assert_eq!(Protocol::Gitlab.default_port(), 80);
+    assert_eq!(Protocol::Gitlab.as_str(), "gitlab");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "gitlab",
+        "192.168.5.10",
+        "-u",
+        "root",
+        "-p",
+        "Gl7ab-Rx9p2q",
+        "-x",
+        "user",
+    ])
+    .expect("gitlab execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Gitlab(args)) = cli.command else {
+        panic!("expected gitlab protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("user"));
+}

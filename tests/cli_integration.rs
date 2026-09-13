@@ -110,6 +110,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("spark"));
     assert!(stdout.contains("hadoop"));
     assert!(stdout.contains("kubelet"));
+    assert!(stdout.contains("gitlab"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -1022,6 +1023,19 @@ fn kubelet_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("pods"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn gitlab_help_exposes_command_execution() {
+    let home = TempHome::new("gitlab-help");
+
+    let output = run_with_home(&home, ["gitlab", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("user"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

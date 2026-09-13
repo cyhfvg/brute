@@ -1,0 +1,21 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:16.11.10-ce.0
+    container_name: gitlab-brute-lab
+    hostname: gitlab.local
+    restart: "no"
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://127.0.0.1'
+        gitlab_rails['initial_root_password'] = 'Gl7ab-Rx9p2q'
+        nginx['listen_https'] = false
+        letsencrypt['enable'] = false
+    ports:
+      - "8088:80"
+    shm_size: "256m"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/-/readiness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 120s

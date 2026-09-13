@@ -144,10 +144,12 @@
 - `kubelet`: `reqwest` kubelet HTTPS (default port 10250); empty credentials
   probe `GET /runningpods/`; token in `-p` as Bearer. 401 auth fail, 403/2xx hit.
   `-x` pods/healthz. HTTP `--proxy`.
+- `gitlab`: `reqwest` GitLab HTTP (default port 80); empty credentials probe
+  `/api/v4/user`; non-empty POST `/oauth/token` password grant. `-x`
+  user/projects. HTTP `--proxy`.
 
 ## Unsupported Protocols
 
-- gitlab
 - harbor
 - weblogic
 - websphere

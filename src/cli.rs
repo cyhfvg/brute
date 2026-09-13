@@ -375,6 +375,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute kubelet 192.168.5.10 -u '' -p k8s-token\n  brute kubelet 192.168.5.10 -u '' -p ''\n  brute kubelet 192.168.5.10 -u users.txt -p tokens.txt --threads 8\n  brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods"
     )]
     Kubelet(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using GITLAB",
+        override_usage = "brute gitlab <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1\n  brute gitlab 192.168.5.10 -u '' -p ''\n  brute gitlab 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1 -x user"
+    )]
+    Gitlab(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -416,7 +423,8 @@ impl ProtocolArgs {
             | Self::Druid(args)
             | Self::Spark(args)
             | Self::Hadoop(args)
-            | Self::Kubelet(args) => &args.common,
+            | Self::Kubelet(args)
+            | Self::Gitlab(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -477,7 +485,8 @@ impl ProtocolArgs {
             | Self::Druid(args)
             | Self::Spark(args)
             | Self::Hadoop(args)
-            | Self::Kubelet(args) => args.execute.as_deref(),
+            | Self::Kubelet(args)
+            | Self::Gitlab(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -868,6 +877,7 @@ pub enum Protocol {
     Etcd,
     Influxdb,
     Kubelet,
+    Gitlab,
     Solr,
     Minio,
     Nacos,
@@ -918,6 +928,7 @@ impl Protocol {
             Self::Etcd => 2379,
             Self::Influxdb => 8086,
             Self::Kubelet => 10250,
+            Self::Gitlab => 80,
             Self::Solr => 8983,
             Self::Minio => 9001,
             Self::Nacos => 8848,
@@ -968,6 +979,7 @@ impl Protocol {
             Self::Etcd => "etcd",
             Self::Influxdb => "influxdb",
             Self::Kubelet => "kubelet",
+            Self::Gitlab => "gitlab",
             Self::Solr => "solr",
             Self::Minio => "minio",
             Self::Nacos => "nacos",
@@ -1020,6 +1032,7 @@ impl ProtocolArgs {
             Self::Etcd(_) => Protocol::Etcd,
             Self::Influxdb(_) => Protocol::Influxdb,
             Self::Kubelet(_) => Protocol::Kubelet,
+            Self::Gitlab(_) => Protocol::Gitlab,
             Self::Solr(_) => Protocol::Solr,
             Self::Minio(_) => Protocol::Minio,
             Self::Nacos(_) => Protocol::Nacos,
