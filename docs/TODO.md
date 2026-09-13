@@ -132,6 +132,9 @@
 - `jboss`: `reqwest` WildFly HTTP management Digest (default port 9990, alias
   `wildfly`); empty credentials probe `GET /management`; `-x` version/state.
   HTTP `--proxy`.
+- `druid`: `reqwest` Druid HTTP (default port 8888); login GET
+  `/druid/coordinator/v1/isLeader` with HTTP Basic; `-x` status/sql.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -139,7 +142,6 @@
 - harbor
 - weblogic
 - websphere
-- druid
 - spark
 - hadoop
 

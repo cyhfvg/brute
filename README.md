@@ -70,6 +70,7 @@ Implemented modules:
 - `nacos` (HTTP; `-x` namespaces; default port `8848`)
 - `nexus` (REST HTTP; `-x` repos; default port `8081`)
 - `jboss` (alias `wildfly`; management Digest; `-x` version; default port `9990`)
+- `druid` (SQL HTTP; `-x` status; default port `8888`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -238,6 +239,9 @@ brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
 brute jboss 192.168.5.10 -u admin -p jboss_pass
 brute jboss 192.168.5.10 -u '' -p ''
 brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
+brute druid 192.168.5.10 -u admin -p druid_pass
+brute druid 192.168.5.10 -u '' -p ''
+brute druid 192.168.5.10 -u admin -p druid_pass -x status
 ```
 
 ## Global Options
@@ -334,6 +338,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `nacos`: Nacos API, for example `-x 'namespaces'`
 - `nexus`: Nexus REST API, for example `-x 'repos'`
 - `jboss`: WildFly management, for example `-x 'version'`
+- `druid`: Druid SQL, for example `-x 'status'`
 
 Example:
 
@@ -736,6 +741,19 @@ brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
 ```
 
 Empty credentials probe `GET /management` without Authorization. Non-empty credentials use HTTP Digest. `-x` POSTs management operations (`version`/`state` or JSON). Command failures do not discard a verified login.
+
+## Druid
+
+Druid SQL HTTP login and dictionary spray (default port `8888`):
+
+```bash
+brute druid 192.168.5.10 -u admin -p druid_pass
+brute druid 192.168.5.10 -u '' -p ''
+brute druid 192.168.5.10 -u admin -p druid_pass -x status
+```
+
+Empty credentials POST `/druid/v2/sql` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs status or POSTs SQL. Command failures do not discard a verified login.
+
 
 
 

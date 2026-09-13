@@ -1378,3 +1378,29 @@ fn parses_jboss_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("version"));
 }
+
+/// Verifies Druid default port and `-x` command parsing.
+#[test]
+fn parses_druid_execute_and_default_port() {
+    assert_eq!(Protocol::Druid.default_port(), 8888);
+    assert_eq!(Protocol::Druid.as_str(), "druid");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "druid",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "druid_pass",
+        "-x",
+        "status",
+    ])
+    .expect("druid execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Druid(args)) = cli.command else {
+        panic!("expected druid protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("status"));
+}

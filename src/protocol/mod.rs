@@ -4,6 +4,7 @@ pub mod activemq;
 pub mod clickhouse;
 pub mod couchdb;
 pub mod docker;
+pub mod druid;
 pub mod elasticsearch;
 pub mod etcd;
 pub mod ftp;

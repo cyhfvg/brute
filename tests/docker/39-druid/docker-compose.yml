@@ -1,0 +1,29 @@
+services:
+  zookeeper:
+    image: zookeeper:3.8.4
+    container_name: druid-zk-brute-lab
+    restart: "no"
+
+  coordinator:
+    image: apache/druid:28.0.1
+    container_name: druid-brute-lab
+    restart: "no"
+    depends_on:
+      - zookeeper
+    environment:
+      ZOOKEEPER: zookeeper
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - printf '%s\n' '-server' '-Xms256m' '-Xmx512m' '-XX:MaxDirectMemorySize=256m' '-Duser.timezone=UTC' '-Dfile.encoding=UTF-8' '-Djava.io.tmpdir=var/tmp' > /opt/druid/conf/druid/cluster/master/coordinator-overlord/jvm.config && exec /druid.sh coordinator
+
+  proxy:
+    image: nginx:1.27-alpine
+    container_name: druid-proxy-brute-lab
+    restart: "no"
+    depends_on:
+      - coordinator
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./htpasswd:/etc/nginx/htpasswd:ro

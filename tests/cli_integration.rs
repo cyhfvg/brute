@@ -106,6 +106,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("nacos"));
     assert!(stdout.contains("nexus"));
     assert!(stdout.contains("jboss"));
+    assert!(stdout.contains("druid"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -966,6 +967,19 @@ fn jboss_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("version"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn druid_help_exposes_command_execution() {
+    let home = TempHome::new("druid-help");
+
+    let output = run_with_home(&home, ["druid", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("status"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]
