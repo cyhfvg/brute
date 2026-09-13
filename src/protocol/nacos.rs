@@ -336,7 +336,7 @@ pub fn is_nacos_auth_error(status: StatusCode, body: &str) -> bool {
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
         return true;
     }
-    lower.contains("user not found")
+    (lower.contains("user") && lower.contains("not found"))
         || lower.contains("unknown user")
         || lower.contains("invalid username")
         || lower.contains("access denied")

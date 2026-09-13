@@ -873,26 +873,6 @@ brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
 
 凭据以 `j_username`/`j_password` POST 到 `/ibm/console/j_security_check`。重定向回 `logon.jsp` 视为认证失败；跳过 TLS 证书校验。`-x` 带会话 cookie GET 控制台页面。命令失败不会丢掉已验证登录。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Oracle
 
 `oracle` 必须且只能选择一种数据库标识模式；`TARGET` 应为主机名/IP，默认端口为 `1521`，可用 `--port` 覆盖。

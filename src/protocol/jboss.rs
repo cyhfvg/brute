@@ -188,9 +188,7 @@ async fn execute_command(
             .headers()
             .get(WWW_AUTHENTICATE)
             .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| {
-                JbossAttemptError::Command("missing WWW-Authenticate".to_string())
-            })?;
+            .ok_or_else(|| JbossAttemptError::Command("missing WWW-Authenticate".to_string()))?;
         let username = ctx.credential.username.as_deref().unwrap_or("");
         let password = ctx.credential.password.as_deref().unwrap_or("");
         let authorization = digest_authorization(header, "POST", &path, username, password)

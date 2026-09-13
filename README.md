@@ -873,26 +873,6 @@ brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
 
 Credentials POST `/ibm/console/j_security_check` as `j_username`/`j_password`. A redirect back to `logon.jsp` is an auth failure; TLS certificate verification is skipped. `-x` GETs the console page with the captured session cookie. Command failures do not discard a verified login.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Oracle
 
 `oracle` requires exactly one database identifier mode; `TARGET` must be a hostname/IP and its default port is `1521` (override with `--port`).

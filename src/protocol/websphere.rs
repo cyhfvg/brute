@@ -305,7 +305,10 @@ mod tests {
 
     #[test]
     fn execute_path_maps_shorthand() {
-        assert_eq!(execute_path("console"), "/ibm/console/login.do?action=secure");
+        assert_eq!(
+            execute_path("console"),
+            "/ibm/console/login.do?action=secure"
+        );
     }
 
     #[test]
