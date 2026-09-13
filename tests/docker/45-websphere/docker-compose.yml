@@ -1,0 +1,23 @@
+services:
+  websphere:
+    image: ibmcom/websphere-traditional:9.0.5.13
+    container_name: websphere-brute-lab
+    hostname: websphere
+    restart: "no"
+    environment:
+      UPDATE_HOSTNAME: "true"
+    volumes:
+      - ./PASSWORD:/tmp/PASSWORD:ro
+    ports:
+      - "9043:9043"
+      - "9443:9443"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -skf https://127.0.0.1:9043/ibm/console/logon.jsp >/dev/null || exit 1",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 180s
