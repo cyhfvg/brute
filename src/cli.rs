@@ -360,6 +360,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute spark 192.168.5.10 -u spark -p spark_pass\n  brute spark 192.168.5.10 -u '' -p ''\n  brute spark 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute spark 192.168.5.10 -u spark -p spark_pass -x json"
     )]
     Spark(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using HADOOP",
+        visible_alias = "hdfs",
+        override_usage = "brute hadoop <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass\n  brute hadoop 192.168.5.10 -u '' -p ''\n  brute hadoop 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx"
+    )]
+    Hadoop(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -399,7 +407,8 @@ impl ProtocolArgs {
             | Self::Nexus(args)
             | Self::Jboss(args)
             | Self::Druid(args)
-            | Self::Spark(args) => &args.common,
+            | Self::Spark(args)
+            | Self::Hadoop(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -458,7 +467,8 @@ impl ProtocolArgs {
             | Self::Nexus(args)
             | Self::Jboss(args)
             | Self::Druid(args)
-            | Self::Spark(args) => args.execute.as_deref(),
+            | Self::Spark(args)
+            | Self::Hadoop(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -855,6 +865,7 @@ pub enum Protocol {
     Nexus,
     Druid,
     Spark,
+    Hadoop,
 }
 
 impl Protocol {
@@ -903,6 +914,7 @@ impl Protocol {
             Self::Nexus => 8081,
             Self::Druid => 8888,
             Self::Spark => 8080,
+            Self::Hadoop => 9870,
         }
     }
 
@@ -951,6 +963,7 @@ impl Protocol {
             Self::Nexus => "nexus",
             Self::Druid => "druid",
             Self::Spark => "spark",
+            Self::Hadoop => "hadoop",
         }
     }
 }
@@ -1001,6 +1014,7 @@ impl ProtocolArgs {
             Self::Nexus(_) => Protocol::Nexus,
             Self::Druid(_) => Protocol::Druid,
             Self::Spark(_) => Protocol::Spark,
+            Self::Hadoop(_) => Protocol::Hadoop,
         }
     }
 }

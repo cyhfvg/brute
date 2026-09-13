@@ -1,0 +1,25 @@
+services:
+  namenode:
+    image: apache/hadoop:3.3.6
+    container_name: hadoop-brute-lab
+    hostname: namenode
+    restart: "no"
+    environment:
+      ENSURE_NAMENODE_DIR: /tmp/hadoop-hdfs/dfs/name
+      CORE-SITE.XML_fs.defaultFS: hdfs://namenode:9000
+      HDFS-SITE.XML_dfs.namenode.name.dir: /tmp/hadoop-hdfs/dfs/name
+      HDFS-SITE.XML_dfs.namenode.rpc-address: namenode:9000
+      HDFS-SITE.XML_dfs.webhdfs.enabled: "true"
+    command: ["hdfs", "namenode"]
+
+  proxy:
+    image: nginx:1.27-alpine
+    container_name: hadoop-proxy-brute-lab
+    restart: "no"
+    depends_on:
+      - namenode
+    ports:
+      - "9870:9870"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./htpasswd:/etc/nginx/htpasswd:ro

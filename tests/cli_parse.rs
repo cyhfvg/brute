@@ -1430,3 +1430,29 @@ fn parses_spark_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("json"));
 }
+
+/// Verifies Hadoop default port, alias, and `-x` command parsing.
+#[test]
+fn parses_hadoop_execute_and_default_port() {
+    assert_eq!(Protocol::Hadoop.default_port(), 9870);
+    assert_eq!(Protocol::Hadoop.as_str(), "hadoop");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "hdfs",
+        "192.168.5.10",
+        "-u",
+        "hdfs",
+        "-p",
+        "hadoop_pass",
+        "-x",
+        "jmx",
+    ])
+    .expect("hadoop execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Hadoop(args)) = cli.command else {
+        panic!("expected hadoop protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("jmx"));
+}

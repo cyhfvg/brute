@@ -108,6 +108,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("jboss"));
     assert!(stdout.contains("druid"));
     assert!(stdout.contains("spark"));
+    assert!(stdout.contains("hadoop"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -994,6 +995,19 @@ fn spark_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("json"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn hadoop_help_exposes_command_execution() {
+    let home = TempHome::new("hadoop-help");
+
+    let output = run_with_home(&home, ["hadoop", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("jmx"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

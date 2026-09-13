@@ -71,6 +71,7 @@
 - `jboss`（别名 `wildfly`；management Digest；`-x` version；默认端口 `9990`）
 - `druid`（SQL HTTP；`-x` status；默认端口 `8888`）
 - `spark`（master UI；`-x` json；默认端口 `8080`）
+- `hadoop`（别名 `hdfs`；NameNode HTTP；`-x` jmx；默认端口 `9870`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -245,6 +246,9 @@ brute druid 192.168.5.10 -u admin -p druid_pass -x status
 brute spark 192.168.5.10 -u spark -p spark_pass
 brute spark 192.168.5.10 -u '' -p ''
 brute spark 192.168.5.10 -u spark -p spark_pass -x json
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass
+brute hadoop 192.168.5.10 -u '' -p ''
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
 ```
 
 ## 顶级参数
@@ -344,6 +348,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `jboss`: WildFly management，例如 `-x 'version'`
 - `druid`: Druid SQL，例如 `-x 'status'`
 - `spark`: Spark master UI，例如 `-x 'json'`
+- `hadoop`: Hadoop NameNode，例如 `-x 'jmx'`
 
 示例：
 
@@ -770,6 +775,19 @@ brute spark 192.168.5.10 -u spark -p spark_pass -x json
 ```
 
 空凭据探测不带 Authorization 的 `GET /json/`。非空凭据走 HTTP Basic Auth。`-x` GET json/env（或路径）。命令失败不会丢掉已验证登录。
+
+## Hadoop
+
+Hadoop NameNode HTTP 登录与字典喷洒（默认端口 `9870`）：
+
+```bash
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass
+brute hadoop 192.168.5.10 -u '' -p ''
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
+```
+
+空凭据探测不带 Authorization 的 `GET /jmx`。非空凭据走 HTTP Basic Auth。`-x` GET jmx/webhdfs（或路径）。命令失败不会丢掉已验证登录。
+
 
 
 

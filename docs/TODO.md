@@ -138,6 +138,9 @@
 - `spark`: `reqwest` Spark master UI (default port 8080); empty credentials
   probe `GET /json/`; non-empty HTTP Basic Auth. `-x` json/env.
   HTTP `--proxy`.
+- `hadoop`: `reqwest` Hadoop NameNode HTTP (default port 9870, alias `hdfs`);
+  empty credentials probe `GET /jmx`; non-empty HTTP Basic Auth. `-x` jmx/webhdfs.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -145,7 +148,6 @@
 - harbor
 - weblogic
 - websphere
-- hadoop
 
 
 - kubelet

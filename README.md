@@ -72,6 +72,7 @@ Implemented modules:
 - `jboss` (alias `wildfly`; management Digest; `-x` version; default port `9990`)
 - `druid` (SQL HTTP; `-x` status; default port `8888`)
 - `spark` (master UI; `-x` json; default port `8080`)
+- `hadoop` (alias `hdfs`; NameNode HTTP; `-x` jmx; default port `9870`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -246,6 +247,9 @@ brute druid 192.168.5.10 -u admin -p druid_pass -x status
 brute spark 192.168.5.10 -u spark -p spark_pass
 brute spark 192.168.5.10 -u '' -p ''
 brute spark 192.168.5.10 -u spark -p spark_pass -x json
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass
+brute hadoop 192.168.5.10 -u '' -p ''
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
 ```
 
 ## Global Options
@@ -344,6 +348,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `jboss`: WildFly management, for example `-x 'version'`
 - `druid`: Druid SQL, for example `-x 'status'`
 - `spark`: Spark master UI, for example `-x 'json'`
+- `hadoop`: Hadoop NameNode, for example `-x 'jmx'`
 
 Example:
 
@@ -770,6 +775,19 @@ brute spark 192.168.5.10 -u spark -p spark_pass -x json
 ```
 
 Empty credentials probe `GET /json/` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs json/env (or a path). Command failures do not discard a verified login.
+
+## Hadoop
+
+Hadoop NameNode HTTP login and dictionary spray (default port `9870`):
+
+```bash
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass
+brute hadoop 192.168.5.10 -u '' -p ''
+brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
+```
+
+Empty credentials probe `GET /jmx` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs jmx/webhdfs (or a path). Command failures do not discard a verified login.
+
 
 
 

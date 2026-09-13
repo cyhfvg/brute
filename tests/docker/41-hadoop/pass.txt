@@ -1,0 +1,2 @@
+wrong
+hadoop_pass
