@@ -101,6 +101,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("neo4j"));
     assert!(stdout.contains("etcd"));
     assert!(stdout.contains("influxdb"));
+    assert!(stdout.contains("solr"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -896,6 +897,19 @@ fn influxdb_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("dbs"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn solr_help_exposes_command_execution() {
+    let home = TempHome::new("solr-help");
+
+    let output = run_with_home(&home, ["solr", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("cores"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

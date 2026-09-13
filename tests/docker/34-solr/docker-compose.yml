@@ -1,0 +1,19 @@
+services:
+  solr:
+    image: solr:9.6.1
+    container_name: solr-brute-lab
+    restart: "no"
+    ports:
+      - "8983:8983"
+    volumes:
+      - ./security.json:/var/solr/data/security.json:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf -u solr:solr_pass http://127.0.0.1:8983/solr/admin/info/system >/dev/null",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s

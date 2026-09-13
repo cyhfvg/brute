@@ -310,6 +310,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute influxdb 192.168.5.10 -u admin -p influx_pass\n  brute influxdb 192.168.5.10 -u '' -p ''\n  brute influxdb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs"
     )]
     Influxdb(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using SOLR",
+        override_usage = "brute solr <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute solr 192.168.5.10 -u solr -p solr_pass\n  brute solr 192.168.5.10 -u '' -p ''\n  brute solr 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute solr 192.168.5.10 -u solr -p solr_pass -x cores"
+    )]
+    Solr(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -342,7 +349,8 @@ impl ProtocolArgs {
             | Self::Clickhouse(args)
             | Self::Neo4j(args)
             | Self::Etcd(args)
-            | Self::Influxdb(args) => &args.common,
+            | Self::Influxdb(args)
+            | Self::Solr(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -394,7 +402,8 @@ impl ProtocolArgs {
             | Self::Clickhouse(args)
             | Self::Neo4j(args)
             | Self::Etcd(args)
-            | Self::Influxdb(args) => args.execute.as_deref(),
+            | Self::Influxdb(args)
+            | Self::Solr(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -784,6 +793,7 @@ pub enum Protocol {
     Neo4j,
     Etcd,
     Influxdb,
+    Solr,
 }
 
 impl Protocol {
@@ -825,6 +835,7 @@ impl Protocol {
             Self::Neo4j => 7474,
             Self::Etcd => 2379,
             Self::Influxdb => 8086,
+            Self::Solr => 8983,
         }
     }
 
@@ -866,6 +877,7 @@ impl Protocol {
             Self::Neo4j => "neo4j",
             Self::Etcd => "etcd",
             Self::Influxdb => "influxdb",
+            Self::Solr => "solr",
         }
     }
 }
@@ -909,6 +921,7 @@ impl ProtocolArgs {
             Self::Neo4j(_) => Protocol::Neo4j,
             Self::Etcd(_) => Protocol::Etcd,
             Self::Influxdb(_) => Protocol::Influxdb,
+            Self::Solr(_) => Protocol::Solr,
         }
     }
 }

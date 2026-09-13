@@ -64,6 +64,7 @@
 - `neo4j`（HTTP Cypher；`-x` ping；默认端口 `7474`）
 - `etcd`（v3 HTTP；`-x` version；默认端口 `2379`）
 - `influxdb`（别名 `influx`；InfluxQL HTTP；`-x` dbs；默认端口 `8086`）
+- `solr`（admin HTTP；`-x` cores；默认端口 `8983`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -217,6 +218,9 @@ brute etcd 192.168.5.10 -u root -p etcd_pass -x version
 brute influxdb 192.168.5.10 -u admin -p influx_pass
 brute influxdb 192.168.5.10 -u '' -p ''
 brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
+brute solr 192.168.5.10 -u solr -p solr_pass
+brute solr 192.168.5.10 -u '' -p ''
+brute solr 192.168.5.10 -u solr -p solr_pass -x cores
 ```
 
 ## 顶级参数
@@ -309,6 +313,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `neo4j`: Cypher，例如 `-x 'ping'`
 - `etcd`: version/range API，例如 `-x 'version'`
 - `influxdb`: InfluxQL，例如 `-x 'dbs'`
+- `solr`: Solr admin API，例如 `-x 'cores'`
 
 示例：
 
@@ -651,6 +656,19 @@ brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
 ```
 
 空凭据探测不带 Authorization 的 `SHOW DATABASES`。非空凭据走 HTTP Basic Auth。`-x` 执行 InfluxQL（`dbs`/`users` 或查询）。命令失败不会丢掉已验证登录。
+
+## Solr
+
+Solr HTTP 登录与字典喷洒（默认端口 `8983`）：
+
+```bash
+brute solr 192.168.5.10 -u solr -p solr_pass
+brute solr 192.168.5.10 -u '' -p ''
+brute solr 192.168.5.10 -u solr -p solr_pass -x cores
+```
+
+空凭据探测不带 Authorization 的 `GET /solr/admin/info/system`。非空凭据走 HTTP Basic Auth。`-x` GET cores/system（或路径）。命令失败不会丢掉已验证登录。
+
 
 
 

@@ -65,6 +65,7 @@ Implemented modules:
 - `neo4j` (HTTP Cypher; `-x` ping; default port `7474`)
 - `etcd` (v3 HTTP; `-x` version; default port `2379`)
 - `influxdb` (alias `influx`; InfluxQL HTTP; `-x` dbs; default port `8086`)
+- `solr` (admin HTTP; `-x` cores; default port `8983`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -218,6 +219,9 @@ brute etcd 192.168.5.10 -u root -p etcd_pass -x version
 brute influxdb 192.168.5.10 -u admin -p influx_pass
 brute influxdb 192.168.5.10 -u '' -p ''
 brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
+brute solr 192.168.5.10 -u solr -p solr_pass
+brute solr 192.168.5.10 -u '' -p ''
+brute solr 192.168.5.10 -u solr -p solr_pass -x cores
 ```
 
 ## Global Options
@@ -309,6 +313,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `neo4j`: Cypher, for example `-x 'ping'`
 - `etcd`: version/range API, for example `-x 'version'`
 - `influxdb`: InfluxQL, for example `-x 'dbs'`
+- `solr`: Solr admin API, for example `-x 'cores'`
 
 Example:
 
@@ -651,6 +656,19 @@ brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
 ```
 
 Empty credentials probe `SHOW DATABASES` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` runs InfluxQL (`dbs`/`users` or a query). Command failures do not discard a verified login.
+
+## Solr
+
+Solr HTTP login and dictionary spray (default port `8983`):
+
+```bash
+brute solr 192.168.5.10 -u solr -p solr_pass
+brute solr 192.168.5.10 -u '' -p ''
+brute solr 192.168.5.10 -u solr -p solr_pass -x cores
+```
+
+Empty credentials probe `GET /solr/admin/info/system` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs cores/system (or a path). Command failures do not discard a verified login.
+
 
 
 

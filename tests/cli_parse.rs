@@ -1248,3 +1248,29 @@ fn parses_influxdb_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("dbs"));
 }
+
+/// Verifies Solr default port and `-x` command parsing.
+#[test]
+fn parses_solr_execute_and_default_port() {
+    assert_eq!(Protocol::Solr.default_port(), 8983);
+    assert_eq!(Protocol::Solr.as_str(), "solr");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "solr",
+        "192.168.5.10",
+        "-u",
+        "solr",
+        "-p",
+        "solr_pass",
+        "-x",
+        "cores",
+    ])
+    .expect("solr execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Solr(args)) = cli.command else {
+        panic!("expected solr protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("cores"));
+}

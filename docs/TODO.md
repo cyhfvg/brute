@@ -117,6 +117,9 @@
 - `influxdb`: `reqwest` InfluxDB 1.x HTTP Basic (default port 8086, alias
   `influx`); empty credentials probe `SHOW DATABASES`; `-x` InfluxQL.
   HTTP `--proxy`.
+- `solr`: `reqwest` Solr HTTP (default port 8983); empty credentials probe
+  `/solr/admin/info/system`; non-empty HTTP Basic Auth. `-x` cores/system.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -126,7 +129,6 @@
 - weblogic
 - jboss
 - websphere
-- solr
 - druid
 - spark
 - hadoop

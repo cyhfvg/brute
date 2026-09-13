@@ -24,8 +24,9 @@ use crate::protocol::{
     memcached::MemcachedModule, mongodb::MongoDbModule, mssql::MssqlModule, mysql::MySqlModule,
     neo4j::Neo4jModule, nfs::NfsModule, oracle::OracleModule, postgresql::PostgreSqlModule,
     prometheus::PrometheusModule, rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule,
-    rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
-    tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
+    rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, solr::SolrModule, ssh::SshModule,
+    telnet::TelnetModule, tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule,
+    zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -301,6 +302,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Neo4j => Arc::new(Neo4jModule::new(request.timeout_ms)),
         Protocol::Etcd => Arc::new(EtcdModule::new(request.timeout_ms)),
         Protocol::Influxdb => Arc::new(InfluxDbModule::new(request.timeout_ms)),
+        Protocol::Solr => Arc::new(SolrModule::new(request.timeout_ms)),
     }
 }
 

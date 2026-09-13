@@ -1,0 +1,19 @@
+{
+  "authentication": {
+    "blockUnknown": true,
+    "class": "solr.BasicAuthPlugin",
+    "credentials": {
+      "solr": "AJTxwtG6V//Mi10rjCbjdX1aDNXzLPWUbQaI8qhmM10= NcSpuu/HdVZpwX6g64SqfogosRzHV87dPMfR7sSaP5I="
+    }
+  },
+  "authorization": {
+    "class": "solr.RuleBasedAuthorizationPlugin",
+    "permissions": [
+      { "name": "security-edit", "role": "admin" },
+      { "name": "all", "role": "admin" }
+    ],
+    "user-role": {
+      "solr": "admin"
+    }
+  }
+}

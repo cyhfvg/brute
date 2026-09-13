@@ -29,6 +29,7 @@ pub mod redis;
 pub mod rsync;
 pub mod smb;
 pub mod snmp;
+pub mod solr;
 pub mod ssh;
 pub mod stub;
 pub mod telnet;
