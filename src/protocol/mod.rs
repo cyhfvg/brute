@@ -16,6 +16,7 @@ pub mod jboss;
 pub mod jenkins;
 pub mod kafka;
 pub mod kibana;
+pub mod kubelet;
 pub mod ldap;
 pub mod memcached;
 pub mod minio;

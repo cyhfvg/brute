@@ -21,13 +21,14 @@ use crate::protocol::{
     docker::DockerModule, druid::DruidModule, elasticsearch::ElasticsearchModule, etcd::EtcdModule,
     ftp::FtpModule, grafana::GrafanaModule, hadoop::HadoopModule, http::HttpBasicModule,
     influxdb::InfluxDbModule, jboss::JbossModule, jenkins::JenkinsModule, kafka::KafkaModule,
-    kibana::KibanaModule, ldap::LdapModule, memcached::MemcachedModule, minio::MinioModule,
-    mongodb::MongoDbModule, mssql::MssqlModule, mysql::MySqlModule, nacos::NacosModule,
-    neo4j::Neo4jModule, nexus::NexusModule, nfs::NfsModule, oracle::OracleModule,
-    postgresql::PostgreSqlModule, prometheus::PrometheusModule, rabbitmq::RabbitMqModule,
-    rdp::RdpModule, redis::RedisModule, rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule,
-    solr::SolrModule, spark::SparkModule, ssh::SshModule, telnet::TelnetModule,
-    tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
+    kibana::KibanaModule, kubelet::KubeletModule, ldap::LdapModule, memcached::MemcachedModule,
+    minio::MinioModule, mongodb::MongoDbModule, mssql::MssqlModule, mysql::MySqlModule,
+    nacos::NacosModule, neo4j::Neo4jModule, nexus::NexusModule, nfs::NfsModule,
+    oracle::OracleModule, postgresql::PostgreSqlModule, prometheus::PrometheusModule,
+    rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, rsync::RsyncModule,
+    smb::SmbModule, snmp::SnmpModule, solr::SolrModule, spark::SparkModule, ssh::SshModule,
+    telnet::TelnetModule, tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule,
+    zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -311,6 +312,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Druid => Arc::new(DruidModule::new(request.timeout_ms)),
         Protocol::Spark => Arc::new(SparkModule::new(request.timeout_ms)),
         Protocol::Hadoop => Arc::new(HadoopModule::new(request.timeout_ms)),
+        Protocol::Kubelet => Arc::new(KubeletModule::new(request.timeout_ms)),
     }
 }
 

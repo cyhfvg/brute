@@ -141,6 +141,9 @@
 - `hadoop`: `reqwest` Hadoop NameNode HTTP (default port 9870, alias `hdfs`);
   empty credentials probe `GET /jmx`; non-empty HTTP Basic Auth. `-x` jmx/webhdfs.
   HTTP `--proxy`.
+- `kubelet`: `reqwest` kubelet HTTPS (default port 10250); empty credentials
+  probe `GET /runningpods/`; token in `-p` as Bearer. 401 auth fail, 403/2xx hit.
+  `-x` pods/healthz. HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -149,7 +152,5 @@
 - weblogic
 - websphere
 
-
-- kubelet
 
 (none currently reserved as unimplemented stubs)

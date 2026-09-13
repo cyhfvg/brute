@@ -72,6 +72,7 @@
 - `druid`（SQL HTTP；`-x` status；默认端口 `8888`）
 - `spark`（master UI；`-x` json；默认端口 `8080`）
 - `hadoop`（别名 `hdfs`；NameNode HTTP；`-x` jmx；默认端口 `9870`）
+- `kubelet`（HTTPS；token 放 `-p`；`-x` pods；默认端口 `10250`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -249,6 +250,9 @@ brute spark 192.168.5.10 -u spark -p spark_pass -x json
 brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass
 brute hadoop 192.168.5.10 -u '' -p ''
 brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
+brute kubelet 192.168.5.10 -u '' -p k8s-token
+brute kubelet 192.168.5.10 -u '' -p ''
+brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
 ```
 
 ## 顶级参数
@@ -349,6 +353,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `druid`: Druid SQL，例如 `-x 'status'`
 - `spark`: Spark master UI，例如 `-x 'json'`
 - `hadoop`: Hadoop NameNode，例如 `-x 'jmx'`
+- `kubelet`: kubelet HTTPS，例如 `-x 'pods'`
 
 示例：
 
@@ -787,6 +792,19 @@ brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
 ```
 
 空凭据探测不带 Authorization 的 `GET /jmx`。非空凭据走 HTTP Basic Auth。`-x` GET jmx/webhdfs（或路径）。命令失败不会丢掉已验证登录。
+
+## Kubelet
+
+Kubelet HTTPS 登录与字典喷洒（默认端口 `10250`）：
+
+```bash
+brute kubelet 192.168.5.10 -u '' -p k8s-token
+brute kubelet 192.168.5.10 -u '' -p ''
+brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
+```
+
+空凭据探测不带 Authorization 的 `GET /runningpods/`。非空 `-p` 作为 `Authorization: Bearer` 发送。HTTP 401 为认证失败；403 与 2xx 为凭据命中。`-x` GET pods/healthz（或路径）。跳过 TLS 证书校验。命令失败不会丢掉已验证登录。
+
 
 
 

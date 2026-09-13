@@ -73,6 +73,7 @@ Implemented modules:
 - `druid` (SQL HTTP; `-x` status; default port `8888`)
 - `spark` (master UI; `-x` json; default port `8080`)
 - `hadoop` (alias `hdfs`; NameNode HTTP; `-x` jmx; default port `9870`)
+- `kubelet` (HTTPS; token in `-p`; `-x` pods; default port `10250`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -250,6 +251,9 @@ brute spark 192.168.5.10 -u spark -p spark_pass -x json
 brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass
 brute hadoop 192.168.5.10 -u '' -p ''
 brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
+brute kubelet 192.168.5.10 -u '' -p k8s-token
+brute kubelet 192.168.5.10 -u '' -p ''
+brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
 ```
 
 ## Global Options
@@ -349,6 +353,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `druid`: Druid SQL, for example `-x 'status'`
 - `spark`: Spark master UI, for example `-x 'json'`
 - `hadoop`: Hadoop NameNode, for example `-x 'jmx'`
+- `kubelet`: kubelet HTTPS, for example `-x 'pods'`
 
 Example:
 
@@ -787,6 +792,19 @@ brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx
 ```
 
 Empty credentials probe `GET /jmx` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs jmx/webhdfs (or a path). Command failures do not discard a verified login.
+
+## Kubelet
+
+Kubelet HTTPS login and dictionary spray (default port `10250`):
+
+```bash
+brute kubelet 192.168.5.10 -u '' -p k8s-token
+brute kubelet 192.168.5.10 -u '' -p ''
+brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
+```
+
+Empty credentials probe `GET /runningpods/` without Authorization. Non-empty `-p` is sent as `Authorization: Bearer`. HTTP 401 is auth failure; 403 and 2xx are credential hits. `-x` GETs pods/healthz (or a path). TLS certificate verification is skipped. Command failures do not discard a verified login.
+
 
 
 

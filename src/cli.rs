@@ -368,6 +368,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass\n  brute hadoop 192.168.5.10 -u '' -p ''\n  brute hadoop 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx"
     )]
     Hadoop(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using KUBELET",
+        override_usage = "brute kubelet <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute kubelet 192.168.5.10 -u '' -p k8s-token\n  brute kubelet 192.168.5.10 -u '' -p ''\n  brute kubelet 192.168.5.10 -u users.txt -p tokens.txt --threads 8\n  brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods"
+    )]
+    Kubelet(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -408,7 +415,8 @@ impl ProtocolArgs {
             | Self::Jboss(args)
             | Self::Druid(args)
             | Self::Spark(args)
-            | Self::Hadoop(args) => &args.common,
+            | Self::Hadoop(args)
+            | Self::Kubelet(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -468,7 +476,8 @@ impl ProtocolArgs {
             | Self::Jboss(args)
             | Self::Druid(args)
             | Self::Spark(args)
-            | Self::Hadoop(args) => args.execute.as_deref(),
+            | Self::Hadoop(args)
+            | Self::Kubelet(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -858,6 +867,7 @@ pub enum Protocol {
     Neo4j,
     Etcd,
     Influxdb,
+    Kubelet,
     Solr,
     Minio,
     Nacos,
@@ -907,6 +917,7 @@ impl Protocol {
             Self::Neo4j => 7474,
             Self::Etcd => 2379,
             Self::Influxdb => 8086,
+            Self::Kubelet => 10250,
             Self::Solr => 8983,
             Self::Minio => 9001,
             Self::Nacos => 8848,
@@ -956,6 +967,7 @@ impl Protocol {
             Self::Neo4j => "neo4j",
             Self::Etcd => "etcd",
             Self::Influxdb => "influxdb",
+            Self::Kubelet => "kubelet",
             Self::Solr => "solr",
             Self::Minio => "minio",
             Self::Nacos => "nacos",
@@ -1007,6 +1019,7 @@ impl ProtocolArgs {
             Self::Neo4j(_) => Protocol::Neo4j,
             Self::Etcd(_) => Protocol::Etcd,
             Self::Influxdb(_) => Protocol::Influxdb,
+            Self::Kubelet(_) => Protocol::Kubelet,
             Self::Solr(_) => Protocol::Solr,
             Self::Minio(_) => Protocol::Minio,
             Self::Nacos(_) => Protocol::Nacos,

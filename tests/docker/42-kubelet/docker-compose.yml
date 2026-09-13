@@ -1,0 +1,24 @@
+services:
+  k3s:
+    image: rancher/k3s:v1.28.15-k3s1
+    container_name: kubelet-brute-lab
+    restart: "no"
+    privileged: true
+    command:
+      [
+        "server",
+        "--disable",
+        "traefik",
+        "--tls-san",
+        "127.0.0.1",
+        "--kubelet-arg",
+        "address=0.0.0.0",
+        "--kubelet-arg",
+        "anonymous-auth=false",
+      ]
+    ports:
+      - "10250:10250"
+      - "6443:6443"
+    tmpfs:
+      - /run
+      - /var/run

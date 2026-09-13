@@ -1456,3 +1456,29 @@ fn parses_hadoop_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("jmx"));
 }
+
+/// Verifies kubelet default port and `-x` command parsing.
+#[test]
+fn parses_kubelet_execute_and_default_port() {
+    assert_eq!(Protocol::Kubelet.default_port(), 10250);
+    assert_eq!(Protocol::Kubelet.as_str(), "kubelet");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "kubelet",
+        "192.168.5.10",
+        "-u",
+        "",
+        "-p",
+        "k8s-token",
+        "-x",
+        "pods",
+    ])
+    .expect("kubelet execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Kubelet(args)) = cli.command else {
+        panic!("expected kubelet protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("pods"));
+}
