@@ -135,6 +135,9 @@
 - `druid`: `reqwest` Druid HTTP (default port 8888); login GET
   `/druid/coordinator/v1/isLeader` with HTTP Basic; `-x` status/sql.
   HTTP `--proxy`.
+- `spark`: `reqwest` Spark master UI (default port 8080); empty credentials
+  probe `GET /json/`; non-empty HTTP Basic Auth. `-x` json/env.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -142,7 +145,6 @@
 - harbor
 - weblogic
 - websphere
-- spark
 - hadoop
 
 

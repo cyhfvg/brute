@@ -353,6 +353,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute druid 192.168.5.10 -u admin -p druid_pass\n  brute druid 192.168.5.10 -u '' -p ''\n  brute druid 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute druid 192.168.5.10 -u admin -p druid_pass -x status"
     )]
     Druid(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using SPARK",
+        override_usage = "brute spark <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute spark 192.168.5.10 -u spark -p spark_pass\n  brute spark 192.168.5.10 -u '' -p ''\n  brute spark 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute spark 192.168.5.10 -u spark -p spark_pass -x json"
+    )]
+    Spark(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -391,7 +398,8 @@ impl ProtocolArgs {
             | Self::Nacos(args)
             | Self::Nexus(args)
             | Self::Jboss(args)
-            | Self::Druid(args) => &args.common,
+            | Self::Druid(args)
+            | Self::Spark(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -449,7 +457,8 @@ impl ProtocolArgs {
             | Self::Nacos(args)
             | Self::Nexus(args)
             | Self::Jboss(args)
-            | Self::Druid(args) => args.execute.as_deref(),
+            | Self::Druid(args)
+            | Self::Spark(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -845,6 +854,7 @@ pub enum Protocol {
     Jboss,
     Nexus,
     Druid,
+    Spark,
 }
 
 impl Protocol {
@@ -892,6 +902,7 @@ impl Protocol {
             Self::Jboss => 9990,
             Self::Nexus => 8081,
             Self::Druid => 8888,
+            Self::Spark => 8080,
         }
     }
 
@@ -939,6 +950,7 @@ impl Protocol {
             Self::Jboss => "jboss",
             Self::Nexus => "nexus",
             Self::Druid => "druid",
+            Self::Spark => "spark",
         }
     }
 }
@@ -988,6 +1000,7 @@ impl ProtocolArgs {
             Self::Jboss(_) => Protocol::Jboss,
             Self::Nexus(_) => Protocol::Nexus,
             Self::Druid(_) => Protocol::Druid,
+            Self::Spark(_) => Protocol::Spark,
         }
     }
 }

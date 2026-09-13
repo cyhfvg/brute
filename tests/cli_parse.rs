@@ -1404,3 +1404,29 @@ fn parses_druid_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("status"));
 }
+
+/// Verifies Spark default port and `-x` command parsing.
+#[test]
+fn parses_spark_execute_and_default_port() {
+    assert_eq!(Protocol::Spark.default_port(), 8080);
+    assert_eq!(Protocol::Spark.as_str(), "spark");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "spark",
+        "192.168.5.10",
+        "-u",
+        "spark",
+        "-p",
+        "spark_pass",
+        "-x",
+        "json",
+    ])
+    .expect("spark execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Spark(args)) = cli.command else {
+        panic!("expected spark protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("json"));
+}

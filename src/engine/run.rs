@@ -25,9 +25,9 @@ use crate::protocol::{
     mssql::MssqlModule, mysql::MySqlModule, nacos::NacosModule, neo4j::Neo4jModule,
     nexus::NexusModule, nfs::NfsModule, oracle::OracleModule, postgresql::PostgreSqlModule,
     prometheus::PrometheusModule, rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule,
-    rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, solr::SolrModule, ssh::SshModule,
-    telnet::TelnetModule, tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule,
-    zookeeper::ZookeeperModule,
+    rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, solr::SolrModule, spark::SparkModule,
+    ssh::SshModule, telnet::TelnetModule, tomcat::TomcatManagerModule, vnc::VncModule,
+    winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -309,6 +309,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Nexus => Arc::new(NexusModule::new(request.timeout_ms)),
         Protocol::Jboss => Arc::new(JbossModule::new(request.timeout_ms)),
         Protocol::Druid => Arc::new(DruidModule::new(request.timeout_ms)),
+        Protocol::Spark => Arc::new(SparkModule::new(request.timeout_ms)),
     }
 }
 

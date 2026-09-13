@@ -70,6 +70,7 @@
 - `nexus`（REST HTTP；`-x` repos；默认端口 `8081`）
 - `jboss`（别名 `wildfly`；management Digest；`-x` version；默认端口 `9990`）
 - `druid`（SQL HTTP；`-x` status；默认端口 `8888`）
+- `spark`（master UI；`-x` json；默认端口 `8080`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -241,6 +242,9 @@ brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
 brute druid 192.168.5.10 -u admin -p druid_pass
 brute druid 192.168.5.10 -u '' -p ''
 brute druid 192.168.5.10 -u admin -p druid_pass -x status
+brute spark 192.168.5.10 -u spark -p spark_pass
+brute spark 192.168.5.10 -u '' -p ''
+brute spark 192.168.5.10 -u spark -p spark_pass -x json
 ```
 
 ## 顶级参数
@@ -339,6 +343,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `nexus`: Nexus REST API，例如 `-x 'repos'`
 - `jboss`: WildFly management，例如 `-x 'version'`
 - `druid`: Druid SQL，例如 `-x 'status'`
+- `spark`: Spark master UI，例如 `-x 'json'`
 
 示例：
 
@@ -753,6 +758,19 @@ brute druid 192.168.5.10 -u admin -p druid_pass -x status
 ```
 
 空凭据探测不带 Authorization 的 `POST /druid/v2/sql`。非空凭据走 HTTP Basic Auth。`-x` GET status 或 POST SQL。命令失败不会丢掉已验证登录。
+
+## Spark
+
+Spark master UI 登录与字典喷洒（默认端口 `8080`）：
+
+```bash
+brute spark 192.168.5.10 -u spark -p spark_pass
+brute spark 192.168.5.10 -u '' -p ''
+brute spark 192.168.5.10 -u spark -p spark_pass -x json
+```
+
+空凭据探测不带 Authorization 的 `GET /json/`。非空凭据走 HTTP Basic Auth。`-x` GET json/env（或路径）。命令失败不会丢掉已验证登录。
+
 
 
 

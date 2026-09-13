@@ -35,6 +35,7 @@ pub mod rsync;
 pub mod smb;
 pub mod snmp;
 pub mod solr;
+pub mod spark;
 pub mod ssh;
 pub mod stub;
 pub mod telnet;

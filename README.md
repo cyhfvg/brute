@@ -71,6 +71,7 @@ Implemented modules:
 - `nexus` (REST HTTP; `-x` repos; default port `8081`)
 - `jboss` (alias `wildfly`; management Digest; `-x` version; default port `9990`)
 - `druid` (SQL HTTP; `-x` status; default port `8888`)
+- `spark` (master UI; `-x` json; default port `8080`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -242,6 +243,9 @@ brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
 brute druid 192.168.5.10 -u admin -p druid_pass
 brute druid 192.168.5.10 -u '' -p ''
 brute druid 192.168.5.10 -u admin -p druid_pass -x status
+brute spark 192.168.5.10 -u spark -p spark_pass
+brute spark 192.168.5.10 -u '' -p ''
+brute spark 192.168.5.10 -u spark -p spark_pass -x json
 ```
 
 ## Global Options
@@ -339,6 +343,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `nexus`: Nexus REST API, for example `-x 'repos'`
 - `jboss`: WildFly management, for example `-x 'version'`
 - `druid`: Druid SQL, for example `-x 'status'`
+- `spark`: Spark master UI, for example `-x 'json'`
 
 Example:
 
@@ -753,6 +758,19 @@ brute druid 192.168.5.10 -u admin -p druid_pass -x status
 ```
 
 Empty credentials POST `/druid/v2/sql` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs status or POSTs SQL. Command failures do not discard a verified login.
+
+## Spark
+
+Spark master UI login and dictionary spray (default port `8080`):
+
+```bash
+brute spark 192.168.5.10 -u spark -p spark_pass
+brute spark 192.168.5.10 -u '' -p ''
+brute spark 192.168.5.10 -u spark -p spark_pass -x json
+```
+
+Empty credentials probe `GET /json/` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs json/env (or a path). Command failures do not discard a verified login.
+
 
 
 
