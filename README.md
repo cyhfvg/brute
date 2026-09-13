@@ -55,6 +55,7 @@ Implemented modules:
 - `kafka` (SASL/PLAIN; `-x` metadata; default port `9092`)
 - `kibana` (HTTP login; `-x` status API; default port `5601`)
 - `nfs` (NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX; `-x` dump; default port `2049`)
+- `telnet` (IAC + login/password; `-x` shell command; default port `23`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -178,6 +179,9 @@ brute kibana 192.168.5.10 -u elastic -p elastic_pass
 brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
 brute nfs 192.168.5.10 -u '' -p ''
 brute nfs 192.168.5.10 -u 0 -p '' -x dump
+brute telnet 192.168.5.10 -u admin -p telnet_pass
+brute telnet 192.168.5.10 -u '' -p ''
+brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
 ```
 
 ## Global Options
@@ -259,6 +263,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `kafka`: Metadata request, for example `-x 'metadata'`
 - `kibana`: status API, for example `-x 'status'`
 - `nfs`: MOUNT DUMP attempt, for example `-x 'dump'`
+- `telnet`: remote shell command, for example `-x 'id'`
 
 Example:
 
@@ -481,6 +486,19 @@ brute nfs 192.168.5.10 -u 0 -p '' -x dump
 ```
 
 Empty credentials use AUTH_NULL. A non-empty username is treated as a UNIX uid when numeric (otherwise uid 0). NFS has no password. `-x` attempts a MOUNT DUMP on the same TCP session.
+
+## Telnet
+
+Telnet login and dictionary spray (default port `23`):
+
+```bash
+brute telnet 192.168.5.10 -u admin -p telnet_pass
+brute telnet 192.168.5.10 -u '' -p ''
+brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
+```
+
+Empty credentials probe whether the peer drops into a shell without a login prompt. Non-empty credentials answer `login:` / `Password:` after refusing Telnet options. `-x` runs a shell command on the same session. Command failures do not discard a verified login.
+
 
 
 ## Oracle

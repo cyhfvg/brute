@@ -236,6 +236,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute nfs 192.168.5.10 -u '' -p ''\n  brute nfs 192.168.5.10 -u 0 -p '' -x dump"
     )]
     Nfs(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using TELNET",
+        override_usage = "brute telnet <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute telnet 192.168.5.10 -u admin -p telnet_pass\n  brute telnet 192.168.5.10 -u '' -p ''\n  brute telnet 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute telnet 192.168.5.10 -u admin -p telnet_pass -x id"
+    )]
+    Telnet(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -258,7 +265,8 @@ impl ProtocolArgs {
             | Self::Mssql(args)
             | Self::Kafka(args)
             | Self::Kibana(args)
-            | Self::Nfs(args) => &args.common,
+            | Self::Nfs(args)
+            | Self::Telnet(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -300,7 +308,8 @@ impl ProtocolArgs {
             | Self::Mssql(args)
             | Self::Kafka(args)
             | Self::Kibana(args)
-            | Self::Nfs(args) => args.execute.as_deref(),
+            | Self::Nfs(args)
+            | Self::Telnet(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -680,6 +689,7 @@ pub enum Protocol {
     Kafka,
     Kibana,
     Nfs,
+    Telnet,
 }
 
 impl Protocol {
@@ -711,6 +721,7 @@ impl Protocol {
             Self::Kafka => 9092,
             Self::Kibana => 5601,
             Self::Nfs => 2049,
+            Self::Telnet => 23,
         }
     }
 
@@ -742,6 +753,7 @@ impl Protocol {
             Self::Kafka => "kafka",
             Self::Kibana => "kibana",
             Self::Nfs => "nfs",
+            Self::Telnet => "telnet",
         }
     }
 }
@@ -775,6 +787,7 @@ impl ProtocolArgs {
             Self::Kafka(_) => Protocol::Kafka,
             Self::Kibana(_) => Protocol::Kibana,
             Self::Nfs(_) => Protocol::Nfs,
+            Self::Telnet(_) => Protocol::Telnet,
         }
     }
 }

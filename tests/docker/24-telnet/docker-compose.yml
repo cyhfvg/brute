@@ -1,0 +1,15 @@
+services:
+  telnet-open:
+    build: .
+    container_name: telnet-open
+    restart: "no"
+    ports:
+      - "2323:23"
+    command: ["telnetd", "-F", "-p", "23", "-l", "/bin/sh"]
+
+  telnet-auth:
+    build: .
+    container_name: telnet-auth
+    restart: "no"
+    ports:
+      - "23:23"

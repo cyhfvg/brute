@@ -22,8 +22,8 @@ use crate::protocol::{
     memcached::MemcachedModule, mongodb::MongoDbModule, mssql::MssqlModule, mysql::MySqlModule,
     nfs::NfsModule, oracle::OracleModule, postgresql::PostgreSqlModule, rabbitmq::RabbitMqModule,
     rdp::RdpModule, redis::RedisModule, rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule,
-    ssh::SshModule, tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule,
-    zookeeper::ZookeeperModule,
+    ssh::SshModule, telnet::TelnetModule, tomcat::TomcatManagerModule, vnc::VncModule,
+    winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -289,6 +289,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Kafka => Arc::new(KafkaModule::new(request.timeout_ms)),
         Protocol::Kibana => Arc::new(KibanaModule::new(request.timeout_ms)),
         Protocol::Nfs => Arc::new(NfsModule::new(request.timeout_ms)),
+        Protocol::Telnet => Arc::new(TelnetModule::new(request.timeout_ms)),
     }
 }
 

@@ -988,3 +988,29 @@ fn parses_nfs_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("dump"));
 }
+
+/// Verifies Telnet default port and `-x` command parsing.
+#[test]
+fn parses_telnet_execute_and_default_port() {
+    assert_eq!(Protocol::Telnet.default_port(), 23);
+    assert_eq!(Protocol::Telnet.as_str(), "telnet");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "telnet",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "telnet_pass",
+        "-x",
+        "id",
+    ])
+    .expect("telnet execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Telnet(args)) = cli.command else {
+        panic!("expected telnet protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("id"));
+}

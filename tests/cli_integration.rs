@@ -91,6 +91,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("kafka"));
     assert!(stdout.contains("kibana"));
     assert!(stdout.contains("nfs"));
+    assert!(stdout.contains("telnet"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -756,6 +757,19 @@ fn nfs_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("dump"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn telnet_help_exposes_command_execution() {
+    let home = TempHome::new("telnet-help");
+
+    let output = run_with_home(&home, ["telnet", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("id"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

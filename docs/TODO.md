@@ -91,8 +91,33 @@
   `GET /api/status`; `-x` GET API with session cookie. HTTP `--proxy`.
 - `nfs`: pure-Rust NFSv3 ONC RPC (default port 2049); AUTH_NULL for empty
   credentials, AUTH_UNIX uid for non-empty username. `-x` MOUNT DUMP. No password.
-
+- `telnet`: pure-Rust IAC + login/password prompts (default port 23); empty
+  `-u '' -p ''` probes unauthorized shell; `-x` runs a remote shell command.
+  Stream-injectable `--proxy`.
 
 ## Unsupported Protocols
+
+- ldap
+- grafana
+- prometheus
+- jenkins
+- gitlab
+- harbor
+- nexus
+- weblogic
+- jboss
+- websphere
+- solr
+- druid
+- spark
+- hadoop
+- nacos
+- etcd
+- couchDB
+- influxDB
+- clickHouse
+- minio
+- Neo4j
+- kubelet
 
 (none currently reserved as unimplemented stubs)

@@ -54,6 +54,7 @@
 - `kafka`（SASL/PLAIN；`-x` metadata；默认端口 `9092`）
 - `kibana`（HTTP 登录；`-x` status API；默认端口 `5601`）
 - `nfs`（NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX；`-x` dump；默认端口 `2049`）
+- `telnet`（IAC + login/password；`-x` shell 命令；默认端口 `23`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -177,6 +178,9 @@ brute kibana 192.168.5.10 -u elastic -p elastic_pass
 brute kibana 192.168.5.10 -u elastic -p elastic_pass -x status
 brute nfs 192.168.5.10 -u '' -p ''
 brute nfs 192.168.5.10 -u 0 -p '' -x dump
+brute telnet 192.168.5.10 -u admin -p telnet_pass
+brute telnet 192.168.5.10 -u '' -p ''
+brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
 ```
 
 ## 顶级参数
@@ -259,6 +263,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `kafka`: Metadata 请求，例如 `-x 'metadata'`
 - `kibana`: status API，例如 `-x 'status'`
 - `nfs`: 尝试 MOUNT DUMP，例如 `-x 'dump'`
+- `telnet`: 远程 shell 命令，例如 `-x 'id'`
 
 示例：
 
@@ -481,6 +486,19 @@ brute nfs 192.168.5.10 -u 0 -p '' -x dump
 ```
 
 空凭据使用 AUTH_NULL。非空用户名在可解析时作为 UNIX uid（否则 uid 0）。NFS 没有密码。`-x` 在同一 TCP 会话尝试 MOUNT DUMP。
+
+## Telnet
+
+Telnet 登录与字典喷洒（默认端口 `23`）：
+
+```bash
+brute telnet 192.168.5.10 -u admin -p telnet_pass
+brute telnet 192.168.5.10 -u '' -p ''
+brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
+```
+
+空凭据探测对端是否在没有登录提示的情况下进入 shell。非空凭据在拒绝 Telnet 选项后应答 `login:` / `Password:`。`-x` 在同一会话执行 shell 命令。命令失败不会丢掉已验证登录。
+
 
 
 ## Oracle
