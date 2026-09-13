@@ -102,10 +102,11 @@
 - `prometheus`: `reqwest` HTTP Basic (default port 9090, alias `prom`); empty
   `-u '' -p ''` probes anonymous buildinfo; `-x` query/targets/metrics.
   HTTP `--proxy`.
+- `jenkins`: `reqwest` HTTP Basic (default port 8080); empty credentials probe
+  `GET /api/json`; `-x` whoami/queue/computers. HTTP `--proxy`.
 
 ## Unsupported Protocols
 
-- jenkins
 - gitlab
 - harbor
 - nexus

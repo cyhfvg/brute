@@ -265,6 +265,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute prometheus 192.168.5.10 -u admin -p prometheus_pass\n  brute prometheus 192.168.5.10 -u '' -p ''\n  brute prometheus 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query"
     )]
     Prometheus(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using JENKINS",
+        override_usage = "brute jenkins <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass\n  brute jenkins 192.168.5.10 -u '' -p ''\n  brute jenkins 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami"
+    )]
+    Jenkins(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -291,7 +298,8 @@ impl ProtocolArgs {
             | Self::Telnet(args)
             | Self::Ldap(args)
             | Self::Grafana(args)
-            | Self::Prometheus(args) => &args.common,
+            | Self::Prometheus(args)
+            | Self::Jenkins(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -337,7 +345,8 @@ impl ProtocolArgs {
             | Self::Telnet(args)
             | Self::Ldap(args)
             | Self::Grafana(args)
-            | Self::Prometheus(args) => args.execute.as_deref(),
+            | Self::Prometheus(args)
+            | Self::Jenkins(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -721,6 +730,7 @@ pub enum Protocol {
     Ldap,
     Grafana,
     Prometheus,
+    Jenkins,
 }
 
 impl Protocol {
@@ -756,6 +766,7 @@ impl Protocol {
             Self::Ldap => 389,
             Self::Grafana => 3000,
             Self::Prometheus => 9090,
+            Self::Jenkins => 8080,
         }
     }
 
@@ -791,6 +802,7 @@ impl Protocol {
             Self::Ldap => "ldap",
             Self::Grafana => "grafana",
             Self::Prometheus => "prometheus",
+            Self::Jenkins => "jenkins",
         }
     }
 }
@@ -828,6 +840,7 @@ impl ProtocolArgs {
             Self::Ldap(_) => Protocol::Ldap,
             Self::Grafana(_) => Protocol::Grafana,
             Self::Prometheus(_) => Protocol::Prometheus,
+            Self::Jenkins(_) => Protocol::Jenkins,
         }
     }
 }

@@ -58,6 +58,7 @@
 - `ldap`（simple bind；`-x` whoami/search；默认端口 `389`）
 - `grafana`（HTTP 登录；`-x` org API；默认端口 `3000`）
 - `prometheus`（别名 `prom`；HTTP Basic；`-x` query/metrics；默认端口 `9090`）
+- `jenkins`（HTTP Basic；`-x` whoami/api；默认端口 `8080`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -193,6 +194,9 @@ brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
 brute prometheus 192.168.5.10 -u admin -p prometheus_pass
 brute prometheus 192.168.5.10 -u '' -p ''
 brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass
+brute jenkins 192.168.5.10 -u '' -p ''
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
 ```
 
 ## 顶级参数
@@ -279,6 +283,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `ldap`: whoami 或 LDAP search，例如 `-x 'whoami'`
 - `grafana`: org API，例如 `-x 'org'`
 - `prometheus`: PromQL 查询，例如 `-x 'query'`
+- `jenkins`: Jenkins API，例如 `-x 'whoami'`
 
 示例：
 
@@ -549,6 +554,19 @@ brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
 ```
 
 空凭据探测不带 Authorization 的 `GET /api/v1/status/buildinfo`。非空凭据走 HTTP Basic Auth。`-x` GET `query`/`targets`/`metrics` 或调用方路径。命令失败不会丢掉已验证登录。
+
+## Jenkins
+
+Jenkins HTTP Basic 登录与字典喷洒（默认端口 `8080`）：
+
+```bash
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass
+brute jenkins 192.168.5.10 -u '' -p ''
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
+```
+
+空凭据探测不带 Authorization 的 `GET /api/json`。非空凭据走 HTTP Basic Auth。`401`/`403` 为认证失败。`-x` GET `whoami`/`queue`/`computers` 或调用方路径。命令失败不会丢掉已验证登录。
+
 
 
 

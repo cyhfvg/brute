@@ -1092,3 +1092,29 @@ fn parses_prometheus_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("query"));
 }
+
+/// Verifies Jenkins default port and `-x` command parsing.
+#[test]
+fn parses_jenkins_execute_and_default_port() {
+    assert_eq!(Protocol::Jenkins.default_port(), 8080);
+    assert_eq!(Protocol::Jenkins.as_str(), "jenkins");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "jenkins",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "jenkins_pass",
+        "-x",
+        "whoami",
+    ])
+    .expect("jenkins execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Jenkins(args)) = cli.command else {
+        panic!("expected jenkins protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("whoami"));
+}

@@ -1,0 +1,36 @@
+services:
+  jenkins-open:
+    image: jenkins/jenkins:2.462.3-lts-jdk17
+    container_name: jenkins-open
+    restart: "no"
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+    ports:
+      - "8083:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/api/json >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 40s
+
+  jenkins-auth:
+    image: jenkins/jenkins:2.462.3-lts-jdk17
+    container_name: jenkins-auth
+    restart: "no"
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+    volumes:
+      - ./security.groovy:/usr/share/jenkins/ref/init.groovy.d/security.groovy:ro
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf -u admin:jenkins_pass http://127.0.0.1:8080/api/json >/dev/null",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 50s

@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 29] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 30] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -239,6 +239,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 29] = [
     Protocol::Ldap,
     Protocol::Grafana,
     Protocol::Prometheus,
+    Protocol::Jenkins,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -295,6 +296,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "ldap" => Ok(Protocol::Ldap),
         "grafana" => Ok(Protocol::Grafana),
         "prometheus" | "prom" => Ok(Protocol::Prometheus),
+        "jenkins" => Ok(Protocol::Jenkins),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS

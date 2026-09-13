@@ -59,6 +59,7 @@ Implemented modules:
 - `ldap` (simple bind; `-x` whoami/search; default port `389`)
 - `grafana` (HTTP login; `-x` org API; default port `3000`)
 - `prometheus` (alias `prom`; HTTP Basic; `-x` query/metrics; default port `9090`)
+- `jenkins` (HTTP Basic; `-x` whoami/api; default port `8080`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -194,6 +195,9 @@ brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
 brute prometheus 192.168.5.10 -u admin -p prometheus_pass
 brute prometheus 192.168.5.10 -u '' -p ''
 brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass
+brute jenkins 192.168.5.10 -u '' -p ''
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
 ```
 
 ## Global Options
@@ -279,6 +283,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `ldap`: whoami or LDAP search, for example `-x 'whoami'`
 - `grafana`: org API, for example `-x 'org'`
 - `prometheus`: PromQL query, for example `-x 'query'`
+- `jenkins`: Jenkins API, for example `-x 'whoami'`
 
 Example:
 
@@ -549,6 +554,19 @@ brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
 ```
 
 Empty credentials probe `GET /api/v1/status/buildinfo` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs `query`/`targets`/`metrics` or a caller path. Command failures do not discard a verified login.
+
+## Jenkins
+
+Jenkins HTTP Basic login and dictionary spray (default port `8080`):
+
+```bash
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass
+brute jenkins 192.168.5.10 -u '' -p ''
+brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
+```
+
+Empty credentials probe `GET /api/json` without Authorization. Non-empty credentials use HTTP Basic Auth. `401`/`403` are authentication failures. `-x` GETs `whoami`/`queue`/`computers` or a caller path. Command failures do not discard a verified login.
+
 
 
 

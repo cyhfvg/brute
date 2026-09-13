@@ -6,6 +6,7 @@ pub mod elasticsearch;
 pub mod ftp;
 pub mod grafana;
 pub mod http;
+pub mod jenkins;
 pub mod kafka;
 pub mod kibana;
 pub mod ldap;
