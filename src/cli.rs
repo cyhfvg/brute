@@ -272,6 +272,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass\n  brute jenkins 192.168.5.10 -u '' -p ''\n  brute jenkins 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami"
     )]
     Jenkins(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using COUCHDB",
+        visible_alias = "couch",
+        override_usage = "brute couchdb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute couchdb 192.168.5.10 -u admin -p couch_pass\n  brute couchdb 192.168.5.10 -u '' -p ''\n  brute couchdb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs"
+    )]
+    Couchdb(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -299,7 +307,8 @@ impl ProtocolArgs {
             | Self::Ldap(args)
             | Self::Grafana(args)
             | Self::Prometheus(args)
-            | Self::Jenkins(args) => &args.common,
+            | Self::Jenkins(args)
+            | Self::Couchdb(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -346,7 +355,8 @@ impl ProtocolArgs {
             | Self::Ldap(args)
             | Self::Grafana(args)
             | Self::Prometheus(args)
-            | Self::Jenkins(args) => args.execute.as_deref(),
+            | Self::Jenkins(args)
+            | Self::Couchdb(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -731,6 +741,7 @@ pub enum Protocol {
     Grafana,
     Prometheus,
     Jenkins,
+    Couchdb,
 }
 
 impl Protocol {
@@ -767,6 +778,7 @@ impl Protocol {
             Self::Grafana => 3000,
             Self::Prometheus => 9090,
             Self::Jenkins => 8080,
+            Self::Couchdb => 5984,
         }
     }
 
@@ -803,6 +815,7 @@ impl Protocol {
             Self::Grafana => "grafana",
             Self::Prometheus => "prometheus",
             Self::Jenkins => "jenkins",
+            Self::Couchdb => "couchdb",
         }
     }
 }
@@ -841,6 +854,7 @@ impl ProtocolArgs {
             Self::Grafana(_) => Protocol::Grafana,
             Self::Prometheus(_) => Protocol::Prometheus,
             Self::Jenkins(_) => Protocol::Jenkins,
+            Self::Couchdb(_) => Protocol::Couchdb,
         }
     }
 }

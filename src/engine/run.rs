@@ -17,13 +17,13 @@ use crate::credentials::{LoadedCredentials, load_credentials, load_service_names
 use crate::database::CredentialDatabase;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
-    activemq::ActiveMqModule, docker::DockerModule, elasticsearch::ElasticsearchModule,
-    ftp::FtpModule, grafana::GrafanaModule, http::HttpBasicModule, jenkins::JenkinsModule,
-    kafka::KafkaModule, kibana::KibanaModule, ldap::LdapModule, memcached::MemcachedModule,
-    mongodb::MongoDbModule, mssql::MssqlModule, mysql::MySqlModule, nfs::NfsModule,
-    oracle::OracleModule, postgresql::PostgreSqlModule, prometheus::PrometheusModule,
-    rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, rsync::RsyncModule,
-    smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
+    activemq::ActiveMqModule, couchdb::CouchDbModule, docker::DockerModule,
+    elasticsearch::ElasticsearchModule, ftp::FtpModule, grafana::GrafanaModule,
+    http::HttpBasicModule, jenkins::JenkinsModule, kafka::KafkaModule, kibana::KibanaModule,
+    ldap::LdapModule, memcached::MemcachedModule, mongodb::MongoDbModule, mssql::MssqlModule,
+    mysql::MySqlModule, nfs::NfsModule, oracle::OracleModule, postgresql::PostgreSqlModule,
+    prometheus::PrometheusModule, rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule,
+    rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
     tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
@@ -295,6 +295,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Grafana => Arc::new(GrafanaModule::new(request.timeout_ms)),
         Protocol::Prometheus => Arc::new(PrometheusModule::new(request.timeout_ms)),
         Protocol::Jenkins => Arc::new(JenkinsModule::new(request.timeout_ms)),
+        Protocol::Couchdb => Arc::new(CouchDbModule::new(request.timeout_ms)),
     }
 }
 

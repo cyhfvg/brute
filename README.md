@@ -60,6 +60,7 @@ Implemented modules:
 - `grafana` (HTTP login; `-x` org API; default port `3000`)
 - `prometheus` (alias `prom`; HTTP Basic; `-x` query/metrics; default port `9090`)
 - `jenkins` (HTTP Basic; `-x` whoami/api; default port `8080`)
+- `couchdb` (alias `couch`; HTTP Basic; `-x` dbs; default port `5984`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -198,6 +199,9 @@ brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
 brute jenkins 192.168.5.10 -u admin -p jenkins_pass
 brute jenkins 192.168.5.10 -u '' -p ''
 brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
+brute couchdb 192.168.5.10 -u admin -p couch_pass
+brute couchdb 192.168.5.10 -u '' -p ''
+brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
 ```
 
 ## Global Options
@@ -284,6 +288,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `grafana`: org API, for example `-x 'org'`
 - `prometheus`: PromQL query, for example `-x 'query'`
 - `jenkins`: Jenkins API, for example `-x 'whoami'`
+- `couchdb`: `_all_dbs`, for example `-x 'dbs'`
 
 Example:
 
@@ -566,6 +571,19 @@ brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
 ```
 
 Empty credentials probe `GET /api/json` without Authorization. Non-empty credentials use HTTP Basic Auth. `401`/`403` are authentication failures. `-x` GETs `whoami`/`queue`/`computers` or a caller path. Command failures do not discard a verified login.
+
+## CouchDB
+
+CouchDB HTTP Basic login and dictionary spray (default port `5984`):
+
+```bash
+brute couchdb 192.168.5.10 -u admin -p couch_pass
+brute couchdb 192.168.5.10 -u '' -p ''
+brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
+```
+
+Empty credentials probe `GET /` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs `_all_dbs`/`_up` or a caller path. Command failures do not discard a verified login.
+
 
 
 

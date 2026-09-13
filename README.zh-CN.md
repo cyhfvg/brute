@@ -59,6 +59,7 @@
 - `grafana`（HTTP 登录；`-x` org API；默认端口 `3000`）
 - `prometheus`（别名 `prom`；HTTP Basic；`-x` query/metrics；默认端口 `9090`）
 - `jenkins`（HTTP Basic；`-x` whoami/api；默认端口 `8080`）
+- `couchdb`（别名 `couch`；HTTP Basic；`-x` dbs；默认端口 `5984`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -197,6 +198,9 @@ brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
 brute jenkins 192.168.5.10 -u admin -p jenkins_pass
 brute jenkins 192.168.5.10 -u '' -p ''
 brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
+brute couchdb 192.168.5.10 -u admin -p couch_pass
+brute couchdb 192.168.5.10 -u '' -p ''
+brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
 ```
 
 ## 顶级参数
@@ -284,6 +288,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `grafana`: org API，例如 `-x 'org'`
 - `prometheus`: PromQL 查询，例如 `-x 'query'`
 - `jenkins`: Jenkins API，例如 `-x 'whoami'`
+- `couchdb`: `_all_dbs`，例如 `-x 'dbs'`
 
 示例：
 
@@ -566,6 +571,19 @@ brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
 ```
 
 空凭据探测不带 Authorization 的 `GET /api/json`。非空凭据走 HTTP Basic Auth。`401`/`403` 为认证失败。`-x` GET `whoami`/`queue`/`computers` 或调用方路径。命令失败不会丢掉已验证登录。
+
+## CouchDB
+
+CouchDB HTTP Basic 登录与字典喷洒（默认端口 `5984`）：
+
+```bash
+brute couchdb 192.168.5.10 -u admin -p couch_pass
+brute couchdb 192.168.5.10 -u '' -p ''
+brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
+```
+
+空凭据探测不带 Authorization 的 `GET /`。非空凭据走 HTTP Basic Auth。`-x` GET `_all_dbs`/`_up` 或调用方路径。命令失败不会丢掉已验证登录。
+
 
 
 

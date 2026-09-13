@@ -104,6 +104,8 @@
   HTTP `--proxy`.
 - `jenkins`: `reqwest` HTTP Basic (default port 8080); empty credentials probe
   `GET /api/json`; `-x` whoami/queue/computers. HTTP `--proxy`.
+- `couchdb`: `reqwest` HTTP Basic (default port 5984, alias `couch`); empty
+  credentials probe `GET /`; `-x` `_all_dbs`/`_up`. HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -119,7 +121,7 @@
 - hadoop
 - nacos
 - etcd
-- couchDB
+
 - influxDB
 - clickHouse
 - minio

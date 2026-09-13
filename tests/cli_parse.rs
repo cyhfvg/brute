@@ -1118,3 +1118,29 @@ fn parses_jenkins_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("whoami"));
 }
+
+/// Verifies CouchDB default port, alias, and `-x` command parsing.
+#[test]
+fn parses_couchdb_execute_and_default_port() {
+    assert_eq!(Protocol::Couchdb.default_port(), 5984);
+    assert_eq!(Protocol::Couchdb.as_str(), "couchdb");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "couchdb",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "couch_pass",
+        "-x",
+        "dbs",
+    ])
+    .expect("couchdb execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Couchdb(args)) = cli.command else {
+        panic!("expected couchdb protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("dbs"));
+}
