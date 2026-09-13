@@ -76,6 +76,8 @@ Implemented modules:
 - `kubelet` (HTTPS; token in `-p`; `-x` pods; default port `10250`)
 - `gitlab` (HTTP; `-x` user; default port `80`)
 - `harbor` (HTTP; `-x` projects; default port `80`)
+- `weblogic` (alias `wls`; console form login; `-x` console; default port `7001`)
+- `websphere` (alias `was`; console form login; `-x` console; default port `9043`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -262,6 +264,12 @@ brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
 brute harbor 192.168.5.10 -u admin -p Harbor12345
 brute harbor 192.168.5.10 -u '' -p ''
 brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1
+brute weblogic 192.168.5.10 -u '' -p ''
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1 -x console
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1
+brute websphere 192.168.5.10 -u '' -p ''
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
 ```
 
 ## Global Options
@@ -364,6 +372,8 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `kubelet`: kubelet HTTPS, for example `-x 'pods'`
 - `gitlab`: GitLab API, for example `-x 'user'`
 - `harbor`: Harbor API, for example `-x 'projects'`
+- `weblogic`: WebLogic console, for example `-x 'console'`
+- `websphere`: WebSphere console, for example `-x 'console'`
 
 Example:
 
@@ -838,6 +848,30 @@ brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
 ```
 
 Empty credentials probe `GET /api/v2.0/users` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs projects/users (or a path). Command failures do not discard a verified login.
+
+## WebLogic
+
+WebLogic admin console login and dictionary spray (default port `7001`):
+
+```bash
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1
+brute weblogic 192.168.5.10 -u '' -p ''
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1 -x console
+```
+
+Credentials POST `/console/j_security_check` as `j_username`/`j_password`. A redirect back to `LoginForm.jsp` is an auth failure; a redirect to `console.portal` is a hit. `-x` GETs the console page with the captured session cookie. Command failures do not discard a verified login.
+
+## WebSphere
+
+WebSphere admin console login and dictionary spray (default port `9043`, HTTPS):
+
+```bash
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1
+brute websphere 192.168.5.10 -u '' -p ''
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
+```
+
+Credentials POST `/ibm/console/j_security_check` as `j_username`/`j_password`. A redirect back to `logon.jsp` is an auth failure; TLS certificate verification is skipped. `-x` GETs the console page with the captured session cookie. Command failures do not discard a verified login.
 
 
 

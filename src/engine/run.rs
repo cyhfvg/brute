@@ -28,7 +28,8 @@ use crate::protocol::{
     prometheus::PrometheusModule, rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule,
     rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, solr::SolrModule, spark::SparkModule,
     ssh::SshModule, telnet::TelnetModule, tomcat::TomcatManagerModule, vnc::VncModule,
-    winrm::WinrmModule, zookeeper::ZookeeperModule,
+    weblogic::WeblogicModule, websphere::WebsphereModule, winrm::WinrmModule,
+    zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -314,6 +315,8 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Hadoop => Arc::new(HadoopModule::new(request.timeout_ms)),
         Protocol::Gitlab => Arc::new(GitlabModule::new(request.timeout_ms)),
         Protocol::Harbor => Arc::new(HarborModule::new(request.timeout_ms)),
+        Protocol::Weblogic => Arc::new(WeblogicModule::new(request.timeout_ms)),
+        Protocol::Websphere => Arc::new(WebsphereModule::new(request.timeout_ms)),
         Protocol::Kubelet => Arc::new(KubeletModule::new(request.timeout_ms)),
     }
 }

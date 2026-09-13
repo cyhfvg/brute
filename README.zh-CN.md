@@ -75,6 +75,8 @@
 - `kubelet`（HTTPS；token 放 `-p`；`-x` pods；默认端口 `10250`）
 - `gitlab`（HTTP；`-x` user；默认端口 `80`）
 - `harbor`（HTTP；`-x` projects；默认端口 `80`）
+- `weblogic`（别名 `wls`；控制台表单登录；`-x` console；默认端口 `7001`）
+- `websphere`（别名 `was`；控制台表单登录；`-x` console；默认端口 `9043`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -261,6 +263,12 @@ brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
 brute harbor 192.168.5.10 -u admin -p Harbor12345
 brute harbor 192.168.5.10 -u '' -p ''
 brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1
+brute weblogic 192.168.5.10 -u '' -p ''
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1 -x console
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1
+brute websphere 192.168.5.10 -u '' -p ''
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
 ```
 
 ## 顶级参数
@@ -364,6 +372,8 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `kubelet`: kubelet HTTPS，例如 `-x 'pods'`
 - `gitlab`: GitLab API，例如 `-x 'user'`
 - `harbor`: Harbor API，例如 `-x 'projects'`
+- `weblogic`: WebLogic 控制台，例如 `-x 'console'`
+- `websphere`: WebSphere 控制台，例如 `-x 'console'`
 
 示例：
 
@@ -838,6 +848,30 @@ brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
 ```
 
 空凭据探测不带 Authorization 的 `GET /api/v2.0/users`。非空凭据走 HTTP Basic Auth。`-x` GET projects/users（或路径）。命令失败不会丢掉已验证登录。
+
+## WebLogic
+
+WebLogic 控制台登录与字典喷洒（默认端口 `7001`）：
+
+```bash
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1
+brute weblogic 192.168.5.10 -u '' -p ''
+brute weblogic 192.168.5.10 -u weblogic -p Webl0gic-Pass1 -x console
+```
+
+凭据以 `j_username`/`j_password` POST 到 `/console/j_security_check`。重定向回 `LoginForm.jsp` 视为认证失败；重定向到 `console.portal` 视为命中。`-x` 带会话 cookie GET 控制台页面。命令失败不会丢掉已验证登录。
+
+## WebSphere
+
+WebSphere 控制台登录与字典喷洒（默认端口 `9043`，HTTPS）：
+
+```bash
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1
+brute websphere 192.168.5.10 -u '' -p ''
+brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
+```
+
+凭据以 `j_username`/`j_password` POST 到 `/ibm/console/j_security_check`。重定向回 `logon.jsp` 视为认证失败；跳过 TLS 证书校验。`-x` 带会话 cookie GET 控制台页面。命令失败不会丢掉已验证登录。
 
 
 

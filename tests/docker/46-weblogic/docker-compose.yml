@@ -1,0 +1,43 @@
+# WebLogic admin console lab.
+#
+# Oracle publishes no anonymously pullable WebLogic image: the official
+# `container-registry.oracle.com/middleware/weblogic` repository requires an
+# Oracle SSO login, and the old Docker Hub `store/oracle/weblogic` repository is
+# gone (410). To verify `brute weblogic` against a real server, pull the vendor
+# image after logging in and merge this service:
+#
+#   docker login container-registry.oracle.com
+#   docker pull container-registry.oracle.com/middleware/weblogic:12.2.1.4
+#
+#   weblogic:
+#     image: container-registry.oracle.com/middleware/weblogic:12.2.1.4
+#     container_name: weblogic-brute-lab
+#     ports:
+#       - "7001:7001"
+#     volumes:
+#       - ./properties:/u01/oracle/properties:ro
+#
+# The service below reproduces just the console login contract used by the
+# module (POST /console/j_security_check, redirect to console.portal on success
+# and back to LoginForm.jsp on failure) so the flow can be exercised offline.
+services:
+  weblogic-mock:
+    image: python:3-alpine
+    container_name: weblogic-brute-lab
+    restart: "no"
+    working_dir: /lab
+    volumes:
+      - ./mock_server.py:/lab/mock_server.py:ro
+    command: ["python3", "/lab/mock_server.py"]
+    ports:
+      - "7001:7001"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:7001/console/login/LoginForm.jsp')\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s

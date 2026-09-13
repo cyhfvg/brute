@@ -196,7 +196,57 @@ pub fn build_http_basic_client(
     scheme: HttpUrlScheme,
     proxy: Option<&crate::proxy::ProxyConfig>,
 ) -> Result<Client, reqwest::Error> {
+    build_http_client(timeout, scheme, proxy, true)
+}
+
+/// Builds an HTTP client that leaves redirect handling to the caller.
+///
+/// Form-login modules (`weblogic`, `websphere`) inspect the `Location` header
+/// and `Set-Cookie` of the login POST, so automatic redirect following would
+/// hide both.
+///
+/// # Parameters
+///
+/// - `timeout`: Per-attempt timeout from CLI `--timeout-ms`.
+/// - `scheme`: CLI `--protocol` value.
+/// - `proxy`: Optional outbound proxy from CLI `--proxy`.
+///
+/// # Returns
+///
+/// Configured [`Client`] that never follows redirects.
+///
+/// # Errors
+///
+/// Returns `reqwest::Error` when the client cannot be constructed.
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+/// use brute::cli::HttpUrlScheme;
+/// use brute::protocol::http::build_http_no_redirect_client;
+/// let client = build_http_no_redirect_client(Duration::from_secs(5), HttpUrlScheme::Http, None)
+///     .expect("client builds");
+/// let _ = client;
+/// ```
+pub fn build_http_no_redirect_client(
+    timeout: Duration,
+    scheme: HttpUrlScheme,
+    proxy: Option<&crate::proxy::ProxyConfig>,
+) -> Result<Client, reqwest::Error> {
+    build_http_client(timeout, scheme, proxy, false)
+}
+
+fn build_http_client(
+    timeout: Duration,
+    scheme: HttpUrlScheme,
+    proxy: Option<&crate::proxy::ProxyConfig>,
+    follow_redirects: bool,
+) -> Result<Client, reqwest::Error> {
     let mut builder = Client::builder().timeout(timeout);
+    if !follow_redirects {
+        builder = builder.redirect(reqwest::redirect::Policy::none());
+    }
     // HTTPS: always accept invalid/self-signed certificates by default.
     // Plain HTTP: no TLS; keep prior lenient builder if a hop redirects to TLS.
     if scheme_skips_cert_verification(scheme) || matches!(scheme, HttpUrlScheme::Http) {

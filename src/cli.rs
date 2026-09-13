@@ -389,6 +389,22 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute harbor 192.168.5.10 -u admin -p Harbor12345\n  brute harbor 192.168.5.10 -u '' -p ''\n  brute harbor 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects"
     )]
     Harbor(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using WEBLOGIC",
+        visible_alias = "wls",
+        override_usage = "brute weblogic <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute weblogic 192.168.5.10 -u weblogic -p weblogic_pass1\n  brute weblogic 192.168.5.10 -u '' -p ''\n  brute weblogic 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute weblogic 192.168.5.10 -u weblogic -p weblogic_pass1 -x console"
+    )]
+    Weblogic(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using WEBSPHERE",
+        visible_alias = "was",
+        override_usage = "brute websphere <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1\n  brute websphere 192.168.5.10 -u '' -p ''\n  brute websphere 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console"
+    )]
+    Websphere(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -432,7 +448,9 @@ impl ProtocolArgs {
             | Self::Hadoop(args)
             | Self::Kubelet(args)
             | Self::Gitlab(args)
-            | Self::Harbor(args) => &args.common,
+            | Self::Harbor(args)
+            | Self::Weblogic(args)
+            | Self::Websphere(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -495,7 +513,9 @@ impl ProtocolArgs {
             | Self::Hadoop(args)
             | Self::Kubelet(args)
             | Self::Gitlab(args)
-            | Self::Harbor(args) => args.execute.as_deref(),
+            | Self::Harbor(args)
+            | Self::Weblogic(args)
+            | Self::Websphere(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -896,6 +916,8 @@ pub enum Protocol {
     Spark,
     Hadoop,
     Harbor,
+    Weblogic,
+    Websphere,
 }
 
 impl Protocol {
@@ -948,6 +970,8 @@ impl Protocol {
             Self::Spark => 8080,
             Self::Hadoop => 9870,
             Self::Harbor => 80,
+            Self::Weblogic => 7001,
+            Self::Websphere => 9043,
         }
     }
 
@@ -1000,6 +1024,8 @@ impl Protocol {
             Self::Spark => "spark",
             Self::Hadoop => "hadoop",
             Self::Harbor => "harbor",
+            Self::Weblogic => "weblogic",
+            Self::Websphere => "websphere",
         }
     }
 }
@@ -1054,6 +1080,8 @@ impl ProtocolArgs {
             Self::Spark(_) => Protocol::Spark,
             Self::Hadoop(_) => Protocol::Hadoop,
             Self::Harbor(_) => Protocol::Harbor,
+            Self::Weblogic(_) => Protocol::Weblogic,
+            Self::Websphere(_) => Protocol::Websphere,
         }
     }
 }

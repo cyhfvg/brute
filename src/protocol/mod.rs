@@ -45,6 +45,8 @@ pub mod stub;
 pub mod telnet;
 pub mod tomcat;
 pub mod vnc;
+pub mod weblogic;
+pub mod websphere;
 pub mod winrm;
 pub mod zookeeper;
 

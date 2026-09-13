@@ -150,11 +150,10 @@
 - `harbor`: `reqwest` Harbor HTTP (default port 80); empty credentials probe
   `/api/v2.0/users`; non-empty HTTP Basic Auth. `-x` projects/users.
   HTTP `--proxy`.
-
-## Unsupported Protocols
-
-- weblogic
-- websphere
-
+- `weblogic`: `reqwest` WebLogic console form login (default port 7001, alias
+  `wls`); POST `/console/j_security_check`; `-x` console portal. HTTP `--proxy`.
+- `websphere`: `reqwest` WebSphere console form login over HTTPS (default port
+  9043, alias `was`); POST `/ibm/console/j_security_check`; `-x` console.
+  HTTP `--proxy`.
 
 (none currently reserved as unimplemented stubs)

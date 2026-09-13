@@ -1534,3 +1534,55 @@ fn parses_harbor_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("projects"));
 }
+
+/// Verifies WebLogic default port, alias, and `-x` command parsing.
+#[test]
+fn parses_weblogic_execute_and_default_port() {
+    assert_eq!(Protocol::Weblogic.default_port(), 7001);
+    assert_eq!(Protocol::Weblogic.as_str(), "weblogic");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "wls",
+        "192.168.5.10",
+        "-u",
+        "weblogic",
+        "-p",
+        "Webl0gic-Pass1",
+        "-x",
+        "console",
+    ])
+    .expect("weblogic execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Weblogic(args)) = cli.command else {
+        panic!("expected weblogic protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("console"));
+}
+
+/// Verifies WebSphere default port, alias, and `-x` command parsing.
+#[test]
+fn parses_websphere_execute_and_default_port() {
+    assert_eq!(Protocol::Websphere.default_port(), 9043);
+    assert_eq!(Protocol::Websphere.as_str(), "websphere");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "was",
+        "192.168.5.10",
+        "-u",
+        "wsadmin",
+        "-p",
+        "WsbPassw0rd1",
+        "-x",
+        "console",
+    ])
+    .expect("websphere execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Websphere(args)) = cli.command else {
+        panic!("expected websphere protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("console"));
+}
