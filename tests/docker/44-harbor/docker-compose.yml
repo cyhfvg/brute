@@ -1,0 +1,233 @@
+services:
+  log:
+    image: goharbor/harbor-log:v2.11.1
+    container_name: harbor-log-brute-lab
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    volumes:
+      - log_data:/var/log/docker/
+      - ./common/config/log/logrotate.conf:/etc/logrotate.d/logrotate.conf
+      - ./common/config/log/rsyslog_docker.conf:/etc/rsyslog.d/rsyslog_docker.conf
+    ports:
+      - 127.0.0.1:1514:10514
+    networks:
+      - harbor
+  registry:
+    image: goharbor/registry-photon:v2.11.1
+    container_name: registry-brute-lab
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    volumes:
+      - registry_storage:/storage
+      - ./common/config/registry/:/etc/registry/
+      - ./data/secret/registry/root.crt:/etc/registry/root.crt
+      - ./common/config/shared/trust-certificates:/harbor_cust_cert
+    networks:
+      - harbor
+    depends_on:
+      - log
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "registry"
+  registryctl:
+    image: goharbor/harbor-registryctl:v2.11.1
+    container_name: registryctl-brute-lab
+    env_file:
+      - ./common/config/registryctl/env
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    volumes:
+      - registry_storage:/storage
+      - ./common/config/registry/:/etc/registry/
+      - ./common/config/registryctl/config.yml:/etc/registryctl/config.yml
+      - ./common/config/shared/trust-certificates:/harbor_cust_cert
+    networks:
+      - harbor
+    depends_on:
+      - log
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "registryctl"
+  postgresql:
+    image: goharbor/harbor-db:v2.11.1
+    container_name: harbor-db-brute-lab
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      harbor:
+    env_file:
+      - ./common/config/db/env
+    depends_on:
+      - log
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "postgresql"
+    shm_size: '1gb'
+  core:
+    image: goharbor/harbor-core:v2.11.1
+    container_name: harbor-core-brute-lab
+    env_file:
+      - ./common/config/core/env
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    volumes:
+      - ca_download_data:/etc/core/ca/
+      - core_data:/data/
+      - ./common/config/core/certificates/:/etc/core/certificates/
+      - ./common/config/core/app.conf:/etc/core/app.conf
+      - ./data/secret/core/private_key.pem:/etc/core/private_key.pem
+      - ./data/secret/keys/secretkey:/etc/core/key
+      - ./common/config/shared/trust-certificates:/harbor_cust_cert
+    networks:
+      harbor:
+    depends_on:
+      - log
+      - registry
+      - redis
+      - postgresql
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "core"
+  portal:
+    image: goharbor/harbor-portal:v2.11.1
+    container_name: harbor-portal-brute-lab
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    volumes:
+      - ./common/config/portal/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - harbor
+    depends_on:
+      - log
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "portal"
+  jobservice:
+    image: goharbor/harbor-jobservice:v2.11.1
+    container_name: harbor-jobservice-brute-lab
+    env_file:
+      - ./common/config/jobservice/env
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    volumes:
+      - job_logs:/var/log/jobs
+      - ./common/config/jobservice/config.yml:/etc/jobservice/config.yml
+      - ./common/config/shared/trust-certificates:/harbor_cust_cert
+    networks:
+      - harbor
+    depends_on:
+      - core
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "jobservice"
+  redis:
+    image: goharbor/redis-photon:v2.11.1
+    container_name: redis-brute-lab
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    volumes:
+      - redis_data:/var/lib/redis
+    networks:
+      harbor:
+    depends_on:
+      - log
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "redis"
+  proxy:
+    image: goharbor/nginx-photon:v2.11.1
+    container_name: nginx-brute-lab
+    restart: "no"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    volumes:
+      - ./common/config/nginx:/etc/nginx
+      - ./common/config/shared/trust-certificates:/harbor_cust_cert
+    networks:
+      - harbor
+    ports:
+      - 80:8080
+    depends_on:
+      - registry
+      - core
+      - portal
+      - log
+    logging:
+      driver: "syslog"
+      options:
+        syslog-address: "tcp://localhost:1514"
+        tag: "proxy"
+networks:
+  harbor:
+    external: false
+volumes:
+  log_data:
+  registry_storage:
+  db_data:
+  redis_data:
+  job_logs:
+  ca_download_data:
+  core_data:
