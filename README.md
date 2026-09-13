@@ -63,6 +63,7 @@ Implemented modules:
 - `couchdb` (alias `couch`; HTTP Basic; `-x` dbs; default port `5984`)
 - `clickhouse` (alias `ch`; HTTP SQL; `-x` version; default port `8123`)
 - `neo4j` (HTTP Cypher; `-x` ping; default port `7474`)
+- `etcd` (v3 HTTP; `-x` version; default port `2379`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -210,6 +211,9 @@ brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
 brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass
 brute neo4j 192.168.5.10 -u '' -p ''
 brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
+brute etcd 192.168.5.10 -u root -p etcd_pass
+brute etcd 192.168.5.10 -u '' -p ''
+brute etcd 192.168.5.10 -u root -p etcd_pass -x version
 ```
 
 ## Global Options
@@ -299,6 +303,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `couchdb`: `_all_dbs`, for example `-x 'dbs'`
 - `clickhouse`: SQL query, for example `-x 'version'`
 - `neo4j`: Cypher, for example `-x 'ping'`
+- `etcd`: version/range API, for example `-x 'version'`
 
 Example:
 
@@ -617,6 +622,19 @@ brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
 ```
 
 Empty credentials probe `RETURN 1` without Authorization. Non-empty credentials POST `/db/neo4j/tx/commit` with HTTP Basic Auth. `-x` runs Cypher (`ping`/`labels` or a statement). Command failures do not discard a verified login.
+
+## etcd
+
+etcd v3 HTTP login and dictionary spray (default port `2379`):
+
+```bash
+brute etcd 192.168.5.10 -u root -p etcd_pass
+brute etcd 192.168.5.10 -u '' -p ''
+brute etcd 192.168.5.10 -u root -p etcd_pass -x version
+```
+
+Empty credentials probe `POST /v3/kv/range` without a token. Non-empty credentials POST `/v3/auth/authenticate`. `-x` GETs `/version` or POSTs `/v3/kv/range`. Command failures do not discard a verified login.
+
 
 
 

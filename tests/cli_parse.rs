@@ -1196,3 +1196,29 @@ fn parses_neo4j_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("ping"));
 }
+
+/// Verifies etcd default port and `-x` command parsing.
+#[test]
+fn parses_etcd_execute_and_default_port() {
+    assert_eq!(Protocol::Etcd.default_port(), 2379);
+    assert_eq!(Protocol::Etcd.as_str(), "etcd");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "etcd",
+        "192.168.5.10",
+        "-u",
+        "root",
+        "-p",
+        "etcd_pass",
+        "-x",
+        "version",
+    ])
+    .expect("etcd execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Etcd(args)) = cli.command else {
+        panic!("expected etcd protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("version"));
+}

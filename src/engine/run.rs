@@ -18,7 +18,7 @@ use crate::database::CredentialDatabase;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
     activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
-    docker::DockerModule, elasticsearch::ElasticsearchModule, ftp::FtpModule,
+    docker::DockerModule, elasticsearch::ElasticsearchModule, etcd::EtcdModule, ftp::FtpModule,
     grafana::GrafanaModule, http::HttpBasicModule, jenkins::JenkinsModule, kafka::KafkaModule,
     kibana::KibanaModule, ldap::LdapModule, memcached::MemcachedModule, mongodb::MongoDbModule,
     mssql::MssqlModule, mysql::MySqlModule, neo4j::Neo4jModule, nfs::NfsModule,
@@ -299,6 +299,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Couchdb => Arc::new(CouchDbModule::new(request.timeout_ms)),
         Protocol::Clickhouse => Arc::new(ClickHouseModule::new(request.timeout_ms)),
         Protocol::Neo4j => Arc::new(Neo4jModule::new(request.timeout_ms)),
+        Protocol::Etcd => Arc::new(EtcdModule::new(request.timeout_ms)),
     }
 }
 

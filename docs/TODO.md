@@ -111,6 +111,9 @@
   HTTP `--proxy`.
 - `neo4j`: `reqwest` HTTP Cypher (default port 7474); empty credentials probe
   `RETURN 1` without Authorization; `-x` Cypher (`ping`/`labels`). HTTP `--proxy`.
+- `etcd`: `reqwest` etcd v3 HTTP (default port 2379); empty credentials probe
+  `/v3/kv/range`; non-empty POST `/v3/auth/authenticate`; `-x` version/range.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -125,7 +128,7 @@
 - spark
 - hadoop
 - nacos
-- etcd
+
 
 - influxDB
 

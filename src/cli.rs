@@ -295,6 +295,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass\n  brute neo4j 192.168.5.10 -u '' -p ''\n  brute neo4j 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping"
     )]
     Neo4j(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using ETCD",
+        override_usage = "brute etcd <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute etcd 192.168.5.10 -u root -p etcd_pass\n  brute etcd 192.168.5.10 -u '' -p ''\n  brute etcd 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute etcd 192.168.5.10 -u root -p etcd_pass -x version"
+    )]
+    Etcd(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -325,7 +332,8 @@ impl ProtocolArgs {
             | Self::Jenkins(args)
             | Self::Couchdb(args)
             | Self::Clickhouse(args)
-            | Self::Neo4j(args) => &args.common,
+            | Self::Neo4j(args)
+            | Self::Etcd(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -375,7 +383,8 @@ impl ProtocolArgs {
             | Self::Jenkins(args)
             | Self::Couchdb(args)
             | Self::Clickhouse(args)
-            | Self::Neo4j(args) => args.execute.as_deref(),
+            | Self::Neo4j(args)
+            | Self::Etcd(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -763,6 +772,7 @@ pub enum Protocol {
     Couchdb,
     Clickhouse,
     Neo4j,
+    Etcd,
 }
 
 impl Protocol {
@@ -802,6 +812,7 @@ impl Protocol {
             Self::Couchdb => 5984,
             Self::Clickhouse => 8123,
             Self::Neo4j => 7474,
+            Self::Etcd => 2379,
         }
     }
 
@@ -841,6 +852,7 @@ impl Protocol {
             Self::Couchdb => "couchdb",
             Self::Clickhouse => "clickhouse",
             Self::Neo4j => "neo4j",
+            Self::Etcd => "etcd",
         }
     }
 }
@@ -882,6 +894,7 @@ impl ProtocolArgs {
             Self::Couchdb(_) => Protocol::Couchdb,
             Self::Clickhouse(_) => Protocol::Clickhouse,
             Self::Neo4j(_) => Protocol::Neo4j,
+            Self::Etcd(_) => Protocol::Etcd,
         }
     }
 }

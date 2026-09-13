@@ -62,6 +62,7 @@
 - `couchdb`（别名 `couch`；HTTP Basic；`-x` dbs；默认端口 `5984`）
 - `clickhouse`（别名 `ch`；HTTP SQL；`-x` version；默认端口 `8123`）
 - `neo4j`（HTTP Cypher；`-x` ping；默认端口 `7474`）
+- `etcd`（v3 HTTP；`-x` version；默认端口 `2379`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -209,6 +210,9 @@ brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
 brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass
 brute neo4j 192.168.5.10 -u '' -p ''
 brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
+brute etcd 192.168.5.10 -u root -p etcd_pass
+brute etcd 192.168.5.10 -u '' -p ''
+brute etcd 192.168.5.10 -u root -p etcd_pass -x version
 ```
 
 ## 顶级参数
@@ -299,6 +303,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `couchdb`: `_all_dbs`，例如 `-x 'dbs'`
 - `clickhouse`: SQL 查询，例如 `-x 'version'`
 - `neo4j`: Cypher，例如 `-x 'ping'`
+- `etcd`: version/range API，例如 `-x 'version'`
 
 示例：
 
@@ -617,6 +622,19 @@ brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
 ```
 
 空凭据探测不带 Authorization 的 `RETURN 1`。非空凭据以 HTTP Basic Auth POST `/db/neo4j/tx/commit`。`-x` 执行 Cypher（`ping`/`labels` 或语句）。命令失败不会丢掉已验证登录。
+
+## etcd
+
+etcd v3 HTTP 登录与字典喷洒（默认端口 `2379`）：
+
+```bash
+brute etcd 192.168.5.10 -u root -p etcd_pass
+brute etcd 192.168.5.10 -u '' -p ''
+brute etcd 192.168.5.10 -u root -p etcd_pass -x version
+```
+
+空凭据探测无 token 的 `POST /v3/kv/range`。非空凭据 POST `/v3/auth/authenticate`。`-x` GET `/version` 或 POST `/v3/kv/range`。命令失败不会丢掉已验证登录。
+
 
 
 

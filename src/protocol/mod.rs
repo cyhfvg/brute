@@ -5,6 +5,7 @@ pub mod clickhouse;
 pub mod couchdb;
 pub mod docker;
 pub mod elasticsearch;
+pub mod etcd;
 pub mod ftp;
 pub mod grafana;
 pub mod http;
