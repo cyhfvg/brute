@@ -243,6 +243,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute telnet 192.168.5.10 -u admin -p telnet_pass\n  brute telnet 192.168.5.10 -u '' -p ''\n  brute telnet 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute telnet 192.168.5.10 -u admin -p telnet_pass -x id"
     )]
     Telnet(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using LDAP",
+        override_usage = "brute ldap <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass\n  brute ldap 192.168.5.10 -u '' -p ''\n  brute ldap 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami"
+    )]
+    Ldap(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -266,7 +273,8 @@ impl ProtocolArgs {
             | Self::Kafka(args)
             | Self::Kibana(args)
             | Self::Nfs(args)
-            | Self::Telnet(args) => &args.common,
+            | Self::Telnet(args)
+            | Self::Ldap(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -309,7 +317,8 @@ impl ProtocolArgs {
             | Self::Kafka(args)
             | Self::Kibana(args)
             | Self::Nfs(args)
-            | Self::Telnet(args) => args.execute.as_deref(),
+            | Self::Telnet(args)
+            | Self::Ldap(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -690,6 +699,7 @@ pub enum Protocol {
     Kibana,
     Nfs,
     Telnet,
+    Ldap,
 }
 
 impl Protocol {
@@ -722,6 +732,7 @@ impl Protocol {
             Self::Kibana => 5601,
             Self::Nfs => 2049,
             Self::Telnet => 23,
+            Self::Ldap => 389,
         }
     }
 
@@ -754,6 +765,7 @@ impl Protocol {
             Self::Kibana => "kibana",
             Self::Nfs => "nfs",
             Self::Telnet => "telnet",
+            Self::Ldap => "ldap",
         }
     }
 }
@@ -788,6 +800,7 @@ impl ProtocolArgs {
             Self::Kibana(_) => Protocol::Kibana,
             Self::Nfs(_) => Protocol::Nfs,
             Self::Telnet(_) => Protocol::Telnet,
+            Self::Ldap(_) => Protocol::Ldap,
         }
     }
 }

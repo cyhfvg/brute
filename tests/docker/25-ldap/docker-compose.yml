@@ -1,0 +1,32 @@
+services:
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: ldap-brute-lab
+    restart: "no"
+    environment:
+      LDAP_ORGANISATION: Example
+      LDAP_DOMAIN: example.org
+      LDAP_ADMIN_PASSWORD: ldap_pass
+    ports:
+      - "389:389"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "ldapsearch",
+          "-x",
+          "-H",
+          "ldap://127.0.0.1:389",
+          "-D",
+          "cn=admin,dc=example,dc=org",
+          "-w",
+          "ldap_pass",
+          "-b",
+          "dc=example,dc=org",
+          "-LLL",
+          "dn",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s

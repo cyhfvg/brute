@@ -55,6 +55,7 @@
 - `kibana`（HTTP 登录；`-x` status API；默认端口 `5601`）
 - `nfs`（NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX；`-x` dump；默认端口 `2049`）
 - `telnet`（IAC + login/password；`-x` shell 命令；默认端口 `23`）
+- `ldap`（simple bind；`-x` whoami/search；默认端口 `389`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -181,6 +182,9 @@ brute nfs 192.168.5.10 -u 0 -p '' -x dump
 brute telnet 192.168.5.10 -u admin -p telnet_pass
 brute telnet 192.168.5.10 -u '' -p ''
 brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass
+brute ldap 192.168.5.10 -u '' -p ''
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
 ```
 
 ## 顶级参数
@@ -264,6 +268,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `kibana`: status API，例如 `-x 'status'`
 - `nfs`: 尝试 MOUNT DUMP，例如 `-x 'dump'`
 - `telnet`: 远程 shell 命令，例如 `-x 'id'`
+- `ldap`: whoami 或 LDAP search，例如 `-x 'whoami'`
 
 示例：
 
@@ -498,6 +503,19 @@ brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
 ```
 
 空凭据探测对端是否在没有登录提示的情况下进入 shell。非空凭据在拒绝 Telnet 选项后应答 `login:` / `Password:`。`-x` 在同一会话执行 shell 命令。命令失败不会丢掉已验证登录。
+
+## LDAP
+
+LDAP simple bind 与字典喷洒（默认端口 `389`）：
+
+```bash
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass
+brute ldap 192.168.5.10 -u '' -p ''
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
+```
+
+`-u` 是 bind DN。空凭据探测匿名 bind 并读取 Root DSE。`-x` 执行 `whoami`、`rootdse`、LDAP filter 或 DN 搜索。命令失败不会丢掉已验证登录。
+
 
 
 

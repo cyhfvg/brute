@@ -1014,3 +1014,29 @@ fn parses_telnet_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("id"));
 }
+
+/// Verifies LDAP default port and `-x` command parsing.
+#[test]
+fn parses_ldap_execute_and_default_port() {
+    assert_eq!(Protocol::Ldap.default_port(), 389);
+    assert_eq!(Protocol::Ldap.as_str(), "ldap");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "ldap",
+        "192.168.5.10",
+        "-u",
+        "cn=admin,dc=example,dc=org",
+        "-p",
+        "ldap_pass",
+        "-x",
+        "whoami",
+    ])
+    .expect("ldap execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Ldap(args)) = cli.command else {
+        panic!("expected ldap protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("whoami"));
+}

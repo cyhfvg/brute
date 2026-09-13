@@ -56,6 +56,7 @@ Implemented modules:
 - `kibana` (HTTP login; `-x` status API; default port `5601`)
 - `nfs` (NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX; `-x` dump; default port `2049`)
 - `telnet` (IAC + login/password; `-x` shell command; default port `23`)
+- `ldap` (simple bind; `-x` whoami/search; default port `389`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -182,6 +183,9 @@ brute nfs 192.168.5.10 -u 0 -p '' -x dump
 brute telnet 192.168.5.10 -u admin -p telnet_pass
 brute telnet 192.168.5.10 -u '' -p ''
 brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass
+brute ldap 192.168.5.10 -u '' -p ''
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
 ```
 
 ## Global Options
@@ -264,6 +268,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `kibana`: status API, for example `-x 'status'`
 - `nfs`: MOUNT DUMP attempt, for example `-x 'dump'`
 - `telnet`: remote shell command, for example `-x 'id'`
+- `ldap`: whoami or LDAP search, for example `-x 'whoami'`
 
 Example:
 
@@ -498,6 +503,19 @@ brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
 ```
 
 Empty credentials probe whether the peer drops into a shell without a login prompt. Non-empty credentials answer `login:` / `Password:` after refusing Telnet options. `-x` runs a shell command on the same session. Command failures do not discard a verified login.
+
+## LDAP
+
+LDAP simple bind and dictionary spray (default port `389`):
+
+```bash
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass
+brute ldap 192.168.5.10 -u '' -p ''
+brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
+```
+
+`-u` is the bind DN. Empty credentials probe anonymous bind plus a Root DSE read. `-x` runs `whoami`, `rootdse`, an LDAP filter, or a DN search. Command failures do not discard a verified login.
+
 
 
 

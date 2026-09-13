@@ -1,0 +1,2 @@
+cn=admin,dc=example,dc=org
+cn=nobody,dc=example,dc=org

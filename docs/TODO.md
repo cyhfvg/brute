@@ -94,10 +94,12 @@
 - `telnet`: pure-Rust IAC + login/password prompts (default port 23); empty
   `-u '' -p ''` probes unauthorized shell; `-x` runs a remote shell command.
   Stream-injectable `--proxy`.
+- `ldap`: `ldap3` simple bind (default port 389); `-u` is the bind DN; empty
+  `-u '' -p ''` probes anonymous Root DSE; `-x` whoami/rootdse/filter/DN search.
+  Host:port TCP proxy bridge.
 
 ## Unsupported Protocols
 
-- ldap
 - grafana
 - prometheus
 - jenkins

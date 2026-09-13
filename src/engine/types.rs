@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 26] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 27] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -236,6 +236,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 26] = [
     Protocol::Kibana,
     Protocol::Nfs,
     Protocol::Telnet,
+    Protocol::Ldap,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -289,6 +290,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "kibana" => Ok(Protocol::Kibana),
         "nfs" => Ok(Protocol::Nfs),
         "telnet" => Ok(Protocol::Telnet),
+        "ldap" => Ok(Protocol::Ldap),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS
@@ -479,7 +481,8 @@ mod tests {
         assert_eq!(parse_protocol("docker-api").unwrap(), Protocol::Docker);
         assert_eq!(parse_protocol("amq").unwrap(), Protocol::Activemq);
         assert_eq!(parse_protocol("amqp").unwrap(), Protocol::Rabbitmq);
-        assert!(parse_protocol("ldap").is_err());
+        assert_eq!(parse_protocol("ldap").unwrap(), Protocol::Ldap);
+        assert!(parse_protocol("not-a-protocol").is_err());
     }
 
     /// Verifies Oracle identifier validation before any network I/O.
