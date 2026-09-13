@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 31] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 32] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -241,6 +241,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 31] = [
     Protocol::Prometheus,
     Protocol::Jenkins,
     Protocol::Couchdb,
+    Protocol::Clickhouse,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -299,6 +300,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "prometheus" | "prom" => Ok(Protocol::Prometheus),
         "jenkins" => Ok(Protocol::Jenkins),
         "couchdb" | "couch" => Ok(Protocol::Couchdb),
+        "clickhouse" | "ch" => Ok(Protocol::Clickhouse),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS
@@ -487,6 +489,7 @@ mod tests {
         assert_eq!(parse_protocol("sqlserver").unwrap(), Protocol::Mssql);
         assert_eq!(parse_protocol("es").unwrap(), Protocol::Elasticsearch);
         assert_eq!(parse_protocol("docker-api").unwrap(), Protocol::Docker);
+        assert_eq!(parse_protocol("ch").unwrap(), Protocol::Clickhouse);
         assert_eq!(parse_protocol("amq").unwrap(), Protocol::Activemq);
         assert_eq!(parse_protocol("amqp").unwrap(), Protocol::Rabbitmq);
         assert_eq!(parse_protocol("ldap").unwrap(), Protocol::Ldap);

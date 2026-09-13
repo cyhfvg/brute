@@ -60,6 +60,7 @@
 - `prometheus`（别名 `prom`；HTTP Basic；`-x` query/metrics；默认端口 `9090`）
 - `jenkins`（HTTP Basic；`-x` whoami/api；默认端口 `8080`）
 - `couchdb`（别名 `couch`；HTTP Basic；`-x` dbs；默认端口 `5984`）
+- `clickhouse`（别名 `ch`；HTTP SQL；`-x` version；默认端口 `8123`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -201,6 +202,9 @@ brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
 brute couchdb 192.168.5.10 -u admin -p couch_pass
 brute couchdb 192.168.5.10 -u '' -p ''
 brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
+brute clickhouse 192.168.5.10 -u admin -p click_pass
+brute clickhouse 192.168.5.10 -u '' -p ''
+brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
 ```
 
 ## 顶级参数
@@ -289,6 +293,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `prometheus`: PromQL 查询，例如 `-x 'query'`
 - `jenkins`: Jenkins API，例如 `-x 'whoami'`
 - `couchdb`: `_all_dbs`，例如 `-x 'dbs'`
+- `clickhouse`: SQL 查询，例如 `-x 'version'`
 
 示例：
 
@@ -583,6 +588,19 @@ brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
 ```
 
 空凭据探测不带 Authorization 的 `GET /`。非空凭据走 HTTP Basic Auth。`-x` GET `_all_dbs`/`_up` 或调用方路径。命令失败不会丢掉已验证登录。
+
+## ClickHouse
+
+ClickHouse HTTP 登录与字典喷洒（默认端口 `8123`）：
+
+```bash
+brute clickhouse 192.168.5.10 -u admin -p click_pass
+brute clickhouse 192.168.5.10 -u '' -p ''
+brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
+```
+
+空凭据探测不带 Authorization 的 `SELECT 1`。非空凭据走 HTTP Basic Auth。`-x` 执行 SQL（`version`/`databases` 或查询）。命令失败不会丢掉已验证登录。
+
 
 
 

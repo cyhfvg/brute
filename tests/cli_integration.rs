@@ -97,6 +97,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("prometheus"));
     assert!(stdout.contains("jenkins"));
     assert!(stdout.contains("couchdb"));
+    assert!(stdout.contains("clickhouse"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -840,6 +841,19 @@ fn couchdb_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("dbs"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn clickhouse_help_exposes_command_execution() {
+    let home = TempHome::new("clickhouse-help");
+
+    let output = run_with_home(&home, ["clickhouse", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("version"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

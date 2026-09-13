@@ -106,6 +106,9 @@
   `GET /api/json`; `-x` whoami/queue/computers. HTTP `--proxy`.
 - `couchdb`: `reqwest` HTTP Basic (default port 5984, alias `couch`); empty
   credentials probe `GET /`; `-x` `_all_dbs`/`_up`. HTTP `--proxy`.
+- `clickhouse`: `reqwest` HTTP (default port 8123, alias `ch`); empty credentials
+  probe `SELECT 1` without Authorization; `-x` SQL (`version`/`databases`).
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -123,7 +126,7 @@
 - etcd
 
 - influxDB
-- clickHouse
+
 - minio
 - Neo4j
 - kubelet

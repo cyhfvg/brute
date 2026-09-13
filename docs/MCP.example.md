@@ -14,7 +14,7 @@
 | `spray_passwords` | 多个目标、多个用户、多个密码, 或字典文件 |
 | `list_credentials` | 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据 |
 
-协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`), `mongodb` (别名 `mongo`), `elasticsearch` (别名 `es`), `docker` (别名 `docker-api`), `snmp`, `activemq` (别名 `amq`), `rabbitmq` (别名 `amqp`), `rsync`, `mssql` (别名 `sqlserver`), `kafka`, `kibana`, `nfs`, `telnet`, `ldap`, `grafana`, `prometheus` (别名 `prom`), `jenkins`, `couchdb` (别名 `couch`).
+协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`), `mongodb` (别名 `mongo`), `elasticsearch` (别名 `es`), `docker` (别名 `docker-api`), `snmp`, `activemq` (别名 `amq`), `rabbitmq` (别名 `amqp`), `rsync`, `mssql` (别名 `sqlserver`), `kafka`, `kibana`, `nfs`, `telnet`, `ldap`, `grafana`, `prometheus` (别名 `prom`), `jenkins`, `couchdb` (别名 `couch`), `clickhouse` (别名 `ch`).
 
 `verify_account` 与 `spray_passwords` 共用 `options`:
 
@@ -25,7 +25,7 @@
 | `retries` | 传输层临时错误重试次数 | `3` |
 | `proxy` | `http://[user[:pass]@]host:port` 或 `socks5://...` | 无 |
 | `workspace` | 保存成功凭据 / 读取 `--id` 的 workspace | 当前 workspace |
-| `execute` | 认证成功后的命令. 仅 `ssh`/`ftp`/`mysql`/`postgresql`/`redis`/`oracle`/`winrm`/`zookeeper`/`memcached`/`mongodb`/`elasticsearch`/`docker`/`snmp`/`activemq`/`rabbitmq`/`mssql`/`kafka`/`kibana`/`nfs`/`telnet`/`ldap`/`grafana`/`prometheus`/`jenkins`/`couchdb` | 无 |
+| `execute` | 认证成功后的命令. 仅 `ssh`/`ftp`/`mysql`/`postgresql`/`redis`/`oracle`/`winrm`/`zookeeper`/`memcached`/`mongodb`/`elasticsearch`/`docker`/`snmp`/`activemq`/`rabbitmq`/`mssql`/`kafka`/`kibana`/`nfs`/`telnet`/`ldap`/`grafana`/`prometheus`/`jenkins`/`couchdb`/`clickhouse` | 无 |
 | `path` | HTTP / Tomcat 请求路径 | http=`/`, tomcat=`/manager/html` |
 | `url_scheme` | `http` 或 `https` | `http` |
 | `service_names` | Oracle Service Name 或多值/字典路径. 与 `sids` 互斥 | 空 |
@@ -95,7 +95,8 @@
   { "name": "grafana", "default_port": 3000 },
   { "name": "prometheus", "default_port": 9090 },
   { "name": "jenkins", "default_port": 8080 },
-  { "name": "couchdb", "default_port": 5984 }
+  { "name": "couchdb", "default_port": 5984 },
+  { "name": "clickhouse", "default_port": 8123 }
 ]
 ```
 

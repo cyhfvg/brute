@@ -1,6 +1,7 @@
 //! Protocol implementations and shared abstractions.
 
 pub mod activemq;
+pub mod clickhouse;
 pub mod couchdb;
 pub mod docker;
 pub mod elasticsearch;

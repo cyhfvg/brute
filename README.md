@@ -61,6 +61,7 @@ Implemented modules:
 - `prometheus` (alias `prom`; HTTP Basic; `-x` query/metrics; default port `9090`)
 - `jenkins` (HTTP Basic; `-x` whoami/api; default port `8080`)
 - `couchdb` (alias `couch`; HTTP Basic; `-x` dbs; default port `5984`)
+- `clickhouse` (alias `ch`; HTTP SQL; `-x` version; default port `8123`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -202,6 +203,9 @@ brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami
 brute couchdb 192.168.5.10 -u admin -p couch_pass
 brute couchdb 192.168.5.10 -u '' -p ''
 brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
+brute clickhouse 192.168.5.10 -u admin -p click_pass
+brute clickhouse 192.168.5.10 -u '' -p ''
+brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
 ```
 
 ## Global Options
@@ -289,6 +293,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `prometheus`: PromQL query, for example `-x 'query'`
 - `jenkins`: Jenkins API, for example `-x 'whoami'`
 - `couchdb`: `_all_dbs`, for example `-x 'dbs'`
+- `clickhouse`: SQL query, for example `-x 'version'`
 
 Example:
 
@@ -583,6 +588,19 @@ brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
 ```
 
 Empty credentials probe `GET /` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs `_all_dbs`/`_up` or a caller path. Command failures do not discard a verified login.
+
+## ClickHouse
+
+ClickHouse HTTP login and dictionary spray (default port `8123`):
+
+```bash
+brute clickhouse 192.168.5.10 -u admin -p click_pass
+brute clickhouse 192.168.5.10 -u '' -p ''
+brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
+```
+
+Empty credentials probe `SELECT 1` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` runs SQL (`version`/`databases` or a query). Command failures do not discard a verified login.
+
 
 
 

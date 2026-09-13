@@ -1144,3 +1144,29 @@ fn parses_couchdb_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("dbs"));
 }
+
+/// Verifies ClickHouse default port, alias, and `-x` command parsing.
+#[test]
+fn parses_clickhouse_execute_and_default_port() {
+    assert_eq!(Protocol::Clickhouse.default_port(), 8123);
+    assert_eq!(Protocol::Clickhouse.as_str(), "clickhouse");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "clickhouse",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "click_pass",
+        "-x",
+        "version",
+    ])
+    .expect("clickhouse execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Clickhouse(args)) = cli.command else {
+        panic!("expected clickhouse protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("version"));
+}

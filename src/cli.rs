@@ -280,6 +280,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute couchdb 192.168.5.10 -u admin -p couch_pass\n  brute couchdb 192.168.5.10 -u '' -p ''\n  brute couchdb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs"
     )]
     Couchdb(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using CLICKHOUSE",
+        visible_alias = "ch",
+        override_usage = "brute clickhouse <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute clickhouse 192.168.5.10 -u admin -p click_pass\n  brute clickhouse 192.168.5.10 -u '' -p ''\n  brute clickhouse 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute clickhouse 192.168.5.10 -u admin -p click_pass -x version"
+    )]
+    Clickhouse(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -308,7 +316,8 @@ impl ProtocolArgs {
             | Self::Grafana(args)
             | Self::Prometheus(args)
             | Self::Jenkins(args)
-            | Self::Couchdb(args) => &args.common,
+            | Self::Couchdb(args)
+            | Self::Clickhouse(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -356,7 +365,8 @@ impl ProtocolArgs {
             | Self::Grafana(args)
             | Self::Prometheus(args)
             | Self::Jenkins(args)
-            | Self::Couchdb(args) => args.execute.as_deref(),
+            | Self::Couchdb(args)
+            | Self::Clickhouse(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -742,6 +752,7 @@ pub enum Protocol {
     Prometheus,
     Jenkins,
     Couchdb,
+    Clickhouse,
 }
 
 impl Protocol {
@@ -779,6 +790,7 @@ impl Protocol {
             Self::Prometheus => 9090,
             Self::Jenkins => 8080,
             Self::Couchdb => 5984,
+            Self::Clickhouse => 8123,
         }
     }
 
@@ -816,6 +828,7 @@ impl Protocol {
             Self::Prometheus => "prometheus",
             Self::Jenkins => "jenkins",
             Self::Couchdb => "couchdb",
+            Self::Clickhouse => "clickhouse",
         }
     }
 }
@@ -855,6 +868,7 @@ impl ProtocolArgs {
             Self::Prometheus(_) => Protocol::Prometheus,
             Self::Jenkins(_) => Protocol::Jenkins,
             Self::Couchdb(_) => Protocol::Couchdb,
+            Self::Clickhouse(_) => Protocol::Clickhouse,
         }
     }
 }
