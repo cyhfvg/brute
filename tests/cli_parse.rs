@@ -1040,3 +1040,29 @@ fn parses_ldap_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("whoami"));
 }
+
+/// Verifies Grafana default port and `-x` command parsing.
+#[test]
+fn parses_grafana_execute_and_default_port() {
+    assert_eq!(Protocol::Grafana.default_port(), 3000);
+    assert_eq!(Protocol::Grafana.as_str(), "grafana");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "grafana",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "grafana_pass",
+        "-x",
+        "org",
+    ])
+    .expect("grafana execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Grafana(args)) = cli.command else {
+        panic!("expected grafana protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("org"));
+}

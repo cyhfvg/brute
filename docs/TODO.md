@@ -97,10 +97,11 @@
 - `ldap`: `ldap3` simple bind (default port 389); `-u` is the bind DN; empty
   `-u '' -p ''` probes anonymous Root DSE; `-x` whoami/rootdse/filter/DN search.
   Host:port TCP proxy bridge.
+- `grafana`: `reqwest` POST `/login` (default port 3000); empty credentials probe
+  `GET /api/org`; `-x` GET API with session cookie. HTTP `--proxy`.
 
 ## Unsupported Protocols
 
-- grafana
 - prometheus
 - jenkins
 - gitlab

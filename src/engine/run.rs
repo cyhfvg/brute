@@ -18,11 +18,11 @@ use crate::database::CredentialDatabase;
 use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
     activemq::ActiveMqModule, docker::DockerModule, elasticsearch::ElasticsearchModule,
-    ftp::FtpModule, http::HttpBasicModule, kafka::KafkaModule, kibana::KibanaModule,
-    ldap::LdapModule, memcached::MemcachedModule, mongodb::MongoDbModule, mssql::MssqlModule,
-    mysql::MySqlModule, nfs::NfsModule, oracle::OracleModule, postgresql::PostgreSqlModule,
-    rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, rsync::RsyncModule,
-    smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
+    ftp::FtpModule, grafana::GrafanaModule, http::HttpBasicModule, kafka::KafkaModule,
+    kibana::KibanaModule, ldap::LdapModule, memcached::MemcachedModule, mongodb::MongoDbModule,
+    mssql::MssqlModule, mysql::MySqlModule, nfs::NfsModule, oracle::OracleModule,
+    postgresql::PostgreSqlModule, rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule,
+    rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
     tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
@@ -291,6 +291,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Nfs => Arc::new(NfsModule::new(request.timeout_ms)),
         Protocol::Telnet => Arc::new(TelnetModule::new(request.timeout_ms)),
         Protocol::Ldap => Arc::new(LdapModule::new(request.timeout_ms)),
+        Protocol::Grafana => Arc::new(GrafanaModule::new(request.timeout_ms)),
     }
 }
 

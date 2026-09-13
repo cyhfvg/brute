@@ -57,6 +57,7 @@ Implemented modules:
 - `nfs` (NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX; `-x` dump; default port `2049`)
 - `telnet` (IAC + login/password; `-x` shell command; default port `23`)
 - `ldap` (simple bind; `-x` whoami/search; default port `389`)
+- `grafana` (HTTP login; `-x` org API; default port `3000`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -186,6 +187,9 @@ brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
 brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass
 brute ldap 192.168.5.10 -u '' -p ''
 brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
+brute grafana 192.168.5.10 -u admin -p grafana_pass
+brute grafana 192.168.5.10 -u '' -p ''
+brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
 ```
 
 ## Global Options
@@ -269,6 +273,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `nfs`: MOUNT DUMP attempt, for example `-x 'dump'`
 - `telnet`: remote shell command, for example `-x 'id'`
 - `ldap`: whoami or LDAP search, for example `-x 'whoami'`
+- `grafana`: org API, for example `-x 'org'`
 
 Example:
 
@@ -515,6 +520,19 @@ brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
 ```
 
 `-u` is the bind DN. Empty credentials probe anonymous bind plus a Root DSE read. `-x` runs `whoami`, `rootdse`, an LDAP filter, or a DN search. Command failures do not discard a verified login.
+
+## Grafana
+
+Grafana login and dictionary spray (default port `3000`):
+
+```bash
+brute grafana 192.168.5.10 -u admin -p grafana_pass
+brute grafana 192.168.5.10 -u '' -p ''
+brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
+```
+
+Empty credentials probe `GET /api/org` without a session. Non-empty credentials POST `/login`. `-x` GETs a Grafana API path (default `/api/org`) using the login cookie. Command failures do not discard a verified login.
+
 
 
 

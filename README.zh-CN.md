@@ -56,6 +56,7 @@
 - `nfs`（NFSv3 ONC RPC AUTH_NULL/AUTH_UNIX；`-x` dump；默认端口 `2049`）
 - `telnet`（IAC + login/password；`-x` shell 命令；默认端口 `23`）
 - `ldap`（simple bind；`-x` whoami/search；默认端口 `389`）
+- `grafana`（HTTP 登录；`-x` org API；默认端口 `3000`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -185,6 +186,9 @@ brute telnet 192.168.5.10 -u admin -p telnet_pass -x id
 brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass
 brute ldap 192.168.5.10 -u '' -p ''
 brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
+brute grafana 192.168.5.10 -u admin -p grafana_pass
+brute grafana 192.168.5.10 -u '' -p ''
+brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
 ```
 
 ## 顶级参数
@@ -269,6 +273,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `nfs`: 尝试 MOUNT DUMP，例如 `-x 'dump'`
 - `telnet`: 远程 shell 命令，例如 `-x 'id'`
 - `ldap`: whoami 或 LDAP search，例如 `-x 'whoami'`
+- `grafana`: org API，例如 `-x 'org'`
 
 示例：
 
@@ -515,6 +520,19 @@ brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
 ```
 
 `-u` 是 bind DN。空凭据探测匿名 bind 并读取 Root DSE。`-x` 执行 `whoami`、`rootdse`、LDAP filter 或 DN 搜索。命令失败不会丢掉已验证登录。
+
+## Grafana
+
+Grafana 登录与字典喷洒（默认端口 `3000`）：
+
+```bash
+brute grafana 192.168.5.10 -u admin -p grafana_pass
+brute grafana 192.168.5.10 -u '' -p ''
+brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
+```
+
+空凭据探测无会话的 `GET /api/org`。非空凭据 POST `/login`。`-x` 使用登录 cookie GET Grafana API 路径（默认 `/api/org`）。命令失败不会丢掉已验证登录。
+
 
 
 

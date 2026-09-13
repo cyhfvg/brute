@@ -250,6 +250,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass\n  brute ldap 192.168.5.10 -u '' -p ''\n  brute ldap 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami"
     )]
     Ldap(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using GRAFANA",
+        override_usage = "brute grafana <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute grafana 192.168.5.10 -u admin -p grafana_pass\n  brute grafana 192.168.5.10 -u '' -p ''\n  brute grafana 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute grafana 192.168.5.10 -u admin -p grafana_pass -x org"
+    )]
+    Grafana(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -274,7 +281,8 @@ impl ProtocolArgs {
             | Self::Kibana(args)
             | Self::Nfs(args)
             | Self::Telnet(args)
-            | Self::Ldap(args) => &args.common,
+            | Self::Ldap(args)
+            | Self::Grafana(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -318,7 +326,8 @@ impl ProtocolArgs {
             | Self::Kibana(args)
             | Self::Nfs(args)
             | Self::Telnet(args)
-            | Self::Ldap(args) => args.execute.as_deref(),
+            | Self::Ldap(args)
+            | Self::Grafana(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -700,6 +709,7 @@ pub enum Protocol {
     Nfs,
     Telnet,
     Ldap,
+    Grafana,
 }
 
 impl Protocol {
@@ -733,6 +743,7 @@ impl Protocol {
             Self::Nfs => 2049,
             Self::Telnet => 23,
             Self::Ldap => 389,
+            Self::Grafana => 3000,
         }
     }
 
@@ -766,6 +777,7 @@ impl Protocol {
             Self::Nfs => "nfs",
             Self::Telnet => "telnet",
             Self::Ldap => "ldap",
+            Self::Grafana => "grafana",
         }
     }
 }
@@ -801,6 +813,7 @@ impl ProtocolArgs {
             Self::Nfs(_) => Protocol::Nfs,
             Self::Telnet(_) => Protocol::Telnet,
             Self::Ldap(_) => Protocol::Ldap,
+            Self::Grafana(_) => Protocol::Grafana,
         }
     }
 }

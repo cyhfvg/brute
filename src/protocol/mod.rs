@@ -4,6 +4,7 @@ pub mod activemq;
 pub mod docker;
 pub mod elasticsearch;
 pub mod ftp;
+pub mod grafana;
 pub mod http;
 pub mod kafka;
 pub mod kibana;
