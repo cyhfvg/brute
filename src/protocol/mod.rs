@@ -9,6 +9,7 @@ pub mod etcd;
 pub mod ftp;
 pub mod grafana;
 pub mod http;
+pub mod influxdb;
 pub mod jenkins;
 pub mod kafka;
 pub mod kibana;

@@ -302,6 +302,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute etcd 192.168.5.10 -u root -p etcd_pass\n  brute etcd 192.168.5.10 -u '' -p ''\n  brute etcd 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute etcd 192.168.5.10 -u root -p etcd_pass -x version"
     )]
     Etcd(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using INFLUXDB",
+        visible_alias = "influx",
+        override_usage = "brute influxdb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute influxdb 192.168.5.10 -u admin -p influx_pass\n  brute influxdb 192.168.5.10 -u '' -p ''\n  brute influxdb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs"
+    )]
+    Influxdb(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -333,7 +341,8 @@ impl ProtocolArgs {
             | Self::Couchdb(args)
             | Self::Clickhouse(args)
             | Self::Neo4j(args)
-            | Self::Etcd(args) => &args.common,
+            | Self::Etcd(args)
+            | Self::Influxdb(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -384,7 +393,8 @@ impl ProtocolArgs {
             | Self::Couchdb(args)
             | Self::Clickhouse(args)
             | Self::Neo4j(args)
-            | Self::Etcd(args) => args.execute.as_deref(),
+            | Self::Etcd(args)
+            | Self::Influxdb(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -773,6 +783,7 @@ pub enum Protocol {
     Clickhouse,
     Neo4j,
     Etcd,
+    Influxdb,
 }
 
 impl Protocol {
@@ -813,6 +824,7 @@ impl Protocol {
             Self::Clickhouse => 8123,
             Self::Neo4j => 7474,
             Self::Etcd => 2379,
+            Self::Influxdb => 8086,
         }
     }
 
@@ -853,6 +865,7 @@ impl Protocol {
             Self::Clickhouse => "clickhouse",
             Self::Neo4j => "neo4j",
             Self::Etcd => "etcd",
+            Self::Influxdb => "influxdb",
         }
     }
 }
@@ -895,6 +908,7 @@ impl ProtocolArgs {
             Self::Clickhouse(_) => Protocol::Clickhouse,
             Self::Neo4j(_) => Protocol::Neo4j,
             Self::Etcd(_) => Protocol::Etcd,
+            Self::Influxdb(_) => Protocol::Influxdb,
         }
     }
 }

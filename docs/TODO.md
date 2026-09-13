@@ -114,6 +114,9 @@
 - `etcd`: `reqwest` etcd v3 HTTP (default port 2379); empty credentials probe
   `/v3/kv/range`; non-empty POST `/v3/auth/authenticate`; `-x` version/range.
   HTTP `--proxy`.
+- `influxdb`: `reqwest` InfluxDB 1.x HTTP Basic (default port 8086, alias
+  `influx`); empty credentials probe `SHOW DATABASES`; `-x` InfluxQL.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -130,7 +133,7 @@
 - nacos
 
 
-- influxDB
+
 
 - minio
 

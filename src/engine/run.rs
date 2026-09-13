@@ -19,12 +19,12 @@ use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
     activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
     docker::DockerModule, elasticsearch::ElasticsearchModule, etcd::EtcdModule, ftp::FtpModule,
-    grafana::GrafanaModule, http::HttpBasicModule, jenkins::JenkinsModule, kafka::KafkaModule,
-    kibana::KibanaModule, ldap::LdapModule, memcached::MemcachedModule, mongodb::MongoDbModule,
-    mssql::MssqlModule, mysql::MySqlModule, neo4j::Neo4jModule, nfs::NfsModule,
-    oracle::OracleModule, postgresql::PostgreSqlModule, prometheus::PrometheusModule,
-    rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, rsync::RsyncModule,
-    smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
+    grafana::GrafanaModule, http::HttpBasicModule, influxdb::InfluxDbModule,
+    jenkins::JenkinsModule, kafka::KafkaModule, kibana::KibanaModule, ldap::LdapModule,
+    memcached::MemcachedModule, mongodb::MongoDbModule, mssql::MssqlModule, mysql::MySqlModule,
+    neo4j::Neo4jModule, nfs::NfsModule, oracle::OracleModule, postgresql::PostgreSqlModule,
+    prometheus::PrometheusModule, rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule,
+    rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
     tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
@@ -300,6 +300,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Clickhouse => Arc::new(ClickHouseModule::new(request.timeout_ms)),
         Protocol::Neo4j => Arc::new(Neo4jModule::new(request.timeout_ms)),
         Protocol::Etcd => Arc::new(EtcdModule::new(request.timeout_ms)),
+        Protocol::Influxdb => Arc::new(InfluxDbModule::new(request.timeout_ms)),
     }
 }
 

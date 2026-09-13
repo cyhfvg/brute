@@ -1222,3 +1222,29 @@ fn parses_etcd_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("version"));
 }
+
+/// Verifies InfluxDB default port, alias, and `-x` command parsing.
+#[test]
+fn parses_influxdb_execute_and_default_port() {
+    assert_eq!(Protocol::Influxdb.default_port(), 8086);
+    assert_eq!(Protocol::Influxdb.as_str(), "influxdb");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "influxdb",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "influx_pass",
+        "-x",
+        "dbs",
+    ])
+    .expect("influxdb execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Influxdb(args)) = cli.command else {
+        panic!("expected influxdb protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("dbs"));
+}

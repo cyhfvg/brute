@@ -64,6 +64,7 @@ Implemented modules:
 - `clickhouse` (alias `ch`; HTTP SQL; `-x` version; default port `8123`)
 - `neo4j` (HTTP Cypher; `-x` ping; default port `7474`)
 - `etcd` (v3 HTTP; `-x` version; default port `2379`)
+- `influxdb` (alias `influx`; InfluxQL HTTP; `-x` dbs; default port `8086`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -214,6 +215,9 @@ brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
 brute etcd 192.168.5.10 -u root -p etcd_pass
 brute etcd 192.168.5.10 -u '' -p ''
 brute etcd 192.168.5.10 -u root -p etcd_pass -x version
+brute influxdb 192.168.5.10 -u admin -p influx_pass
+brute influxdb 192.168.5.10 -u '' -p ''
+brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
 ```
 
 ## Global Options
@@ -304,6 +308,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `clickhouse`: SQL query, for example `-x 'version'`
 - `neo4j`: Cypher, for example `-x 'ping'`
 - `etcd`: version/range API, for example `-x 'version'`
+- `influxdb`: InfluxQL, for example `-x 'dbs'`
 
 Example:
 
@@ -634,6 +639,19 @@ brute etcd 192.168.5.10 -u root -p etcd_pass -x version
 ```
 
 Empty credentials probe `POST /v3/kv/range` without a token. Non-empty credentials POST `/v3/auth/authenticate`. `-x` GETs `/version` or POSTs `/v3/kv/range`. Command failures do not discard a verified login.
+
+## InfluxDB
+
+InfluxDB 1.x HTTP Basic login and dictionary spray (default port `8086`):
+
+```bash
+brute influxdb 192.168.5.10 -u admin -p influx_pass
+brute influxdb 192.168.5.10 -u '' -p ''
+brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
+```
+
+Empty credentials probe `SHOW DATABASES` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` runs InfluxQL (`dbs`/`users` or a query). Command failures do not discard a verified login.
+
 
 
 

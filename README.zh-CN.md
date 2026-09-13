@@ -63,6 +63,7 @@
 - `clickhouse`（别名 `ch`；HTTP SQL；`-x` version；默认端口 `8123`）
 - `neo4j`（HTTP Cypher；`-x` ping；默认端口 `7474`）
 - `etcd`（v3 HTTP；`-x` version；默认端口 `2379`）
+- `influxdb`（别名 `influx`；InfluxQL HTTP；`-x` dbs；默认端口 `8086`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -213,6 +214,9 @@ brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
 brute etcd 192.168.5.10 -u root -p etcd_pass
 brute etcd 192.168.5.10 -u '' -p ''
 brute etcd 192.168.5.10 -u root -p etcd_pass -x version
+brute influxdb 192.168.5.10 -u admin -p influx_pass
+brute influxdb 192.168.5.10 -u '' -p ''
+brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
 ```
 
 ## 顶级参数
@@ -304,6 +308,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `clickhouse`: SQL 查询，例如 `-x 'version'`
 - `neo4j`: Cypher，例如 `-x 'ping'`
 - `etcd`: version/range API，例如 `-x 'version'`
+- `influxdb`: InfluxQL，例如 `-x 'dbs'`
 
 示例：
 
@@ -634,6 +639,19 @@ brute etcd 192.168.5.10 -u root -p etcd_pass -x version
 ```
 
 空凭据探测无 token 的 `POST /v3/kv/range`。非空凭据 POST `/v3/auth/authenticate`。`-x` GET `/version` 或 POST `/v3/kv/range`。命令失败不会丢掉已验证登录。
+
+## InfluxDB
+
+InfluxDB 1.x HTTP Basic 登录与字典喷洒（默认端口 `8086`）：
+
+```bash
+brute influxdb 192.168.5.10 -u admin -p influx_pass
+brute influxdb 192.168.5.10 -u '' -p ''
+brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs
+```
+
+空凭据探测不带 Authorization 的 `SHOW DATABASES`。非空凭据走 HTTP Basic Auth。`-x` 执行 InfluxQL（`dbs`/`users` 或查询）。命令失败不会丢掉已验证登录。
+
 
 
 

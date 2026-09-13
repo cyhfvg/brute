@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 34] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 35] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -244,6 +244,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 34] = [
     Protocol::Clickhouse,
     Protocol::Neo4j,
     Protocol::Etcd,
+    Protocol::Influxdb,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -305,6 +306,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "clickhouse" | "ch" => Ok(Protocol::Clickhouse),
         "neo4j" => Ok(Protocol::Neo4j),
         "etcd" => Ok(Protocol::Etcd),
+        "influxdb" | "influx" => Ok(Protocol::Influxdb),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS

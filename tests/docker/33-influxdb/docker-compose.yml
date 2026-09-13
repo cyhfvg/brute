@@ -1,0 +1,21 @@
+services:
+  influxdb:
+    image: influxdb:1.8.10
+    container_name: influxdb-brute-lab
+    restart: "no"
+    environment:
+      INFLUXDB_HTTP_AUTH_ENABLED: "true"
+      INFLUXDB_ADMIN_USER: admin
+      INFLUXDB_ADMIN_PASSWORD: influx_pass
+    ports:
+      - "8086:8086"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf -u admin:influx_pass 'http://127.0.0.1:8086/query?q=SHOW+DATABASES' >/dev/null",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s

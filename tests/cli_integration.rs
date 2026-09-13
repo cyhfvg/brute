@@ -100,6 +100,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("clickhouse"));
     assert!(stdout.contains("neo4j"));
     assert!(stdout.contains("etcd"));
+    assert!(stdout.contains("influxdb"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -882,6 +883,19 @@ fn etcd_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("version"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn influxdb_help_exposes_command_execution() {
+    let home = TempHome::new("influxdb-help");
+
+    let output = run_with_home(&home, ["influxdb", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("dbs"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]
