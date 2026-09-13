@@ -66,6 +66,7 @@
 - `influxdb`（别名 `influx`；InfluxQL HTTP；`-x` dbs；默认端口 `8086`）
 - `solr`（admin HTTP；`-x` cores；默认端口 `8983`）
 - `minio`（console HTTP；`-x` buckets；默认端口 `9001`）
+- `nacos`（HTTP；`-x` namespaces；默认端口 `8848`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -225,6 +226,9 @@ brute solr 192.168.5.10 -u solr -p solr_pass -x cores
 brute minio 192.168.5.10 -u minioadmin -p minio_pass
 brute minio 192.168.5.10 -u '' -p ''
 brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
+brute nacos 192.168.5.10 -u nacos -p nacos
+brute nacos 192.168.5.10 -u '' -p ''
+brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
 ```
 
 ## 顶级参数
@@ -319,6 +323,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `influxdb`: InfluxQL，例如 `-x 'dbs'`
 - `solr`: Solr admin API，例如 `-x 'cores'`
 - `minio`: MinIO console API，例如 `-x 'buckets'`
+- `nacos`: Nacos API，例如 `-x 'namespaces'`
 
 示例：
 
@@ -685,6 +690,19 @@ brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
 ```
 
 空凭据对 `/api/v1/login` POST 空 accessKey/secretKey。非空凭据走同一登录接口。`-x` GET buckets/info（或路径）。命令失败不会丢掉已验证登录。
+
+## Nacos
+
+Nacos HTTP 登录与字典喷洒（默认端口 `8848`）：
+
+```bash
+brute nacos 192.168.5.10 -u nacos -p nacos
+brute nacos 192.168.5.10 -u '' -p ''
+brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
+```
+
+空凭据探测无 token 的配置列表。非空凭据 POST `/nacos/v1/auth/login`。`-x` GET namespaces/configs（或路径）。命令失败不会丢掉已验证登录。
+
 
 
 

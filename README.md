@@ -67,6 +67,7 @@ Implemented modules:
 - `influxdb` (alias `influx`; InfluxQL HTTP; `-x` dbs; default port `8086`)
 - `solr` (admin HTTP; `-x` cores; default port `8983`)
 - `minio` (console HTTP; `-x` buckets; default port `9001`)
+- `nacos` (HTTP; `-x` namespaces; default port `8848`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -226,6 +227,9 @@ brute solr 192.168.5.10 -u solr -p solr_pass -x cores
 brute minio 192.168.5.10 -u minioadmin -p minio_pass
 brute minio 192.168.5.10 -u '' -p ''
 brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
+brute nacos 192.168.5.10 -u nacos -p nacos
+brute nacos 192.168.5.10 -u '' -p ''
+brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
 ```
 
 ## Global Options
@@ -319,6 +323,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `influxdb`: InfluxQL, for example `-x 'dbs'`
 - `solr`: Solr admin API, for example `-x 'cores'`
 - `minio`: MinIO console API, for example `-x 'buckets'`
+- `nacos`: Nacos API, for example `-x 'namespaces'`
 
 Example:
 
@@ -685,6 +690,19 @@ brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets
 ```
 
 Empty credentials POST `/api/v1/login` with blank keys. Non-empty credentials POST the same login API. `-x` GETs buckets/info (or a path). Command failures do not discard a verified login.
+
+## Nacos
+
+Nacos HTTP login and dictionary spray (default port `8848`):
+
+```bash
+brute nacos 192.168.5.10 -u nacos -p nacos
+brute nacos 192.168.5.10 -u '' -p ''
+brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
+```
+
+Empty credentials probe the config list without a token. Non-empty credentials POST `/nacos/v1/auth/login`. `-x` GETs namespaces/configs (or a path). Command failures do not discard a verified login.
+
 
 
 

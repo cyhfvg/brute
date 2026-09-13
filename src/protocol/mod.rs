@@ -19,6 +19,7 @@ pub mod minio;
 pub mod mongodb;
 pub mod mssql;
 pub mod mysql;
+pub mod nacos;
 pub mod neo4j;
 pub mod nfs;
 pub mod oracle;

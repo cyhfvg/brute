@@ -19,7 +19,7 @@ pub struct ProtocolOptions {
     pub proxy: Option<String>,
     /// Workspace for `--id` lookup and success persistence. Defaults to current.
     pub workspace: Option<String>,
-    /// Post-auth command for ssh/ftp/mysql/postgresql/redis/oracle/winrm/zookeeper/memcached/mongodb/elasticsearch/docker/snmp/activemq/rabbitmq/mssql/kafka/kibana/nfs/telnet/ldap/grafana/prometheus/jenkins/couchdb/clickhouse/neo4j/etcd/influxdb/solr/minio.
+    /// Post-auth command for ssh/ftp/mysql/postgresql/redis/oracle/winrm/zookeeper/memcached/mongodb/elasticsearch/docker/snmp/activemq/rabbitmq/mssql/kafka/kibana/nfs/telnet/ldap/grafana/prometheus/jenkins/couchdb/clickhouse/neo4j/etcd/influxdb/solr/minio/nacos.
     pub execute: Option<String>,
     /// HTTP/Tomcat request path, or rsync daemon module name.
     pub path: Option<String>,

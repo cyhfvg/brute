@@ -22,11 +22,11 @@ use crate::protocol::{
     grafana::GrafanaModule, http::HttpBasicModule, influxdb::InfluxDbModule,
     jenkins::JenkinsModule, kafka::KafkaModule, kibana::KibanaModule, ldap::LdapModule,
     memcached::MemcachedModule, minio::MinioModule, mongodb::MongoDbModule, mssql::MssqlModule,
-    mysql::MySqlModule, neo4j::Neo4jModule, nfs::NfsModule, oracle::OracleModule,
-    postgresql::PostgreSqlModule, prometheus::PrometheusModule, rabbitmq::RabbitMqModule,
-    rdp::RdpModule, redis::RedisModule, rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule,
-    solr::SolrModule, ssh::SshModule, telnet::TelnetModule, tomcat::TomcatManagerModule,
-    vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
+    mysql::MySqlModule, nacos::NacosModule, neo4j::Neo4jModule, nfs::NfsModule,
+    oracle::OracleModule, postgresql::PostgreSqlModule, prometheus::PrometheusModule,
+    rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, rsync::RsyncModule,
+    smb::SmbModule, snmp::SnmpModule, solr::SolrModule, ssh::SshModule, telnet::TelnetModule,
+    tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -304,6 +304,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Influxdb => Arc::new(InfluxDbModule::new(request.timeout_ms)),
         Protocol::Minio => Arc::new(MinioModule::new(request.timeout_ms)),
         Protocol::Solr => Arc::new(SolrModule::new(request.timeout_ms)),
+        Protocol::Nacos => Arc::new(NacosModule::new(request.timeout_ms)),
     }
 }
 

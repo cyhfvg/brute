@@ -103,6 +103,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("influxdb"));
     assert!(stdout.contains("solr"));
     assert!(stdout.contains("minio"));
+    assert!(stdout.contains("nacos"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -924,6 +925,19 @@ fn minio_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("buckets"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn nacos_help_exposes_command_execution() {
+    let home = TempHome::new("nacos-help");
+
+    let output = run_with_home(&home, ["nacos", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("namespaces"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

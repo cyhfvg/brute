@@ -324,6 +324,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass\n  brute minio 192.168.5.10 -u '' -p ''\n  brute minio 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets"
     )]
     Minio(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using NACOS",
+        override_usage = "brute nacos <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute nacos 192.168.5.10 -u nacos -p nacos\n  brute nacos 192.168.5.10 -u '' -p ''\n  brute nacos 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces"
+    )]
+    Nacos(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -358,7 +365,8 @@ impl ProtocolArgs {
             | Self::Etcd(args)
             | Self::Influxdb(args)
             | Self::Solr(args)
-            | Self::Minio(args) => &args.common,
+            | Self::Minio(args)
+            | Self::Nacos(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -412,7 +420,8 @@ impl ProtocolArgs {
             | Self::Etcd(args)
             | Self::Influxdb(args)
             | Self::Solr(args)
-            | Self::Minio(args) => args.execute.as_deref(),
+            | Self::Minio(args)
+            | Self::Nacos(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -804,6 +813,7 @@ pub enum Protocol {
     Influxdb,
     Solr,
     Minio,
+    Nacos,
 }
 
 impl Protocol {
@@ -847,6 +857,7 @@ impl Protocol {
             Self::Influxdb => 8086,
             Self::Solr => 8983,
             Self::Minio => 9001,
+            Self::Nacos => 8848,
         }
     }
 
@@ -890,6 +901,7 @@ impl Protocol {
             Self::Influxdb => "influxdb",
             Self::Solr => "solr",
             Self::Minio => "minio",
+            Self::Nacos => "nacos",
         }
     }
 }
@@ -935,6 +947,7 @@ impl ProtocolArgs {
             Self::Influxdb(_) => Protocol::Influxdb,
             Self::Solr(_) => Protocol::Solr,
             Self::Minio(_) => Protocol::Minio,
+            Self::Nacos(_) => Protocol::Nacos,
         }
     }
 }

@@ -123,6 +123,9 @@
 - `minio`: `reqwest` MinIO console HTTP (default port 9001); POST `/api/v1/login`
   with accessKey/secretKey; empty credentials are rejected when anonymous is
   off. `-x` buckets/info. HTTP `--proxy`.
+- `nacos`: `reqwest` Nacos HTTP (default port 8848); empty credentials probe
+  config list; non-empty POST `/nacos/v1/auth/login`. `-x` namespaces/configs.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -135,7 +138,6 @@
 - druid
 - spark
 - hadoop
-- nacos
 
 
 - kubelet

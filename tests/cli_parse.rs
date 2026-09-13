@@ -1300,3 +1300,29 @@ fn parses_minio_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("buckets"));
 }
+
+/// Verifies Nacos default port and `-x` command parsing.
+#[test]
+fn parses_nacos_execute_and_default_port() {
+    assert_eq!(Protocol::Nacos.default_port(), 8848);
+    assert_eq!(Protocol::Nacos.as_str(), "nacos");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "nacos",
+        "192.168.5.10",
+        "-u",
+        "nacos",
+        "-p",
+        "nacos",
+        "-x",
+        "namespaces",
+    ])
+    .expect("nacos execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Nacos(args)) = cli.command else {
+        panic!("expected nacos protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("namespaces"));
+}
