@@ -69,6 +69,7 @@ Implemented modules:
 - `minio` (console HTTP; `-x` buckets; default port `9001`)
 - `nacos` (HTTP; `-x` namespaces; default port `8848`)
 - `nexus` (REST HTTP; `-x` repos; default port `8081`)
+- `jboss` (alias `wildfly`; management Digest; `-x` version; default port `9990`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -234,6 +235,9 @@ brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
 brute nexus 192.168.5.10 -u admin -p nexus_pass
 brute nexus 192.168.5.10 -u '' -p ''
 brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
+brute jboss 192.168.5.10 -u admin -p jboss_pass
+brute jboss 192.168.5.10 -u '' -p ''
+brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
 ```
 
 ## Global Options
@@ -329,6 +333,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `minio`: MinIO console API, for example `-x 'buckets'`
 - `nacos`: Nacos API, for example `-x 'namespaces'`
 - `nexus`: Nexus REST API, for example `-x 'repos'`
+- `jboss`: WildFly management, for example `-x 'version'`
 
 Example:
 
@@ -719,6 +724,19 @@ brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
 ```
 
 Login uses `GET /service/rest/v1/security/users` with HTTP Basic Auth. Empty credentials fail when anonymous is disabled. `-x` GETs repos/status (or a path). Command failures do not discard a verified login.
+
+## JBoss / WildFly
+
+WildFly HTTP management Digest login and dictionary spray (default port `9990`):
+
+```bash
+brute jboss 192.168.5.10 -u admin -p jboss_pass
+brute jboss 192.168.5.10 -u '' -p ''
+brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
+```
+
+Empty credentials probe `GET /management` without Authorization. Non-empty credentials use HTTP Digest. `-x` POSTs management operations (`version`/`state` or JSON). Command failures do not discard a verified login.
+
 
 
 

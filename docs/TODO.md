@@ -129,13 +129,15 @@
 - `nexus`: `reqwest` Nexus REST (default port 8081); login GET
   `/service/rest/v1/security/users` with HTTP Basic; empty credentials fail when
   anonymous is off. `-x` repos/status. HTTP `--proxy`.
+- `jboss`: `reqwest` WildFly HTTP management Digest (default port 9990, alias
+  `wildfly`); empty credentials probe `GET /management`; `-x` version/state.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
 - gitlab
 - harbor
 - weblogic
-- jboss
 - websphere
 - druid
 - spark

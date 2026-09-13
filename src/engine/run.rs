@@ -19,7 +19,7 @@ use crate::protocol::{
     AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
     activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
     docker::DockerModule, elasticsearch::ElasticsearchModule, etcd::EtcdModule, ftp::FtpModule,
-    grafana::GrafanaModule, http::HttpBasicModule, influxdb::InfluxDbModule,
+    grafana::GrafanaModule, http::HttpBasicModule, influxdb::InfluxDbModule, jboss::JbossModule,
     jenkins::JenkinsModule, kafka::KafkaModule, kibana::KibanaModule, ldap::LdapModule,
     memcached::MemcachedModule, minio::MinioModule, mongodb::MongoDbModule, mssql::MssqlModule,
     mysql::MySqlModule, nacos::NacosModule, neo4j::Neo4jModule, nexus::NexusModule, nfs::NfsModule,
@@ -306,6 +306,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Solr => Arc::new(SolrModule::new(request.timeout_ms)),
         Protocol::Nacos => Arc::new(NacosModule::new(request.timeout_ms)),
         Protocol::Nexus => Arc::new(NexusModule::new(request.timeout_ms)),
+        Protocol::Jboss => Arc::new(JbossModule::new(request.timeout_ms)),
     }
 }
 

@@ -68,6 +68,7 @@
 - `minio`（console HTTP；`-x` buckets；默认端口 `9001`）
 - `nacos`（HTTP；`-x` namespaces；默认端口 `8848`）
 - `nexus`（REST HTTP；`-x` repos；默认端口 `8081`）
+- `jboss`（别名 `wildfly`；management Digest；`-x` version；默认端口 `9990`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -233,6 +234,9 @@ brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces
 brute nexus 192.168.5.10 -u admin -p nexus_pass
 brute nexus 192.168.5.10 -u '' -p ''
 brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
+brute jboss 192.168.5.10 -u admin -p jboss_pass
+brute jboss 192.168.5.10 -u '' -p ''
+brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
 ```
 
 ## 顶级参数
@@ -329,6 +333,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `minio`: MinIO console API，例如 `-x 'buckets'`
 - `nacos`: Nacos API，例如 `-x 'namespaces'`
 - `nexus`: Nexus REST API，例如 `-x 'repos'`
+- `jboss`: WildFly management，例如 `-x 'version'`
 
 示例：
 
@@ -719,6 +724,19 @@ brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos
 ```
 
 登录走 HTTP Basic 的 `GET /service/rest/v1/security/users`。关闭匿名时空凭据失败。`-x` GET repos/status（或路径）。命令失败不会丢掉已验证登录。
+
+## JBoss / WildFly
+
+WildFly HTTP management Digest 登录与字典喷洒（默认端口 `9990`）：
+
+```bash
+brute jboss 192.168.5.10 -u admin -p jboss_pass
+brute jboss 192.168.5.10 -u '' -p ''
+brute jboss 192.168.5.10 -u admin -p jboss_pass -x version
+```
+
+空凭据探测不带 Authorization 的 `GET /management`。非空凭据走 HTTP Digest。`-x` POST management（`version`/`state` 或 JSON）。命令失败不会丢掉已验证登录。
+
 
 
 

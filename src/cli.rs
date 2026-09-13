@@ -338,6 +338,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute nexus 192.168.5.10 -u admin -p nexus_pass\n  brute nexus 192.168.5.10 -u '' -p ''\n  brute nexus 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos"
     )]
     Nexus(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using JBOSS",
+        visible_alias = "wildfly",
+        override_usage = "brute jboss <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute jboss 192.168.5.10 -u admin -p jboss_pass\n  brute jboss 192.168.5.10 -u '' -p ''\n  brute jboss 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute jboss 192.168.5.10 -u admin -p jboss_pass -x version"
+    )]
+    Jboss(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -374,7 +382,8 @@ impl ProtocolArgs {
             | Self::Solr(args)
             | Self::Minio(args)
             | Self::Nacos(args)
-            | Self::Nexus(args) => &args.common,
+            | Self::Nexus(args)
+            | Self::Jboss(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -430,7 +439,8 @@ impl ProtocolArgs {
             | Self::Solr(args)
             | Self::Minio(args)
             | Self::Nacos(args)
-            | Self::Nexus(args) => args.execute.as_deref(),
+            | Self::Nexus(args)
+            | Self::Jboss(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -823,6 +833,7 @@ pub enum Protocol {
     Solr,
     Minio,
     Nacos,
+    Jboss,
     Nexus,
 }
 
@@ -868,6 +879,7 @@ impl Protocol {
             Self::Solr => 8983,
             Self::Minio => 9001,
             Self::Nacos => 8848,
+            Self::Jboss => 9990,
             Self::Nexus => 8081,
         }
     }
@@ -913,6 +925,7 @@ impl Protocol {
             Self::Solr => "solr",
             Self::Minio => "minio",
             Self::Nacos => "nacos",
+            Self::Jboss => "jboss",
             Self::Nexus => "nexus",
         }
     }
@@ -960,6 +973,7 @@ impl ProtocolArgs {
             Self::Solr(_) => Protocol::Solr,
             Self::Minio(_) => Protocol::Minio,
             Self::Nacos(_) => Protocol::Nacos,
+            Self::Jboss(_) => Protocol::Jboss,
             Self::Nexus(_) => Protocol::Nexus,
         }
     }

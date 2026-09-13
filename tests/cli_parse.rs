@@ -1352,3 +1352,29 @@ fn parses_nexus_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("repos"));
 }
+
+/// Verifies JBoss default port, alias, and `-x` command parsing.
+#[test]
+fn parses_jboss_execute_and_default_port() {
+    assert_eq!(Protocol::Jboss.default_port(), 9990);
+    assert_eq!(Protocol::Jboss.as_str(), "jboss");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "wildfly",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "jboss_pass",
+        "-x",
+        "version",
+    ])
+    .expect("jboss execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Jboss(args)) = cli.command else {
+        panic!("expected jboss protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("version"));
+}

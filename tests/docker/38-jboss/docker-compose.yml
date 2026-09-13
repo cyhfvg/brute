@@ -1,0 +1,24 @@
+services:
+  jboss:
+    image: jboss/wildfly:25.0.0.Final
+    container_name: jboss-brute-lab
+    restart: "no"
+    command:
+      [
+        "/bin/bash",
+        "-lc",
+        "/opt/jboss/wildfly/bin/add-user.sh -u admin -p jboss_pass -s && /opt/jboss/wildfly/bin/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0",
+      ]
+    ports:
+      - "9990:9990"
+      - "8080:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/9990'",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 25s
