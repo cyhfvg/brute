@@ -98,6 +98,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("jenkins"));
     assert!(stdout.contains("couchdb"));
     assert!(stdout.contains("clickhouse"));
+    assert!(stdout.contains("neo4j"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -854,6 +855,19 @@ fn clickhouse_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("version"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn neo4j_help_exposes_command_execution() {
+    let home = TempHome::new("neo4j-help");
+
+    let output = run_with_home(&home, ["neo4j", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("ping"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

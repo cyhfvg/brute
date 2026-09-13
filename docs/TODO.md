@@ -109,6 +109,8 @@
 - `clickhouse`: `reqwest` HTTP (default port 8123, alias `ch`); empty credentials
   probe `SELECT 1` without Authorization; `-x` SQL (`version`/`databases`).
   HTTP `--proxy`.
+- `neo4j`: `reqwest` HTTP Cypher (default port 7474); empty credentials probe
+  `RETURN 1` without Authorization; `-x` Cypher (`ping`/`labels`). HTTP `--proxy`.
 
 ## Unsupported Protocols
 
@@ -128,7 +130,7 @@
 - influxDB
 
 - minio
-- Neo4j
+
 - kubelet
 
 (none currently reserved as unimplemented stubs)

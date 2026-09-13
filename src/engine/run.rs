@@ -21,11 +21,11 @@ use crate::protocol::{
     docker::DockerModule, elasticsearch::ElasticsearchModule, ftp::FtpModule,
     grafana::GrafanaModule, http::HttpBasicModule, jenkins::JenkinsModule, kafka::KafkaModule,
     kibana::KibanaModule, ldap::LdapModule, memcached::MemcachedModule, mongodb::MongoDbModule,
-    mssql::MssqlModule, mysql::MySqlModule, nfs::NfsModule, oracle::OracleModule,
-    postgresql::PostgreSqlModule, prometheus::PrometheusModule, rabbitmq::RabbitMqModule,
-    rdp::RdpModule, redis::RedisModule, rsync::RsyncModule, smb::SmbModule, snmp::SnmpModule,
-    ssh::SshModule, telnet::TelnetModule, tomcat::TomcatManagerModule, vnc::VncModule,
-    winrm::WinrmModule, zookeeper::ZookeeperModule,
+    mssql::MssqlModule, mysql::MySqlModule, neo4j::Neo4jModule, nfs::NfsModule,
+    oracle::OracleModule, postgresql::PostgreSqlModule, prometheus::PrometheusModule,
+    rabbitmq::RabbitMqModule, rdp::RdpModule, redis::RedisModule, rsync::RsyncModule,
+    smb::SmbModule, snmp::SnmpModule, ssh::SshModule, telnet::TelnetModule,
+    tomcat::TomcatManagerModule, vnc::VncModule, winrm::WinrmModule, zookeeper::ZookeeperModule,
 };
 use crate::targets::load_targets;
 
@@ -298,6 +298,7 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Jenkins => Arc::new(JenkinsModule::new(request.timeout_ms)),
         Protocol::Couchdb => Arc::new(CouchDbModule::new(request.timeout_ms)),
         Protocol::Clickhouse => Arc::new(ClickHouseModule::new(request.timeout_ms)),
+        Protocol::Neo4j => Arc::new(Neo4jModule::new(request.timeout_ms)),
     }
 }
 

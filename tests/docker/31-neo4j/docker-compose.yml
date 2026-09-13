@@ -1,0 +1,20 @@
+services:
+  neo4j:
+    image: neo4j:5.23
+    container_name: neo4j-brute-lab
+    restart: "no"
+    environment:
+      NEO4J_AUTH: neo4j/neo4j_pass
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- --user=neo4j --password=neo4j_pass http://127.0.0.1:7474/ >/dev/null || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 25s

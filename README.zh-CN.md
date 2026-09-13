@@ -61,6 +61,7 @@
 - `jenkins`（HTTP Basic；`-x` whoami/api；默认端口 `8080`）
 - `couchdb`（别名 `couch`；HTTP Basic；`-x` dbs；默认端口 `5984`）
 - `clickhouse`（别名 `ch`；HTTP SQL；`-x` version；默认端口 `8123`）
+- `neo4j`（HTTP Cypher；`-x` ping；默认端口 `7474`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -205,6 +206,9 @@ brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
 brute clickhouse 192.168.5.10 -u admin -p click_pass
 brute clickhouse 192.168.5.10 -u '' -p ''
 brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass
+brute neo4j 192.168.5.10 -u '' -p ''
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
 ```
 
 ## 顶级参数
@@ -294,6 +298,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `jenkins`: Jenkins API，例如 `-x 'whoami'`
 - `couchdb`: `_all_dbs`，例如 `-x 'dbs'`
 - `clickhouse`: SQL 查询，例如 `-x 'version'`
+- `neo4j`: Cypher，例如 `-x 'ping'`
 
 示例：
 
@@ -600,6 +605,19 @@ brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
 ```
 
 空凭据探测不带 Authorization 的 `SELECT 1`。非空凭据走 HTTP Basic Auth。`-x` 执行 SQL（`version`/`databases` 或查询）。命令失败不会丢掉已验证登录。
+
+## Neo4j
+
+Neo4j HTTP Cypher 登录与字典喷洒（默认端口 `7474`）：
+
+```bash
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass
+brute neo4j 192.168.5.10 -u '' -p ''
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
+```
+
+空凭据探测不带 Authorization 的 `RETURN 1`。非空凭据以 HTTP Basic Auth POST `/db/neo4j/tx/commit`。`-x` 执行 Cypher（`ping`/`labels` 或语句）。命令失败不会丢掉已验证登录。
+
 
 
 

@@ -288,6 +288,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute clickhouse 192.168.5.10 -u admin -p click_pass\n  brute clickhouse 192.168.5.10 -u '' -p ''\n  brute clickhouse 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute clickhouse 192.168.5.10 -u admin -p click_pass -x version"
     )]
     Clickhouse(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using NEO4J",
+        override_usage = "brute neo4j <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass\n  brute neo4j 192.168.5.10 -u '' -p ''\n  brute neo4j 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping"
+    )]
+    Neo4j(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -317,7 +324,8 @@ impl ProtocolArgs {
             | Self::Prometheus(args)
             | Self::Jenkins(args)
             | Self::Couchdb(args)
-            | Self::Clickhouse(args) => &args.common,
+            | Self::Clickhouse(args)
+            | Self::Neo4j(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -366,7 +374,8 @@ impl ProtocolArgs {
             | Self::Prometheus(args)
             | Self::Jenkins(args)
             | Self::Couchdb(args)
-            | Self::Clickhouse(args) => args.execute.as_deref(),
+            | Self::Clickhouse(args)
+            | Self::Neo4j(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -753,6 +762,7 @@ pub enum Protocol {
     Jenkins,
     Couchdb,
     Clickhouse,
+    Neo4j,
 }
 
 impl Protocol {
@@ -791,6 +801,7 @@ impl Protocol {
             Self::Jenkins => 8080,
             Self::Couchdb => 5984,
             Self::Clickhouse => 8123,
+            Self::Neo4j => 7474,
         }
     }
 
@@ -829,6 +840,7 @@ impl Protocol {
             Self::Jenkins => "jenkins",
             Self::Couchdb => "couchdb",
             Self::Clickhouse => "clickhouse",
+            Self::Neo4j => "neo4j",
         }
     }
 }
@@ -869,6 +881,7 @@ impl ProtocolArgs {
             Self::Jenkins(_) => Protocol::Jenkins,
             Self::Couchdb(_) => Protocol::Couchdb,
             Self::Clickhouse(_) => Protocol::Clickhouse,
+            Self::Neo4j(_) => Protocol::Neo4j,
         }
     }
 }

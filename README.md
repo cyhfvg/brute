@@ -62,6 +62,7 @@ Implemented modules:
 - `jenkins` (HTTP Basic; `-x` whoami/api; default port `8080`)
 - `couchdb` (alias `couch`; HTTP Basic; `-x` dbs; default port `5984`)
 - `clickhouse` (alias `ch`; HTTP SQL; `-x` version; default port `8123`)
+- `neo4j` (HTTP Cypher; `-x` ping; default port `7474`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -206,6 +207,9 @@ brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs
 brute clickhouse 192.168.5.10 -u admin -p click_pass
 brute clickhouse 192.168.5.10 -u '' -p ''
 brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass
+brute neo4j 192.168.5.10 -u '' -p ''
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
 ```
 
 ## Global Options
@@ -294,6 +298,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `jenkins`: Jenkins API, for example `-x 'whoami'`
 - `couchdb`: `_all_dbs`, for example `-x 'dbs'`
 - `clickhouse`: SQL query, for example `-x 'version'`
+- `neo4j`: Cypher, for example `-x 'ping'`
 
 Example:
 
@@ -600,6 +605,19 @@ brute clickhouse 192.168.5.10 -u admin -p click_pass -x version
 ```
 
 Empty credentials probe `SELECT 1` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` runs SQL (`version`/`databases` or a query). Command failures do not discard a verified login.
+
+## Neo4j
+
+Neo4j HTTP Cypher login and dictionary spray (default port `7474`):
+
+```bash
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass
+brute neo4j 192.168.5.10 -u '' -p ''
+brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping
+```
+
+Empty credentials probe `RETURN 1` without Authorization. Non-empty credentials POST `/db/neo4j/tx/commit` with HTTP Basic Auth. `-x` runs Cypher (`ping`/`labels` or a statement). Command failures do not discard a verified login.
+
 
 
 

@@ -1170,3 +1170,29 @@ fn parses_clickhouse_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("version"));
 }
+
+/// Verifies Neo4j default port and `-x` command parsing.
+#[test]
+fn parses_neo4j_execute_and_default_port() {
+    assert_eq!(Protocol::Neo4j.default_port(), 7474);
+    assert_eq!(Protocol::Neo4j.as_str(), "neo4j");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "neo4j",
+        "192.168.5.10",
+        "-u",
+        "neo4j",
+        "-p",
+        "neo4j_pass",
+        "-x",
+        "ping",
+    ])
+    .expect("neo4j execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Neo4j(args)) = cli.command else {
+        panic!("expected neo4j protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("ping"));
+}
