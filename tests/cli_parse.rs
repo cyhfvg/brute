@@ -1066,3 +1066,29 @@ fn parses_grafana_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("org"));
 }
+
+/// Verifies Prometheus default port, alias, and `-x` command parsing.
+#[test]
+fn parses_prometheus_execute_and_default_port() {
+    assert_eq!(Protocol::Prometheus.default_port(), 9090);
+    assert_eq!(Protocol::Prometheus.as_str(), "prometheus");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "prometheus",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "prometheus_pass",
+        "-x",
+        "query",
+    ])
+    .expect("prometheus execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Prometheus(args)) = cli.command else {
+        panic!("expected prometheus protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("query"));
+}

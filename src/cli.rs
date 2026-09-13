@@ -257,6 +257,14 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute grafana 192.168.5.10 -u admin -p grafana_pass\n  brute grafana 192.168.5.10 -u '' -p ''\n  brute grafana 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute grafana 192.168.5.10 -u admin -p grafana_pass -x org"
     )]
     Grafana(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using PROMETHEUS",
+        visible_alias = "prom",
+        override_usage = "brute prometheus <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute prometheus 192.168.5.10 -u admin -p prometheus_pass\n  brute prometheus 192.168.5.10 -u '' -p ''\n  brute prometheus 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query"
+    )]
+    Prometheus(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -282,7 +290,8 @@ impl ProtocolArgs {
             | Self::Nfs(args)
             | Self::Telnet(args)
             | Self::Ldap(args)
-            | Self::Grafana(args) => &args.common,
+            | Self::Grafana(args)
+            | Self::Prometheus(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -327,7 +336,8 @@ impl ProtocolArgs {
             | Self::Nfs(args)
             | Self::Telnet(args)
             | Self::Ldap(args)
-            | Self::Grafana(args) => args.execute.as_deref(),
+            | Self::Grafana(args)
+            | Self::Prometheus(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -710,6 +720,7 @@ pub enum Protocol {
     Telnet,
     Ldap,
     Grafana,
+    Prometheus,
 }
 
 impl Protocol {
@@ -744,6 +755,7 @@ impl Protocol {
             Self::Telnet => 23,
             Self::Ldap => 389,
             Self::Grafana => 3000,
+            Self::Prometheus => 9090,
         }
     }
 
@@ -778,6 +790,7 @@ impl Protocol {
             Self::Telnet => "telnet",
             Self::Ldap => "ldap",
             Self::Grafana => "grafana",
+            Self::Prometheus => "prometheus",
         }
     }
 }
@@ -814,6 +827,7 @@ impl ProtocolArgs {
             Self::Telnet(_) => Protocol::Telnet,
             Self::Ldap(_) => Protocol::Ldap,
             Self::Grafana(_) => Protocol::Grafana,
+            Self::Prometheus(_) => Protocol::Prometheus,
         }
     }
 }

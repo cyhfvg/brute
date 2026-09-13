@@ -57,6 +57,7 @@
 - `telnet`（IAC + login/password；`-x` shell 命令；默认端口 `23`）
 - `ldap`（simple bind；`-x` whoami/search；默认端口 `389`）
 - `grafana`（HTTP 登录；`-x` org API；默认端口 `3000`）
+- `prometheus`（别名 `prom`；HTTP Basic；`-x` query/metrics；默认端口 `9090`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -189,6 +190,9 @@ brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
 brute grafana 192.168.5.10 -u admin -p grafana_pass
 brute grafana 192.168.5.10 -u '' -p ''
 brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass
+brute prometheus 192.168.5.10 -u '' -p ''
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
 ```
 
 ## 顶级参数
@@ -274,6 +278,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `telnet`: 远程 shell 命令，例如 `-x 'id'`
 - `ldap`: whoami 或 LDAP search，例如 `-x 'whoami'`
 - `grafana`: org API，例如 `-x 'org'`
+- `prometheus`: PromQL 查询，例如 `-x 'query'`
 
 示例：
 
@@ -532,6 +537,19 @@ brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
 ```
 
 空凭据探测无会话的 `GET /api/org`。非空凭据 POST `/login`。`-x` 使用登录 cookie GET Grafana API 路径（默认 `/api/org`）。命令失败不会丢掉已验证登录。
+
+## Prometheus
+
+Prometheus HTTP Basic 登录与字典喷洒（默认端口 `9090`）：
+
+```bash
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass
+brute prometheus 192.168.5.10 -u '' -p ''
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
+```
+
+空凭据探测不带 Authorization 的 `GET /api/v1/status/buildinfo`。非空凭据走 HTTP Basic Auth。`-x` GET `query`/`targets`/`metrics` 或调用方路径。命令失败不会丢掉已验证登录。
+
 
 
 

@@ -1,0 +1,42 @@
+services:
+  prometheus-open:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus-open
+    restart: "no"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  prometheus-auth:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus-auth
+    restart: "no"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.config.file=/etc/prometheus/web.yml"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./web.yml:/etc/prometheus/web.yml:ro
+    ports:
+      - "9091:9090"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://admin:prometheus_pass@127.0.0.1:9090/-/ready",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s

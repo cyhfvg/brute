@@ -16,6 +16,7 @@ pub mod mysql;
 pub mod nfs;
 pub mod oracle;
 pub mod postgresql;
+pub mod prometheus;
 pub mod rabbitmq;
 pub mod rdp;
 pub mod redis;

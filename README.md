@@ -58,6 +58,7 @@ Implemented modules:
 - `telnet` (IAC + login/password; `-x` shell command; default port `23`)
 - `ldap` (simple bind; `-x` whoami/search; default port `389`)
 - `grafana` (HTTP login; `-x` org API; default port `3000`)
+- `prometheus` (alias `prom`; HTTP Basic; `-x` query/metrics; default port `9090`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -190,6 +191,9 @@ brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami
 brute grafana 192.168.5.10 -u admin -p grafana_pass
 brute grafana 192.168.5.10 -u '' -p ''
 brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass
+brute prometheus 192.168.5.10 -u '' -p ''
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
 ```
 
 ## Global Options
@@ -274,6 +278,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `telnet`: remote shell command, for example `-x 'id'`
 - `ldap`: whoami or LDAP search, for example `-x 'whoami'`
 - `grafana`: org API, for example `-x 'org'`
+- `prometheus`: PromQL query, for example `-x 'query'`
 
 Example:
 
@@ -532,6 +537,19 @@ brute grafana 192.168.5.10 -u admin -p grafana_pass -x org
 ```
 
 Empty credentials probe `GET /api/org` without a session. Non-empty credentials POST `/login`. `-x` GETs a Grafana API path (default `/api/org`) using the login cookie. Command failures do not discard a verified login.
+
+## Prometheus
+
+Prometheus HTTP Basic login and dictionary spray (default port `9090`):
+
+```bash
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass
+brute prometheus 192.168.5.10 -u '' -p ''
+brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query
+```
+
+Empty credentials probe `GET /api/v1/status/buildinfo` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs `query`/`targets`/`metrics` or a caller path. Command failures do not discard a verified login.
+
 
 
 

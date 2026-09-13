@@ -94,6 +94,7 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("telnet"));
     assert!(stdout.contains("ldap"));
     assert!(stdout.contains("grafana"));
+    assert!(stdout.contains("prometheus"));
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
@@ -798,6 +799,19 @@ fn grafana_help_exposes_command_execution() {
     let stdout = stdout(&output);
     assert!(stdout.contains("-x, --execute <COMMAND>"));
     assert!(stdout.contains("org"));
+    assert!(stdout.contains("192.168.5.10"));
+}
+
+#[test]
+fn prometheus_help_exposes_command_execution() {
+    let home = TempHome::new("prometheus-help");
+
+    let output = run_with_home(&home, ["prometheus", "--help"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    assert!(stdout.contains("-x, --execute <COMMAND>"));
+    assert!(stdout.contains("query"));
     assert!(stdout.contains("192.168.5.10"));
 }
 #[test]

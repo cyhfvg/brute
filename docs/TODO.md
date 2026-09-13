@@ -99,10 +99,12 @@
   Host:port TCP proxy bridge.
 - `grafana`: `reqwest` POST `/login` (default port 3000); empty credentials probe
   `GET /api/org`; `-x` GET API with session cookie. HTTP `--proxy`.
+- `prometheus`: `reqwest` HTTP Basic (default port 9090, alias `prom`); empty
+  `-u '' -p ''` probes anonymous buildinfo; `-x` query/targets/metrics.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
-- prometheus
 - jenkins
 - gitlab
 - harbor

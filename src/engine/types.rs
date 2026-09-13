@@ -209,7 +209,7 @@ impl From<&SavedCredential> for CredentialRecord {
 }
 
 /// Implemented protocol list in CLI order.
-pub(crate) const ALL_PROTOCOLS: [Protocol; 28] = [
+pub(crate) const ALL_PROTOCOLS: [Protocol; 29] = [
     Protocol::Ssh,
     Protocol::Ftp,
     Protocol::Mysql,
@@ -238,6 +238,7 @@ pub(crate) const ALL_PROTOCOLS: [Protocol; 28] = [
     Protocol::Telnet,
     Protocol::Ldap,
     Protocol::Grafana,
+    Protocol::Prometheus,
 ];
 
 /// Parses a protocol name used by MCP tools and library callers.
@@ -293,6 +294,7 @@ pub fn parse_protocol(name: &str) -> Result<Protocol> {
         "telnet" => Ok(Protocol::Telnet),
         "ldap" => Ok(Protocol::Ldap),
         "grafana" => Ok(Protocol::Grafana),
+        "prometheus" | "prom" => Ok(Protocol::Prometheus),
         other => bail!(
             "unsupported protocol {other:?}; expected one of {}",
             ALL_PROTOCOLS
@@ -484,6 +486,7 @@ mod tests {
         assert_eq!(parse_protocol("amq").unwrap(), Protocol::Activemq);
         assert_eq!(parse_protocol("amqp").unwrap(), Protocol::Rabbitmq);
         assert_eq!(parse_protocol("ldap").unwrap(), Protocol::Ldap);
+        assert_eq!(parse_protocol("prom").unwrap(), Protocol::Prometheus);
         assert!(parse_protocol("not-a-protocol").is_err());
     }
 
