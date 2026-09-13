@@ -75,6 +75,7 @@ Implemented modules:
 - `hadoop` (alias `hdfs`; NameNode HTTP; `-x` jmx; default port `9870`)
 - `kubelet` (HTTPS; token in `-p`; `-x` pods; default port `10250`)
 - `gitlab` (HTTP; `-x` user; default port `80`)
+- `harbor` (HTTP; `-x` projects; default port `80`)
 
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
@@ -258,6 +259,9 @@ brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
 brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q
 brute gitlab 192.168.5.10 -u '' -p ''
 brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
+brute harbor 192.168.5.10 -u admin -p Harbor12345
+brute harbor 192.168.5.10 -u '' -p ''
+brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
 ```
 
 ## Global Options
@@ -359,6 +363,7 @@ The following modules support post-auth command execution with `-x, --execute <C
 - `hadoop`: Hadoop NameNode, for example `-x 'jmx'`
 - `kubelet`: kubelet HTTPS, for example `-x 'pods'`
 - `gitlab`: GitLab API, for example `-x 'user'`
+- `harbor`: Harbor API, for example `-x 'projects'`
 
 Example:
 
@@ -821,6 +826,18 @@ brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
 ```
 
 Empty credentials probe `GET /api/v4/user` without a token. Non-empty credentials POST `/oauth/token` with the password grant. `-x` GETs user/projects with the bearer token. Command failures do not discard a verified login.
+
+## Harbor
+
+Harbor API login and dictionary spray (default port `80`):
+
+```bash
+brute harbor 192.168.5.10 -u admin -p Harbor12345
+brute harbor 192.168.5.10 -u '' -p ''
+brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
+```
+
+Empty credentials probe `GET /api/v2.0/users` without Authorization. Non-empty credentials use HTTP Basic Auth. `-x` GETs projects/users (or a path). Command failures do not discard a verified login.
 
 
 

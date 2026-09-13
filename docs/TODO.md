@@ -147,10 +147,12 @@
 - `gitlab`: `reqwest` GitLab HTTP (default port 80); empty credentials probe
   `/api/v4/user`; non-empty POST `/oauth/token` password grant. `-x`
   user/projects. HTTP `--proxy`.
+- `harbor`: `reqwest` Harbor HTTP (default port 80); empty credentials probe
+  `/api/v2.0/users`; non-empty HTTP Basic Auth. `-x` projects/users.
+  HTTP `--proxy`.
 
 ## Unsupported Protocols
 
-- harbor
 - weblogic
 - websphere
 

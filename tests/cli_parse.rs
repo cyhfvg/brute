@@ -1508,3 +1508,29 @@ fn parses_gitlab_execute_and_default_port() {
     assert_eq!(args.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.as_deref(), Some("user"));
 }
+
+/// Verifies Harbor default port and `-x` command parsing.
+#[test]
+fn parses_harbor_execute_and_default_port() {
+    assert_eq!(Protocol::Harbor.default_port(), 80);
+    assert_eq!(Protocol::Harbor.as_str(), "harbor");
+
+    let cli = Cli::try_parse_from([
+        "brute",
+        "harbor",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "Harbor12345",
+        "-x",
+        "projects",
+    ])
+    .expect("harbor execute arguments should parse");
+
+    let Command::Protocol(ProtocolArgs::Harbor(args)) = cli.command else {
+        panic!("expected harbor protocol arguments");
+    };
+    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.as_deref(), Some("projects"));
+}

@@ -382,6 +382,13 @@ pub enum ProtocolArgs {
         after_help = "Example:\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1\n  brute gitlab 192.168.5.10 -u '' -p ''\n  brute gitlab 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1 -x user"
     )]
     Gitlab(ExecuteArgs),
+
+    #[command(
+        about = "own stuff using HARBOR",
+        override_usage = "brute harbor <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
+        after_help = "Example:\n  brute harbor 192.168.5.10 -u admin -p Harbor12345\n  brute harbor 192.168.5.10 -u '' -p ''\n  brute harbor 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects"
+    )]
+    Harbor(ExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -424,7 +431,8 @@ impl ProtocolArgs {
             | Self::Spark(args)
             | Self::Hadoop(args)
             | Self::Kubelet(args)
-            | Self::Gitlab(args) => &args.common,
+            | Self::Gitlab(args)
+            | Self::Harbor(args) => &args.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -486,7 +494,8 @@ impl ProtocolArgs {
             | Self::Spark(args)
             | Self::Hadoop(args)
             | Self::Kubelet(args)
-            | Self::Gitlab(args) => args.execute.as_deref(),
+            | Self::Gitlab(args)
+            | Self::Harbor(args) => args.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
@@ -886,6 +895,7 @@ pub enum Protocol {
     Druid,
     Spark,
     Hadoop,
+    Harbor,
 }
 
 impl Protocol {
@@ -937,6 +947,7 @@ impl Protocol {
             Self::Druid => 8888,
             Self::Spark => 8080,
             Self::Hadoop => 9870,
+            Self::Harbor => 80,
         }
     }
 
@@ -988,6 +999,7 @@ impl Protocol {
             Self::Druid => "druid",
             Self::Spark => "spark",
             Self::Hadoop => "hadoop",
+            Self::Harbor => "harbor",
         }
     }
 }
@@ -1041,6 +1053,7 @@ impl ProtocolArgs {
             Self::Druid(_) => Protocol::Druid,
             Self::Spark(_) => Protocol::Spark,
             Self::Hadoop(_) => Protocol::Hadoop,
+            Self::Harbor(_) => Protocol::Harbor,
         }
     }
 }

@@ -11,6 +11,7 @@ pub mod ftp;
 pub mod gitlab;
 pub mod grafana;
 pub mod hadoop;
+pub mod harbor;
 pub mod http;
 pub mod influxdb;
 pub mod jboss;

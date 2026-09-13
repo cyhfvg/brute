@@ -74,6 +74,7 @@
 - `hadoop`（别名 `hdfs`；NameNode HTTP；`-x` jmx；默认端口 `9870`）
 - `kubelet`（HTTPS；token 放 `-p`；`-x` pods；默认端口 `10250`）
 - `gitlab`（HTTP；`-x` user；默认端口 `80`）
+- `harbor`（HTTP；`-x` projects；默认端口 `80`）
 
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
@@ -257,6 +258,9 @@ brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods
 brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q
 brute gitlab 192.168.5.10 -u '' -p ''
 brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
+brute harbor 192.168.5.10 -u admin -p Harbor12345
+brute harbor 192.168.5.10 -u '' -p ''
+brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
 ```
 
 ## 顶级参数
@@ -359,6 +363,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `hadoop`: Hadoop NameNode，例如 `-x 'jmx'`
 - `kubelet`: kubelet HTTPS，例如 `-x 'pods'`
 - `gitlab`: GitLab API，例如 `-x 'user'`
+- `harbor`: Harbor API，例如 `-x 'projects'`
 
 示例：
 
@@ -821,6 +826,18 @@ brute gitlab 192.168.5.10 -u root -p Gl7ab-Rx9p2q -x user
 ```
 
 空凭据探测不带 token 的 `GET /api/v4/user`。非空凭据 POST `/oauth/token` 走 password grant。`-x` 带 Bearer 请求 user/projects。命令失败不会丢掉已验证登录。
+
+## Harbor
+
+Harbor API 登录与字典喷洒（默认端口 `80`）：
+
+```bash
+brute harbor 192.168.5.10 -u admin -p Harbor12345
+brute harbor 192.168.5.10 -u '' -p ''
+brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects
+```
+
+空凭据探测不带 Authorization 的 `GET /api/v2.0/users`。非空凭据走 HTTP Basic Auth。`-x` GET projects/users（或路径）。命令失败不会丢掉已验证登录。
 
 
 
