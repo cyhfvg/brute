@@ -139,6 +139,8 @@
 
 账号级成功跳过键为 `(host, service_name, sid, username)`，避免同一用户在不同 Service Name/SID 上被误跳过。目标级首次成功即停策略不变；多标识枚举需 `--continue-on-success`。
 
+`brute combo`（别名 `urls`）不走上面的笛卡尔积。每个参数是连接 URL 文件、`-` 或内联 `scheme://[user[:password]@]host[:port][/path][?query]`。空用户名、空密码、省略端口都会尝试；省略端口使用协议默认端口，`https` 省略端口记为 `443`。同一文件可混合协议，调度层按 `(protocol, url_scheme)` 分组后调用 `engine::run_paired_spray`。成功跳过键包含有效端口，因此 `:22` 与 `:2222` 互不影响。
+
 ### 凭据数据库
 
 `database.rs` 使用 SQLite 保存成功凭据。数据库固定路径为 `~/.config/brute/brute.db`（与 XDG 风格配置目录一致，集中在 `~/.config/brute/` 下）。启动时会检测数据库是否存在；不存在时创建父目录、初始化 schema 和默认 workspace，并输出初始化提示；存在时静默打开。Schema 包含：
@@ -152,10 +154,11 @@
 
 ### MCP
 
-`brute mcp` 启动官方 `rmcp` stdio JSON-RPC 服务, 不向 stdout 打印 CLI 初始化横幅. 工具层调用 `engine::run_spray` / `query_credentials` / `delete_credentials`:
+`brute mcp` 启动官方 `rmcp` stdio JSON-RPC 服务, 不向 stdout 打印 CLI 初始化横幅. 工具层调用 `engine::run_spray` / `engine::run_paired_spray` / `query_credentials` / `delete_credentials`:
 
 - `verify_account`: 单目标单账户验证
 - `spray_passwords`: 用户名 x 密码喷洒
+- `verify_connections`: 文件和/或内联连接 URL 的配对验证
 - `list_credentials`: 按 workspace/protocol/host 查询已验证凭据
 - `delete_credentials`: 按 id、protocol、host 或 `all` 删除已保存凭据; 无选择器时拒绝
 - `list_workspaces` / `list_protocols`: 发现本地 workspace 与协议能力

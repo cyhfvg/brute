@@ -272,6 +272,15 @@ brute websphere 192.168.5.10 -u '' -p ''
 brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
 ```
 
+Paired connection URLs are a separate command. They are not crossed with `-u`/`-p`:
+
+```bash
+brute combo connections.txt --threads 32
+brute urls 'ssh://root:password@192.168.5.1:22' 'ssh://:@192.168.5.2'
+```
+
+Each source is a UTF-8 file (one URL per line), `-` for stdin, or an inline `scheme://...` value. A missing username, an empty username, and an empty password are still attempted. A missing or empty port uses the protocol default; `https` with no port uses `443`. Alias: `urls`.
+
 ## Global Options
 
 These flags are top-level (same level as `--version`) and must appear **before** the protocol subcommand:
@@ -308,6 +317,7 @@ Tools exposed to the model:
 - `delete_credentials`: delete saved credentials in one workspace by id, protocol, host, or `all`. An unscoped delete is refused.
 - `list_workspaces`: list local workspaces and the current workspace.
 - `list_protocols`: list supported protocols and default ports.
+- `verify_connections`: verify paired connection URLs from a file and/or inline list. Empty username, empty password, and omitted port are attempted.
 
 
 Detailed natural-language prompts and the matching tool JSON are in [docs/MCP.example.md](docs/MCP.example.md).
@@ -1054,6 +1064,8 @@ src/
   error.rs          # error types
   output.rs         # console rendering
   targets.rs        # target and target-file loading
+  connections.rs    # paired connection URL parsing
+  combo.rs          # protocol grouping for connection URLs
   engine/           # programmatic verify/spray/query engine
   mcp/              # MCP stdio server and tool schemas
 

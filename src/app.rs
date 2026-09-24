@@ -5,7 +5,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Parser;
 
-use crate::cli::{Cli, Command, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
+use crate::cli::{Cli, ComboArgs, Command, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
 use crate::database::CredentialDatabase;
 use crate::engine::{SprayReporter, SprayRequest, run_spray};
 use crate::output::Console;
@@ -28,6 +28,7 @@ pub async fn run() -> Result<()> {
         Command::Protocol(protocol_args) => {
             run_protocol(cli.no_color, cli.proxy, database, protocol_args).await
         }
+        Command::Combo(args) => run_combo(cli.no_color, cli.proxy, database, args).await,
         Command::Workspace(args) => run_workspace(database, args),
         Command::Creds(args) => crate::creds::run(&database, args),
         Command::Mcp => crate::mcp::serve_stdio(database).await,
@@ -59,6 +60,51 @@ async fn run_protocol(
     let request = SprayRequest::from_protocol_args(&protocol_args, proxy);
     let reporter = ConsoleReporter(Arc::new(Console::new(no_color)));
     run_spray(&database, request, Some(&reporter)).await?;
+    Ok(())
+}
+
+/// Verifies paired connection URLs and prints live progress.
+///
+/// # Parameters
+///
+/// - `no_color`: Disable ANSI colors when true.
+/// - `proxy`: Top-level `--proxy` configuration applied to every protocol group.
+/// - `database`: Open credential database handle.
+/// - `args`: Parsed `combo` sources and shared options.
+///
+/// # Returns
+///
+/// `Ok(())` when every protocol group finishes.
+///
+/// # Errors
+///
+/// Returns an error when a source cannot be parsed or a group fails before attempts are recorded.
+///
+/// # Examples
+///
+/// ```ignore
+/// brute combo connections.txt --threads 32
+/// ```
+async fn run_combo(
+    no_color: bool,
+    proxy: Option<crate::proxy::ProxyConfig>,
+    database: CredentialDatabase,
+    args: ComboArgs,
+) -> Result<()> {
+    let connections = crate::connections::load_connection_sources(&args.sources)?;
+    let reporter = ConsoleReporter(Arc::new(Console::new(no_color)));
+    let options = crate::combo::ComboOptions {
+        threads: args.threads,
+        retries: args.retries,
+        timeout_ms: args.timeout_ms,
+        continue_on_success: args.continue_on_success,
+        proxy,
+        execute: args.execute,
+        shares: args.shares,
+        shell_type: args.shell_type,
+        workspace: None,
+    };
+    crate::combo::run_connections(&database, connections, options, Some(&reporter)).await?;
     Ok(())
 }
 

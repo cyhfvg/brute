@@ -271,6 +271,15 @@ brute websphere 192.168.5.10 -u '' -p ''
 brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console
 ```
 
+配对连接 URL 是独立命令，不会与 `-u`/`-p` 做笛卡尔积：
+
+```bash
+brute combo connections.txt --threads 32
+brute urls 'ssh://root:password@192.168.5.1:22' 'ssh://:@192.168.5.2'
+```
+
+每个参数可以是 UTF-8 文件（每行一个 URL）、`-`（标准输入）或内联 `scheme://...`。省略用户名、空用户名、空密码仍会尝试。省略或空端口使用协议默认端口；`https` 省略端口时使用 `443`。别名：`urls`。
+
 ## 顶级参数
 
 以下参数与 `--version` 同级，必须写在协议子命令**之前**：
@@ -307,6 +316,7 @@ brute mcp
 - `delete_credentials`: 按 id、protocol、host 或 `all` 删除一个 workspace 内的已保存凭据。无选择器时拒绝。
 - `list_workspaces`: 列出本地 workspace 和当前 workspace。
 - `list_protocols`: 列出支持的协议和默认端口。
+- `verify_connections`: 从文件和/或内联列表验证配对连接 URL。空用户名、空密码、省略端口仍会尝试。
 
 MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。仅允许对授权目标使用。
 
@@ -1054,6 +1064,8 @@ src/
   error.rs          # 错误类型
   output.rs         # 控制台输出
   targets.rs        # 目标与目标文件加载
+  connections.rs    # 配对连接 URL 解析
+  combo.rs          # 按协议分组执行连接 URL
   engine/           # 可编程验证/喷洒/查询引擎
   mcp/              # MCP stdio 服务与工具 schema
 

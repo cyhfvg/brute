@@ -74,6 +74,7 @@ fn help_lists_primary_command_groups() {
     assert_success(&output);
     let stdout = stdout(&output);
     assert!(stdout.contains("commands"));
+    assert!(stdout.contains("combo"));
     assert!(stdout.contains("workspace"));
     assert!(stdout.contains("creds"));
     assert!(stdout.contains("mcp"));

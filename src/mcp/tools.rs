@@ -212,6 +212,118 @@ fn apply_options(request: &mut SprayRequest, options: ProtocolOptions) -> anyhow
     Ok(())
 }
 
+/// Options shared by every connection URL in one `verify_connections` call.
+#[derive(Debug, Clone, Default, Deserialize, schemars::JsonSchema)]
+pub struct ConnectionOptions {
+    /// In-flight attempt cap within each protocol group. Default: 16.
+    pub threads: Option<usize>,
+    /// Per-attempt timeout in milliseconds. Default: 5000.
+    pub timeout_ms: Option<u64>,
+    /// Transient transport retry count. Default: 3.
+    pub retries: Option<usize>,
+    /// Continue a host:port after the first success. Default: false.
+    #[serde(default)]
+    pub continue_on_success: bool,
+    /// Outbound proxy URL: `http://[user[:pass]@]host:port` or `socks5://...`.
+    pub proxy: Option<String>,
+    /// Workspace for success persistence. Defaults to current.
+    pub workspace: Option<String>,
+    /// Post-auth command for protocols that already support `-x`.
+    pub execute: Option<String>,
+    /// Enumerate SMB shares after a successful login.
+    #[serde(default)]
+    pub shares: bool,
+    /// WinRM shell type: `cmd` or `powershell`.
+    pub shell_type: Option<String>,
+}
+
+/// Parameters for verifying paired connection URLs.
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct VerifyConnectionsParams {
+    /// UTF-8 connection URL file. One `scheme://...` URL per line.
+    pub file: Option<String>,
+    /// Inline connection URLs. Used with `file` when both are set; file lines come first.
+    #[serde(default)]
+    pub urls: Vec<String>,
+    /// Shared attempt options. User, password, host, and port come from each URL.
+    #[serde(default)]
+    pub options: ConnectionOptions,
+}
+
+impl VerifyConnectionsParams {
+    /// Converts tool input into connection sources and runner options.
+    ///
+    /// # Returns
+    ///
+    /// File path and inline URLs, in that order, plus [`crate::combo::ComboOptions`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when neither `file` nor `urls` is set, or an option is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let params = VerifyConnectionsParams {
+    ///     file: None,
+    ///     urls: vec!["ssh://root:password@192.168.5.1:22".into()],
+    ///     options: Default::default(),
+    /// };
+    /// let (sources, options) = params.into_run()?;
+    /// assert_eq!(sources.len(), 1);
+    /// assert_eq!(options.threads, 16);
+    /// # Ok::<(), anyhow::Error>(())
+    /// ```
+    pub fn into_run(self) -> anyhow::Result<(Vec<String>, crate::combo::ComboOptions)> {
+        let mut sources = Vec::new();
+        if let Some(file) = self.file.filter(|file| !file.trim().is_empty()) {
+            sources.push(file);
+        }
+        sources.extend(self.urls.into_iter().filter(|url| !url.trim().is_empty()));
+        if sources.is_empty() {
+            anyhow::bail!("file or urls is required");
+        }
+        Ok((sources, self.options.into_combo()?))
+    }
+}
+
+impl ConnectionOptions {
+    /// Converts MCP options into runner options.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when threads or timeout is zero, or proxy/shell text is invalid.
+    fn into_combo(self) -> anyhow::Result<crate::combo::ComboOptions> {
+        let threads = self.threads.unwrap_or(16);
+        let timeout_ms = self.timeout_ms.unwrap_or(5_000);
+        if threads == 0 {
+            anyhow::bail!("threads must be >= 1");
+        }
+        if timeout_ms == 0 {
+            anyhow::bail!("timeout_ms must be >= 1");
+        }
+        let proxy = match self.proxy {
+            Some(proxy) => Some(ProxyConfig::parse(&proxy).map_err(anyhow::Error::msg)?),
+            None => None,
+        };
+        let shell_type = match self.shell_type {
+            Some(shell) => Some(crate::engine::parse_shell_type(&shell)?),
+            None => None,
+        };
+        Ok(crate::combo::ComboOptions {
+            threads,
+            retries: self.retries.unwrap_or(3),
+            timeout_ms,
+            continue_on_success: self.continue_on_success,
+            proxy,
+            execute: self.execute,
+            shares: self.shares,
+            shell_type,
+            workspace: self.workspace,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -266,5 +378,32 @@ mod tests {
         assert_eq!(request.path.as_deref(), Some("/login"));
         assert_eq!(request.threads, 4);
         assert!(request.continue_on_success);
+    }
+
+    /// Verifies connection tool input requires a file or inline URL.
+    #[test]
+    fn connection_params_require_a_source_and_keep_defaults() {
+        let missing = VerifyConnectionsParams {
+            file: None,
+            urls: Vec::new(),
+            options: ConnectionOptions::default(),
+        };
+        assert!(missing.into_run().is_err());
+
+        let params = VerifyConnectionsParams {
+            file: Some("connections.txt".into()),
+            urls: vec!["ssh://root:password@192.168.5.1".into()],
+            options: ConnectionOptions {
+                threads: Some(8),
+                ..ConnectionOptions::default()
+            },
+        };
+        let (sources, options) = params.into_run().expect("sources");
+        assert_eq!(
+            sources,
+            ["connections.txt", "ssh://root:password@192.168.5.1"]
+        );
+        assert_eq!(options.threads, 8);
+        assert_eq!(options.timeout_ms, 5_000);
     }
 }

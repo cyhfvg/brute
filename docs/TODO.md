@@ -28,6 +28,7 @@
   and target-file tokens; 65536-address cap; IPv6 targets rejected; CLI/MCP
   docs and unit/integration coverage.
 - `creds list` and `creds delete` operate on the current workspace only. Neither accepts `--workspace`; other workspaces require `workspace use` first, and each command prints the current workspace name. MCP `list_credentials` and `delete_credentials` still accept an explicit workspace because MCP does not switch the global current workspace. Unscoped deletes are refused. CLI and MCP share `engine::query_credentials` and `engine::delete_credentials`.
+- `brute combo` / `urls` and MCP `verify_connections` parse paired connection URLs (`ssh://root:password@192.168.5.1:22`). Empty username, empty password, and omitted port are attempted; `https` with no port uses 443. Mixed-protocol files are grouped and run through `engine::run_paired_spray` without changing cartesian `-u`/`-p` spray.
 
 ## Completed Protocol Work
 

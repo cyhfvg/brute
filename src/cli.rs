@@ -44,8 +44,56 @@ pub enum Command {
     Workspace(WorkspaceArgs),
     /// Manage saved credentials.
     Creds(CredsArgs),
+    /// Verify paired connection URLs from a file, stdin, or inline list.
+    #[command(
+        visible_alias = "urls",
+        about = "Verify paired connection URLs from a file or inline list",
+        after_help = "Each source is a UTF-8 file (one URL per line), `-` for stdin, or an inline URL.\n\
+Blank lines and lines starting with # are ignored.\n\
+\n\
+Format: scheme://[username[:password]@]host[:port][/path][?query]\n\
+A missing username, an empty username, and an empty password are still attempted.\n\
+A missing or empty port uses the protocol default. https with no port uses 443.\n\
+Passwords may contain ':' and '@'. Percent-encoded userinfo is decoded. '+' is not a space.\n\
+Oracle requires ?service=NAME or ?sid=SID. IPv6 is rejected.\n\
+\n\
+Examples:\n  \
+brute combo connections.txt --threads 32\n  \
+brute urls 'ssh://root:password@192.168.5.1:22' 'ssh://:@192.168.5.2'\n  \
+brute urls 'ssh://root:@192.168.5.1' 'https://admin:secret@10.0.0.9/admin'"
+    )]
+    Combo(ComboArgs),
     #[command(about = "Start the MCP stdio server for LLM tool use")]
     Mcp,
+}
+
+/// Sources and shared options for `brute combo`.
+#[derive(Debug, Clone, Args)]
+pub struct ComboArgs {
+    /// Connection URL file(s), `-` for stdin, and/or inline `scheme://...` values.
+    #[arg(required = true, num_args = 1.., value_name = "FILE_OR_URL")]
+    pub sources: Vec<String>,
+    /// Concurrent attempt cap within each protocol group.
+    #[arg(long, default_value_t = 16, value_parser = parse_positive_usize)]
+    pub threads: usize,
+    /// Retry count for transient transport failures.
+    #[arg(long, default_value_t = 3)]
+    pub retries: usize,
+    /// Timeout per attempt in milliseconds.
+    #[arg(long, default_value_t = 5000, value_parser = parse_positive_u64)]
+    pub timeout_ms: u64,
+    /// Continue a host:port after the first success.
+    #[arg(long)]
+    pub continue_on_success: bool,
+    /// Execute a command after a successful login on protocols that support `-x`.
+    #[arg(short = 'x', long = "execute", value_name = "COMMAND")]
+    pub execute: Option<String>,
+    /// Enumerate SMB shares after a successful login.
+    #[arg(long)]
+    pub shares: bool,
+    /// WinRM shell type: `cmd` or `powershell`.
+    #[arg(long, value_enum)]
+    pub shell_type: Option<WinrmShellType>,
 }
 
 /// Supported protocol subcommands.

@@ -254,7 +254,7 @@ fn load_request_credentials(
     Ok(loaded)
 }
 
-fn save_successful_credential(
+pub(super) fn save_successful_credential(
     database: &CredentialDatabase,
     workspace: &str,
     ctx: &AttemptContext,
@@ -268,7 +268,7 @@ fn save_successful_credential(
     )
 }
 
-fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
+pub(super) fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
     match request.protocol {
         Protocol::Ssh => Arc::new(SshModule::new(request.timeout_ms)),
         Protocol::Ftp => Arc::new(FtpModule::new(request.timeout_ms)),
@@ -321,7 +321,10 @@ fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
     }
 }
 
-fn attempt_record_from_outcome(ctx: &AttemptContext, outcome: &AttemptOutcome) -> AttemptRecord {
+pub(super) fn attempt_record_from_outcome(
+    ctx: &AttemptContext,
+    outcome: &AttemptOutcome,
+) -> AttemptRecord {
     let (status, message, post_auth) = match outcome {
         AttemptOutcome::Success(success) => {
             let post_auth = success
@@ -365,7 +368,7 @@ fn account_success_key(
     )
 }
 
-fn should_skip_attempt(
+pub(super) fn should_skip_attempt(
     continue_on_success: bool,
     target_success_flag: &AtomicBool,
     account_succeeded: bool,

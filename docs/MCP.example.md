@@ -12,6 +12,7 @@
 | `list_workspaces` | 不知道当前 workspace, 或要按项目隔离查询 |
 | `verify_account` | 只验 **一个目标 + 一组用户名/密码** (或一个已保存 `credential_id`) |
 | `spray_passwords` | 多个目标、多个用户、多个密码, 或字典文件 |
+| `verify_connections` | 已有配对连接 URL, 例如 `ssh://root:password@192.168.5.1:22`; 空用户名、空密码、省略端口仍会尝试 |
 | `list_credentials` | 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据 |
 | `delete_credentials` | 按 id、protocol、host 或 `all` 删除一个 workspace 内的已保存凭据; 无选择器时拒绝 |
 
@@ -42,6 +43,38 @@
 - 字典文件路径存在且为文件时按行展开 (与 CLI `-u`/`-p` 相同). `targets` 同样接受 IPv4 CIDR, 会展开为前缀内全部地址 (含网络/广播, 单个前缀最多 65536 个). 不支持 IPv6.
 - 成功登录会写入所选 workspace; 认证后命令失败不会丢掉已验证凭据.
 
+
+`verify_connections` 不用上面的笛卡尔 `options`. 参数是 `file` 和/或 `urls`, 以及独立 `options`:
+
+| 字段 | 含义 | 默认 |
+|---|---|---|
+| `file` | UTF-8 连接 URL 文件, 每行一个 | 无 |
+| `urls` | 内联连接 URL; 与 `file` 同时给出时文件在前 | 空 |
+| `options.threads` | 每个协议组内的并发上限 | `16` |
+| `options.timeout_ms` | 单次尝试超时 (毫秒) | `5000` |
+| `options.retries` | 传输层临时错误重试次数 | `3` |
+| `options.continue_on_success` | 同一 `host:port` 命中后继续 | `false` |
+| `options.proxy` | 与其它工具相同的代理 URL | 无 |
+| `options.workspace` | 成功凭据写入的 workspace | 当前 workspace |
+| `options.execute` | 认证成功后的命令, 仅已支持 `-x` 的协议 | 无 |
+| `options.shares` | SMB 认证成功后枚举 share | `false` |
+| `options.shell_type` | WinRM: `cmd` 或 `powershell` | 省略时 `-x` 用 powershell |
+
+`file` 与 `urls` 至少给一个. 空用户名 (`ssh://:password@host` 或 `ssh://:@host`)、空密码 (`ssh://root:@host`)、省略端口都会尝试. `https` 省略端口使用 `443`, 不是 `80`. Oracle URL 必须且只能带 `?service=` 或 `?sid=`. 不支持 IPv6. 解析错误返回 `invalid_params`.
+
+```json
+{
+  "tool": "verify_connections",
+  "arguments": {
+    "urls": [
+      "ssh://root:password@192.168.5.1:22",
+      "ssh://:@192.168.5.2",
+      "https://admin:secret@10.0.0.9/admin"
+    ],
+    "options": { "threads": 32 }
+  }
+}
+```
 ---
 
 ## 0. 先摸清能力和 workspace
@@ -834,5 +867,6 @@ FTP 那台用 users.txt / pass.txt, 成功后 PWD.
 | 验 Memcached / 未授权 | `brute memcached 192.168.5.10 -u '' -p ''` | `verify_account` protocol=memcached, username/password 为空串 |
 | 执行 memcached 命令 | `brute memcached 192.168.5.10 -u admin -p '...' -x 'stats'` | `verify_account` + `options.execute` |
 | 走代理 | `brute --proxy socks5://127.0.0.1:1080 ssh ...` | `options.proxy` |
+| 验配对连接 URL | `brute combo connections.txt --threads 32` | `verify_connections` |
 
 CLI 的 `--proxy` 是顶级参数, 写在子命令前. MCP 里代理放在 `options.proxy`.

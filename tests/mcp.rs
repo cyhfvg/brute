@@ -183,6 +183,7 @@ fn mcp_initialize_lists_expected_tools() {
         .collect();
     for expected in [
         "verify_account",
+        "verify_connections",
         "spray_passwords",
         "list_credentials",
         "list_workspaces",

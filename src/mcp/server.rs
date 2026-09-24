@@ -14,6 +14,7 @@ use crate::engine::{
 
 use super::tools::{
     DeleteCredentialsParams, ListCredentialsParams, SprayPasswordsParams, VerifyAccountParams,
+    VerifyConnectionsParams,
 };
 
 /// MCP server that reuses the local brute credential database.
@@ -160,6 +161,26 @@ impl BruteMcp {
     )]
     fn list_protocols(&self) -> Result<String, ErrorData> {
         to_json(&list_protocols())
+    }
+
+    /// Verifies paired connection URLs from a file and/or inline list.
+    #[tool(
+        name = "verify_connections",
+        description = "Verify paired connection URLs such as ssh://root:password@192.168.5.1:22. Empty username, empty password, and omitted port are attempted; https with no port uses 443. Oracle needs ?service= or ?sid=. Use only against authorized targets. Successes are saved to the local SQLite workspace."
+    )]
+    async fn verify_connections(
+        &self,
+        Parameters(params): Parameters<VerifyConnectionsParams>,
+    ) -> Result<String, ErrorData> {
+        let (sources, options) = params
+            .into_run()
+            .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+        let connections = crate::connections::load_connection_sources(&sources)
+            .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+        let report = crate::combo::run_connections(&self.database, connections, options, None)
+            .await
+            .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
+        to_json(&report)
     }
 }
 

@@ -514,6 +514,30 @@ fn parses_mcp_stdio_command() {
     assert!(matches!(cli.command, Command::Mcp));
 }
 
+/// Verifies `brute combo` accepts a file or inline URL and the `urls` alias.
+#[test]
+fn parses_combo_file_and_inline_url() {
+    let cli = Cli::try_parse_from(["brute", "combo", "connections.txt", "--threads", "32"])
+        .expect("combo file should parse");
+    let Command::Combo(args) = cli.command else {
+        panic!("expected combo arguments");
+    };
+    assert_eq!(args.sources, ["connections.txt"]);
+    assert_eq!(args.threads, 32);
+    assert_eq!(args.timeout_ms, 5_000);
+
+    let aliased = Cli::try_parse_from(["brute", "urls", "ssh://root:password@192.168.5.1:22"])
+        .expect("urls alias should parse");
+    assert!(matches!(aliased.command, Command::Combo(_)));
+}
+
+/// Verifies `brute combo` rejects a missing source.
+#[test]
+fn rejects_combo_without_source() {
+    let result = Cli::try_parse_from(["brute", "combo"]);
+    assert!(result.is_err(), "combo requires a file or URL");
+}
+
 /// Verifies protocol TARGET accepts a CIDR token for later expansion.
 #[test]
 fn parses_cidr_target_token() {

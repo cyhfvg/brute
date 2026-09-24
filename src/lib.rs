@@ -5,6 +5,8 @@
 
 pub mod app;
 pub mod cli;
+pub mod combo;
+pub mod connections;
 pub mod credentials;
 pub mod creds;
 pub mod database;
