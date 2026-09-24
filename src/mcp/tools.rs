@@ -92,6 +92,23 @@ pub struct ListCredentialsParams {
     pub host: Option<String>,
 }
 
+/// Parameters for deleting saved credentials.
+#[derive(Debug, Clone, Default, Deserialize, schemars::JsonSchema)]
+pub struct DeleteCredentialsParams {
+    /// Credential ids to delete. Empty deletes by filter instead.
+    #[serde(default)]
+    pub ids: Vec<i64>,
+    /// Workspace to delete from. Defaults to the current workspace.
+    pub workspace: Option<String>,
+    /// Protocol filter such as `ssh` or `http`.
+    pub protocol: Option<String>,
+    /// Exact host/IP filter.
+    pub host: Option<String>,
+    /// Delete every credential in the workspace. Refused when combined with ids or filters.
+    #[serde(default)]
+    pub all: bool,
+}
+
 impl VerifyAccountParams {
     /// Converts verify-tool arguments into an engine request.
     ///

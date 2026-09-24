@@ -69,7 +69,7 @@ impl McpClient {
         }
     }
 
-    fn request(&mut self, method: &str, params: Value) -> Value {
+    fn exchange(&mut self, method: &str, params: Value) -> Value {
         let id = self.next_id;
         self.next_id += 1;
         let message = json!({
@@ -91,6 +91,11 @@ impl McpClient {
             panic!("invalid MCP JSON: {err}; line={line:?}");
         });
         assert_eq!(value["id"], id, "MCP response id mismatch: {value}");
+        value
+    }
+
+    fn request(&mut self, method: &str, params: Value) -> Value {
+        let value = self.exchange(method, params);
         assert!(
             value.get("error").is_none(),
             "MCP error for {method}: {value}"
@@ -126,6 +131,16 @@ impl McpClient {
         serde_json::from_str(text).unwrap_or_else(|err| {
             panic!("tool {name} did not return JSON text: {err}; text={text}");
         })
+    }
+
+    fn call_tool_result(&mut self, name: &str, arguments: Value) -> Value {
+        self.exchange(
+            "tools/call",
+            json!({
+                "name": name,
+                "arguments": arguments,
+            }),
+        )
     }
 }
 
@@ -172,6 +187,7 @@ fn mcp_initialize_lists_expected_tools() {
         "list_credentials",
         "list_workspaces",
         "list_protocols",
+        "delete_credentials",
     ] {
         assert!(
             names.contains(&expected),
@@ -223,6 +239,57 @@ fn mcp_lists_saved_credentials_and_workspaces() {
     assert_eq!(credentials[0]["protocol"], "ssh");
     assert_eq!(credentials[0]["host"], "10.0.0.8");
     assert_eq!(credentials[0]["port"], 22);
+}
+
+/// Verifies delete_credentials removes a saved row and refuses an unscoped call.
+#[test]
+fn mcp_deletes_saved_credentials() {
+    let home = TempHome::new("mcp-delete");
+    let db_path = home.path().join(".config/brute/brute.db");
+    let database = CredentialDatabase::open(&db_path).expect("open temp database");
+    database
+        .save_success(
+            "default",
+            Protocol::Ssh,
+            "10.0.0.8",
+            22,
+            &CredentialSet {
+                username: Some("root".into()),
+                password: Some("toor".into()),
+                service_name: None,
+                sid: None,
+            },
+        )
+        .expect("save credential");
+    let id = database
+        .list_credentials("default", None, None)
+        .expect("list")[0]
+        .id;
+    drop(database);
+
+    let mut client = McpClient::start(&home);
+    initialize(&mut client);
+
+    let refused = client.call_tool_result("delete_credentials", json!({}));
+    assert_eq!(
+        refused["error"]["code"], -32602,
+        "unscoped delete: {refused}"
+    );
+    assert!(
+        refused["error"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("refusing to delete"),
+        "unexpected refusal: {refused}"
+    );
+
+    let report = client.call_tool("delete_credentials", json!({"ids": [id]}));
+    assert_eq!(report["deleted"][0]["id"], id);
+    assert_eq!(report["deleted"][0]["password"], "toor");
+    assert!(report["missing_ids"].as_array().unwrap().is_empty());
+
+    let remaining = client.call_tool("list_credentials", json!({}));
+    assert!(remaining.as_array().unwrap().is_empty());
 }
 
 /// Verifies a single-account check returns a structured report without hanging.

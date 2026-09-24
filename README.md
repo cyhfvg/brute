@@ -305,6 +305,7 @@ Tools exposed to the model:
 - `verify_account`: check one username/password (or a saved `--id`) against one target.
 - `spray_passwords`: spray username/password lists or wordlist paths across one or more targets.
 - `list_credentials`: query credentials already verified and stored in `~/.config/brute/brute.db`.
+- `delete_credentials`: delete saved credentials in one workspace by id, protocol, host, or `all`. An unscoped delete is refused.
 - `list_workspaces`: list local workspaces and the current workspace.
 - `list_protocols`: list supported protocols and default ports.
 
@@ -961,9 +962,12 @@ Notes:
 
 ### Searching Saved Credentials
 
+`creds list` only lists credentials in the current workspace. It does not accept `--workspace`. To list another workspace, switch first with `workspace use`. Each listing prints the current workspace name.
+
 ```bash
 brute creds list
-brute creds list --workspace project-a
+brute workspace use project-a
+brute creds list
 brute creds list --protocol ssh
 brute creds list --host 192.168.10.5
 brute creds list --protocol ssh --host 192.168.10.5
@@ -980,6 +984,21 @@ ID     PROTOCOL     CONN_URL
 ```
 
 This avoids repeating host, port, username, and password because they are already encoded in the URL.
+
+### Deleting Saved Credentials
+
+`creds delete` only deletes credentials in the current workspace. It does not accept `--workspace`. To delete credentials in another workspace, switch first with `workspace use`. Each delete prints the current workspace name.
+
+```bash
+brute creds delete 3
+brute creds delete 3 7
+brute workspace use project-a
+brute creds delete 3
+brute creds delete --protocol ssh --host 192.168.10.5
+brute creds delete --all
+```
+
+`brute creds delete` with no id, protocol, host, or `--all` fails. `--all` cannot be combined with ids or filters, and it deletes every saved credential in the current workspace only. A requested id that is missing from the current workspace exits non-zero after printing the rows that were deleted. Filter deletes that match nothing print `deleted 0 credentials` and succeed. Output does not include passwords.
 
 ### Reusing Saved Credentials
 

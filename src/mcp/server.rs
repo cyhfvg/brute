@@ -1,4 +1,4 @@
-//! rmcp tool router exposing brute verify, spray, and credential queries.
+//! rmcp tool router exposing brute verify, spray, and credential store tools.
 
 use rmcp::{
     ErrorData, ServerHandler,
@@ -8,9 +8,13 @@ use rmcp::{
 };
 
 use crate::database::CredentialDatabase;
-use crate::engine::{list_protocols, list_workspaces, query_credentials, run_spray};
+use crate::engine::{
+    delete_credentials, list_protocols, list_workspaces, query_credentials, run_spray,
+};
 
-use super::tools::{ListCredentialsParams, SprayPasswordsParams, VerifyAccountParams};
+use super::tools::{
+    DeleteCredentialsParams, ListCredentialsParams, SprayPasswordsParams, VerifyAccountParams,
+};
 
 /// MCP server that reuses the local brute credential database.
 #[derive(Clone)]
@@ -110,6 +114,34 @@ impl BruteMcp {
         to_json(&credentials)
     }
 
+    /// Deletes saved credentials from the local workspace store.
+    #[tool(
+        name = "delete_credentials",
+        description = "Delete saved credentials in one workspace by id, protocol, host, or all. Refuses an unscoped delete. Returns deleted records, including passwords, and missing ids."
+    )]
+    fn delete_credentials(
+        &self,
+        Parameters(params): Parameters<DeleteCredentialsParams>,
+    ) -> Result<String, ErrorData> {
+        let protocol = match params.protocol.as_deref() {
+            Some(name) => Some(
+                crate::engine::parse_protocol(name)
+                    .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?,
+            ),
+            None => None,
+        };
+        let report = delete_credentials(
+            &self.database,
+            params.workspace.as_deref(),
+            protocol,
+            params.host.as_deref(),
+            &params.ids,
+            params.all,
+        )
+        .map_err(credential_delete_error)?;
+        to_json(&report)
+    }
+
     /// Lists local credential workspaces.
     #[tool(
         name = "list_workspaces",
@@ -145,8 +177,8 @@ impl ServerHandler for BruteMcp {
             .with_instructions(concat!(
                 "Use brute only against systems you are authorized to test. ",
                 "verify_account checks one account. spray_passwords tests username/password ",
-                "lists. list_credentials returns previously verified secrets from the local ",
-                "SQLite workspace store. list_workspaces and list_protocols help choose ",
+                "lists. delete_credentials removes saved rows by id, protocol, host, or all ",
+                "and refuses an unscoped delete. list_workspaces and list_protocols help choose ",
                 "filters. Successful verifications are persisted automatically."
             ))
     }
@@ -156,4 +188,14 @@ fn to_json<T: serde::Serialize>(value: &T) -> Result<String, ErrorData> {
     serde_json::to_string_pretty(value).map_err(|err| {
         ErrorData::internal_error(format!("failed to encode MCP result: {err}"), None)
     })
+}
+
+/// Maps credential-delete failures to MCP parameter or internal errors.
+fn credential_delete_error(err: anyhow::Error) -> ErrorData {
+    let message = err.to_string();
+    if message.starts_with("refusing to delete") || message.starts_with("all cannot be combined") {
+        ErrorData::invalid_params(message, None)
+    } else {
+        ErrorData::internal_error(message, None)
+    }
 }

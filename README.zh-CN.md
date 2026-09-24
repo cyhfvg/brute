@@ -304,6 +304,7 @@ brute mcp
 - `verify_account`: 用一组用户名/密码或已保存凭据 id 验证单个目标。
 - `spray_passwords`: 对一个或多个目标做用户名/密码列表或字典喷洒。
 - `list_credentials`: 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据。
+- `delete_credentials`: 按 id、protocol、host 或 `all` 删除一个 workspace 内的已保存凭据。无选择器时拒绝。
 - `list_workspaces`: 列出本地 workspace 和当前 workspace。
 - `list_protocols`: 列出支持的协议和默认端口。
 
@@ -961,9 +962,12 @@ brute workspace list
 
 ### 检索凭据
 
+`creds list` 只列出当前 workspace 的凭据, 不接受 `--workspace`. 要查看其它 workspace, 必须先用 `workspace use` 显式切换. 每次列出都会打印当前 workspace 名称.
+
 ```bash
 brute creds list
-brute creds list --workspace project-a
+brute workspace use project-a
+brute creds list
 brute creds list --protocol ssh
 brute creds list --host 192.168.10.5
 brute creds list --protocol ssh --host 192.168.10.5
@@ -980,6 +984,21 @@ ID     PROTOCOL     CONN_URL
 ```
 
 这样可以避免重复显示已经包含在 URL 中的 host、port、username、password。
+
+### 删除凭据
+
+`creds delete` 只删除当前 workspace 的凭据, 不接受 `--workspace`. 要删除其它 workspace 的凭据, 必须先用 `workspace use` 显式切换. 每次删除都会打印当前 workspace 名称, 用来确认正在操作哪个 workspace.
+
+```bash
+brute creds delete 3
+brute creds delete 3 7
+brute workspace use project-a
+brute creds delete 3
+brute creds delete --protocol ssh --host 192.168.10.5
+brute creds delete --all
+```
+
+不带 id、protocol、host 或 `--all` 的 `brute creds delete` 会失败。`--all` 不能和 id 或过滤器同时使用, 且只清空当前 workspace。请求的 id 不在当前 workspace 时, 已删除的行仍会打印, 进程以非 0 退出。过滤器没有命中时打印 `deleted 0 credentials` 并成功。输出不包含密码。
 
 ### 复用保存凭据
 

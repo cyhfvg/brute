@@ -27,6 +27,7 @@
   network and broadcast) for every protocol via shared `load_targets`; inline
   and target-file tokens; 65536-address cap; IPv6 targets rejected; CLI/MCP
   docs and unit/integration coverage.
+- `creds list` and `creds delete` operate on the current workspace only. Neither accepts `--workspace`; other workspaces require `workspace use` first, and each command prints the current workspace name. MCP `list_credentials` and `delete_credentials` still accept an explicit workspace because MCP does not switch the global current workspace. Unscoped deletes are refused. CLI and MCP share `engine::query_credentials` and `engine::delete_credentials`.
 
 ## Completed Protocol Work
 

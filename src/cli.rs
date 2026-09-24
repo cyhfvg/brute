@@ -42,7 +42,7 @@ pub enum Command {
     Protocol(ProtocolArgs),
     #[command(about = "Manage credential workspaces")]
     Workspace(WorkspaceArgs),
-    #[command(about = "Search saved credentials")]
+    /// Manage saved credentials.
     Creds(CredsArgs),
     #[command(about = "Start the MCP stdio server for LLM tool use")]
     Mcp,
@@ -846,16 +846,24 @@ pub struct CredsArgs {
 /// Saved credential actions.
 #[derive(Debug, Subcommand)]
 pub enum CredsAction {
-    /// List saved credentials.
+    /// List saved credentials in the current workspace.
+    ///
+    /// Does not accept `--workspace`. Run `workspace use <NAME>` before listing
+    /// credentials that belong to another workspace.
     List(CredsListArgs),
+    /// Delete saved credentials in the current workspace.
+    ///
+    /// Does not accept `--workspace`. Run `workspace use <NAME>` before deleting
+    /// credentials that belong to another workspace.
+    Delete(CredsDeleteArgs),
 }
 
-/// Options for saved credential listing.
+/// Options for listing saved credentials in the current workspace.
+///
+/// This command does not accept `--workspace`. It only lists credentials in the
+/// workspace selected by `workspace use`.
 #[derive(Debug, Args)]
 pub struct CredsListArgs {
-    /// Workspace to search; defaults to the current workspace.
-    #[arg(long)]
-    pub workspace: Option<String>,
     /// Protocol filter.
     #[arg(long, value_enum)]
     pub protocol: Option<Protocol>,
@@ -865,6 +873,26 @@ pub struct CredsListArgs {
     /// Include connection URLs in output.
     #[arg(long)]
     pub conn_url: bool,
+}
+
+/// Options for deleting saved credentials in the current workspace.
+///
+/// This command does not accept `--workspace`. It only deletes credentials in the
+/// workspace selected by `workspace use`.
+#[derive(Debug, Args)]
+pub struct CredsDeleteArgs {
+    /// Credential ids to delete.
+    #[arg(value_name = "ID", conflicts_with = "all")]
+    pub ids: Vec<i64>,
+    /// Protocol filter.
+    #[arg(long, value_enum, conflicts_with = "all")]
+    pub protocol: Option<Protocol>,
+    /// Host/IP filter.
+    #[arg(long, conflicts_with = "all")]
+    pub host: Option<String>,
+    /// Delete every saved credential in the current workspace.
+    #[arg(long)]
+    pub all: bool,
 }
 
 /// Supported protocols.

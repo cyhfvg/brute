@@ -186,6 +186,271 @@ fn creds_list_renders_empty_table() {
 }
 
 #[test]
+fn creds_delete_removes_selected_rows_and_refuses_unscoped_delete() {
+    let home = TempHome::new("creds-delete");
+    let db_path = home.path().join(".config/brute/brute.db");
+    let database = brute::database::CredentialDatabase::open(&db_path).expect("open database");
+    let credential = brute::credentials::CredentialSet {
+        username: Some("admin".into()),
+        password: Some("secret".into()),
+        service_name: None,
+        sid: None,
+    };
+    database
+        .save_success(
+            "default",
+            brute::cli::Protocol::Ssh,
+            "10.0.0.8",
+            22,
+            &credential,
+        )
+        .expect("save ssh");
+    database
+        .save_success(
+            "default",
+            brute::cli::Protocol::Smb,
+            "10.0.0.9",
+            445,
+            &credential,
+        )
+        .expect("save smb");
+    let ssh_id = database
+        .list_credentials("default", Some(brute::cli::Protocol::Ssh), None)
+        .expect("list ssh")[0]
+        .id;
+    drop(database);
+
+    let refused = run_with_home(&home, ["creds", "delete"]);
+    assert!(
+        !refused.status.success(),
+        "unscoped delete should fail\n{}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains("refusing to delete"),
+        "stderr: {}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
+
+    let help = run_with_home(&home, ["creds", "--help"]);
+    assert_success(&help);
+    assert!(stdout(&help).contains("delete"));
+
+    let deleted = run_with_home(&home, ["creds", "delete", &ssh_id.to_string()]);
+    assert_success(&deleted);
+    let deleted_text = stdout(&deleted);
+    assert!(deleted_text.contains(&format!(
+        "deleted credential: {ssh_id} ssh admin@10.0.0.8:22"
+    )));
+    assert!(deleted_text.contains("deleted 1 credential"));
+    assert!(!deleted_text.contains("secret"));
+
+    let listed = run_with_home(&home, ["creds", "list"]);
+    assert_success(&listed);
+    let listed_text = stdout(&listed);
+    assert!(listed_text.contains("10.0.0.9"));
+    assert!(!listed_text.contains("10.0.0.8"));
+
+    let filtered = run_with_home(
+        &home,
+        ["creds", "delete", "--protocol", "smb", "--host", "10.0.0.9"],
+    );
+    assert_success(&filtered);
+    assert!(stdout(&filtered).contains("deleted 1 credential"));
+
+    let all = run_with_home(&home, ["creds", "delete", "--all"]);
+    assert_success(&all);
+    assert!(stdout(&all).contains("deleted 0 credentials"));
+
+    let missing = run_with_home(&home, ["creds", "delete", "999"]);
+    assert!(!missing.status.success());
+    assert!(String::from_utf8_lossy(&missing.stderr).contains("credential not found: 999"));
+}
+
+#[test]
+fn creds_delete_targets_only_the_current_workspace() {
+    let home = TempHome::new("creds-delete-current");
+    let db_path = home.path().join(".config/brute/brute.db");
+    let database = brute::database::CredentialDatabase::open(&db_path).expect("open database");
+    database
+        .create_workspace("audit")
+        .expect("create audit workspace");
+    let credential = brute::credentials::CredentialSet {
+        username: Some("admin".into()),
+        password: Some("secret".into()),
+        service_name: None,
+        sid: None,
+    };
+    database
+        .save_success(
+            "default",
+            brute::cli::Protocol::Ssh,
+            "10.0.0.8",
+            22,
+            &credential,
+        )
+        .expect("save default credential");
+    database
+        .save_success(
+            "audit",
+            brute::cli::Protocol::Ssh,
+            "10.0.0.9",
+            22,
+            &credential,
+        )
+        .expect("save audit credential");
+    let audit_id = database
+        .list_credentials("audit", None, None)
+        .expect("list audit")[0]
+        .id;
+    drop(database);
+
+    let help = run_with_home(&home, ["creds", "delete", "--help"]);
+    assert_success(&help);
+    let help_text = stdout(&help);
+    assert!(
+        !help_text.contains("--workspace <"),
+        "delete help must not offer --workspace:\n{help_text}"
+    );
+    assert!(
+        help_text.contains("current workspace"),
+        "delete help should name the current workspace:\n{help_text}"
+    );
+    assert!(
+        help_text.contains("workspace use"),
+        "delete help should require an explicit switch:\n{help_text}"
+    );
+
+    let rejected = run_with_home(&home, ["creds", "delete", "--workspace", "audit", "--all"]);
+    assert!(
+        !rejected.status.success(),
+        "creds delete --workspace must be rejected"
+    );
+    let rejected_err = String::from_utf8_lossy(&rejected.stderr);
+    assert!(
+        rejected_err.contains("unexpected argument") && rejected_err.contains("--workspace"),
+        "stderr: {rejected_err}"
+    );
+
+    let foreign = run_with_home(&home, ["creds", "delete", &audit_id.to_string()]);
+    assert!(!foreign.status.success());
+    assert!(
+        String::from_utf8_lossy(&foreign.stderr)
+            .contains(&format!("credential not found: {audit_id}"))
+    );
+    assert!(stdout(&foreign).contains("current workspace: default"));
+
+    let database = brute::database::CredentialDatabase::open(&db_path).expect("reopen database");
+    let audit_rows = database
+        .list_credentials("audit", None, None)
+        .expect("list audit after foreign delete");
+    assert_eq!(audit_rows.len(), 1);
+    assert_eq!(audit_rows[0].host, "10.0.0.9");
+    drop(database);
+
+    let switched = run_with_home(&home, ["workspace", "use", "audit"]);
+    assert_success(&switched);
+
+    let deleted = run_with_home(&home, ["creds", "delete", &audit_id.to_string()]);
+    assert_success(&deleted);
+    let deleted_text = stdout(&deleted);
+    assert!(deleted_text.contains("current workspace: audit"));
+    assert!(deleted_text.contains(&format!(
+        "deleted credential: {audit_id} ssh admin@10.0.0.9:22"
+    )));
+
+    let remaining = run_with_home(&home, ["creds", "list"]);
+    assert_success(&remaining);
+    assert!(!stdout(&remaining).contains("10.0.0.9"));
+
+    let database = brute::database::CredentialDatabase::open(&db_path).expect("reopen database");
+    let default_rows = database
+        .list_credentials("default", None, None)
+        .expect("list default after audit delete");
+    assert_eq!(default_rows.len(), 1);
+    assert_eq!(default_rows[0].host, "10.0.0.8");
+}
+
+#[test]
+fn creds_list_targets_only_the_current_workspace() {
+    let home = TempHome::new("creds-list-current");
+    let db_path = home.path().join(".config/brute/brute.db");
+    let database = brute::database::CredentialDatabase::open(&db_path).expect("open database");
+    database
+        .create_workspace("audit")
+        .expect("create audit workspace");
+    let credential = brute::credentials::CredentialSet {
+        username: Some("admin".into()),
+        password: Some("secret".into()),
+        service_name: None,
+        sid: None,
+    };
+    database
+        .save_success(
+            "default",
+            brute::cli::Protocol::Ssh,
+            "10.0.0.8",
+            22,
+            &credential,
+        )
+        .expect("save default credential");
+    database
+        .save_success(
+            "audit",
+            brute::cli::Protocol::Smb,
+            "10.0.0.9",
+            445,
+            &credential,
+        )
+        .expect("save audit credential");
+    drop(database);
+
+    let help = run_with_home(&home, ["creds", "list", "--help"]);
+    assert_success(&help);
+    let help_text = stdout(&help);
+    assert!(
+        !help_text.contains("--workspace <"),
+        "list help must not offer --workspace:\n{help_text}"
+    );
+    assert!(
+        help_text.contains("current workspace"),
+        "list help should name the current workspace:\n{help_text}"
+    );
+    assert!(
+        help_text.contains("workspace use"),
+        "list help should require an explicit switch:\n{help_text}"
+    );
+
+    let rejected = run_with_home(&home, ["creds", "list", "--workspace", "audit"]);
+    assert!(
+        !rejected.status.success(),
+        "creds list --workspace must be rejected"
+    );
+    let rejected_err = String::from_utf8_lossy(&rejected.stderr);
+    assert!(
+        rejected_err.contains("unexpected argument") && rejected_err.contains("--workspace"),
+        "stderr: {rejected_err}"
+    );
+
+    let listed = run_with_home(&home, ["creds", "list"]);
+    assert_success(&listed);
+    let listed_text = stdout(&listed);
+    assert!(listed_text.contains("current workspace: default"));
+    assert!(listed_text.contains("10.0.0.8"));
+    assert!(!listed_text.contains("10.0.0.9"));
+
+    let switched = run_with_home(&home, ["workspace", "use", "audit"]);
+    assert_success(&switched);
+
+    let audit = run_with_home(&home, ["creds", "list"]);
+    assert_success(&audit);
+    let audit_text = stdout(&audit);
+    assert!(audit_text.contains("current workspace: audit"));
+    assert!(audit_text.contains("10.0.0.9"));
+    assert!(!audit_text.contains("10.0.0.8"));
+}
+
+#[test]
 fn zero_concurrency_options_are_rejected() {
     let home = TempHome::new("invalid-concurrency");
 

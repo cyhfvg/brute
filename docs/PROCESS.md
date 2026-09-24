@@ -148,15 +148,16 @@
 
 每个 SQLite 连接都会启用外键约束，因此删除 workspace 会级联删除其凭据。认证成功后的命令执行错误会作为认证成功的附加状态输出，确保有效凭据仍会写入数据库。保存的 `conn_url` 会对用户名和密码进行 URL 编码，并为 IPv6 主机添加方括号。
 
-协议调度层在 `AttemptOutcome::Success` 时写入数据库，并用 `(workspace_id, protocol, host, port, username, password)` 去重。`workspace current/new/use/delete/list` 负责 workspace 管理；`delete` 会级联删除该 workspace 下的凭据，且不允许删除 `default`。`creds list` 负责按当前 workspace 或指定 `--workspace` 检索，支持 `--protocol`、`--host` 和 `--conn-url`。
+协议调度层在 `AttemptOutcome::Success` 时写入数据库，并用 `(workspace_id, protocol, host, port, username, password)` 去重。`workspace current/new/use/delete/list` 负责 workspace 管理；`delete` 会级联删除该 workspace 下的凭据，且不允许删除 `default`。`creds list` 与 `creds delete` 都不接受 `--workspace`，只操作当前 workspace，并打印当前 workspace 名称。其它 workspace 必须先 `workspace use` 显式切换。`list` 支持 `--protocol`、`--host` 和 `--conn-url`；`delete` 按 id、`--protocol`、`--host` 或 `--all` 删除，无选择器时拒绝，不跨 workspace，CLI 不回显密码。MCP `list_credentials` / `delete_credentials` 仍可传入 `workspace`，因为 MCP 不会切换全局 current workspace。
 
 ### MCP
 
-`brute mcp` 启动官方 `rmcp` stdio JSON-RPC 服务, 不向 stdout 打印 CLI 初始化横幅. 工具层调用 `engine::run_spray` / `query_credentials`:
+`brute mcp` 启动官方 `rmcp` stdio JSON-RPC 服务, 不向 stdout 打印 CLI 初始化横幅. 工具层调用 `engine::run_spray` / `query_credentials` / `delete_credentials`:
 
 - `verify_account`: 单目标单账户验证
 - `spray_passwords`: 用户名 x 密码喷洒
 - `list_credentials`: 按 workspace/protocol/host 查询已验证凭据
+- `delete_credentials`: 按 id、protocol、host 或 `all` 删除已保存凭据; 无选择器时拒绝
 - `list_workspaces` / `list_protocols`: 发现本地 workspace 与协议能力
 
 成功凭据仍写入 `~/.config/brute/brute.db`, 与 CLI 共用同一 schema.

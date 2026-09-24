@@ -6,6 +6,7 @@
 pub mod app;
 pub mod cli;
 pub mod credentials;
+pub mod creds;
 pub mod database;
 pub mod engine;
 pub mod error;

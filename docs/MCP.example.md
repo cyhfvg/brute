@@ -13,6 +13,7 @@
 | `verify_account` | 只验 **一个目标 + 一组用户名/密码** (或一个已保存 `credential_id`) |
 | `spray_passwords` | 多个目标、多个用户、多个密码, 或字典文件 |
 | `list_credentials` | 查询已经验证并写入 `~/.config/brute/brute.db` 的凭据 |
+| `delete_credentials` | 按 id、protocol、host 或 `all` 删除一个 workspace 内的已保存凭据; 无选择器时拒绝 |
 
 协议名: `ssh`, `ftp`, `mysql`, `postgresql` (别名 `postgres`), `redis`, `oracle`, `tomcat` (别名 `tomcat-manager`), `smb`, `rdp`, `winrm`, `http`, `vnc`, `zookeeper` (别名 `zk`), `memcached` (别名 `memcache`), `mongodb` (别名 `mongo`), `elasticsearch` (别名 `es`), `docker` (别名 `docker-api`), `snmp`, `activemq` (别名 `amq`), `rabbitmq` (别名 `amqp`), `rsync`, `mssql` (别名 `sqlserver`), `kafka`, `kibana`, `nfs`, `telnet`, `ldap`, `grafana`, `prometheus` (别名 `prom`), `jenkins`, `couchdb` (别名 `couch`), `clickhouse` (别名 `ch`), `neo4j`, `etcd`, `influxdb` (别名 `influx`), `solr`, `minio`, `nacos`, `nexus`, `jboss` (别名 `wildfly`), `druid`, `spark`, `hadoop` (别名 `hdfs`), `kubelet`, `gitlab`, `harbor`, `weblogic` (别名 `wls`), `websphere` (别名 `was`).
 
@@ -340,6 +341,8 @@ WinRM 喷洒完成, workspace=default.
 只要 SSH, 主机 192.168.10.5.
 ```
 
+CLI `brute creds list` 不接受 `--workspace`, 只列出当前 workspace, 并打印当前 workspace 名称. 查看其它 workspace 前必须先 `brute workspace use <NAME>`. MCP `list_credentials` 仍可传入 `workspace`, 因为 MCP 不会切换全局 current workspace.
+
 ### 模型应调用
 
 先确认 workspace, 再过滤查询:
@@ -394,6 +397,7 @@ WinRM 喷洒完成, workspace=default.
 
 结果含明文密码. 不要把整表贴到未授权频道.
 
+
 ### 模型应向用户转述
 
 ```text
@@ -401,6 +405,86 @@ WinRM 喷洒完成, workspace=default.
 - id=3  admin / Summer2024!  端口 22
   conn_url=ssh://admin:Summer2024%21@192.168.10.5:22
 ```
+---
+
+## 3.1 删除已保存凭据
+
+### 自然语言
+
+```text
+删掉 id 3 和 7.
+把 192.168.10.5 上的 SSH 凭据删掉.
+清空当前 workspace 的全部已保存凭据.
+```
+
+CLI `brute creds delete` 不接受 `--workspace`, 只删除当前 workspace, 并打印当前 workspace 名称. 删除其它 workspace 的凭据前必须先 `brute workspace use <NAME>`. MCP `delete_credentials` 仍可传入 `workspace`, 因为 MCP 不会切换全局 current workspace.
+
+### 模型应调用
+
+按 id:
+
+```json
+{
+  "tool": "delete_credentials",
+  "arguments": { "ids": [3, 7] }
+}
+```
+
+按 protocol 和 host:
+
+```json
+{
+  "tool": "delete_credentials",
+  "arguments": { "protocol": "ssh", "host": "192.168.10.5" }
+}
+```
+
+清空当前 workspace:
+
+```json
+{
+  "tool": "delete_credentials",
+  "arguments": { "all": true }
+}
+```
+
+无选择器必须拒绝, 不要调用 `all: true` 来“试试看”:
+
+```json
+{ "tool": "delete_credentials", "arguments": {} }
+```
+
+### 典型结果
+
+```json
+{
+  "workspace": "default",
+  "deleted": [
+    {
+      "id": 3,
+      "workspace": "default",
+      "protocol": "ssh",
+      "host": "192.168.10.5",
+      "port": 22,
+      "username": "admin",
+      "password": "Summer2024!",
+      "conn_url": "ssh://admin:Summer2024%21@192.168.10.5:22"
+    }
+  ],
+  "missing_ids": []
+}
+```
+
+结果含明文密码. 删除不跨 workspace, 也不删除 workspace 本身.
+
+### 模型应向用户转述
+
+```text
+已从 workspace default 删除 id=3 (ssh admin@192.168.10.5:22).
+未删除其他 workspace 的凭据.
+```
+
+
 
 ---
 
@@ -724,7 +808,7 @@ FTP 那台用 users.txt / pass.txt, 成功后 PWD.
 | 试一下这个 Oracle | 只传 host/user/pass | 必须带 `options.service_names` 或 `options.sids` |
 | 用刚才那组密码再喷 RDP | 同时传 `credential_id` 和 `usernames` | 只传 `credential_id` |
 | Redis 没用户名 | 省略 `username` | 传 `"username": ""` |
-| 查 10.10. 开头的凭据 | `host: "10.10."` | `host` 是精确匹配; 先全量 `list_credentials` 再过滤 |
+| 删掉全部凭据 | 用户明确要求后 `all: true` | 省略选择器; 无 id/protocol/host/`all` 会被拒绝 |
 | HTTPS 自签 | 找 CA 开关 | `url_scheme=https` 即可, 默认跳过证书校验 |
 | 对 SMB 执行命令 | `options.execute` | SMB 用 `options.shares`; 命令改 WinRM/SSH |
 | 字典在我笔记本上 | 传桌面相对路径 | 路径相对 **brute mcp 进程 cwd**, 或用绝对路径 |
@@ -743,6 +827,7 @@ FTP 那台用 users.txt / pass.txt, 成功后 PWD.
 | 验一个 SSH 账户 | `brute ssh 192.168.10.5 -u admin -p 'Summer2024!' -x id` | `verify_account` |
 | 喷 WinRM | `brute winrm 10.10.50.10 -u users.txt -p pass.txt --threads 8 --continue-on-success` | `spray_passwords` |
 | 查已保存凭据 | `brute creds list --protocol ssh --host 192.168.10.5` | `list_credentials` |
+| 删除已保存凭据 | `brute creds delete 3` 或 `brute creds delete --protocol ssh --host 192.168.10.5` | `delete_credentials` |
 | 复用凭据 id 3 | `brute smb 192.168.10.5 --id 3 --shares` | `verify_account` + `credential_id=3` + `options.shares` |
 | 验 ZooKeeper / 未授权 | `brute zookeeper 192.168.5.10 -u '' -p ''` | `verify_account` protocol=zookeeper, username/password 为空串 |
 | 执行 zk 命令 | `brute zookeeper 192.168.5.10 -u zkadmin -p '...' -x 'ls /'` | `verify_account` + `options.execute` |

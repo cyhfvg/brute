@@ -3,7 +3,7 @@
 use std::{env, fs, path::PathBuf, time::Duration};
 
 use anyhow::{Context, Result, bail};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 
 use crate::{cli::Protocol, credentials::CredentialSet};
 
@@ -277,25 +277,48 @@ impl CredentialDatabase {
         host: Option<&str>,
     ) -> Result<Vec<SavedCredential>> {
         let conn = self.connect()?;
-        let mut stmt = conn.prepare(
-            r#"
-            SELECT c.id, w.name, c.protocol, c.host, c.port, c.username, c.password, c.conn_url
-            FROM credentials c
-            JOIN workspaces w ON w.id = c.workspace_id
-            WHERE w.name = ?1
-              AND (?2 IS NULL OR c.protocol = ?2)
-              AND (?3 IS NULL OR c.host = ?3)
-            ORDER BY c.id
-            "#,
-        )?;
-        let protocol_name = protocol.map(|protocol| protocol.as_str().to_string());
-        let rows = stmt.query_map(
-            params![workspace, protocol_name, host],
-            saved_credential_from_row,
-        )?;
+        query_saved(&conn, workspace, protocol, host, &[])
+    }
 
-        rows.collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(Into::into)
+    /// Deletes saved credentials in one workspace.
+    ///
+    /// # Parameters
+    ///
+    /// - `workspace`: Workspace name. Rows in other workspaces are never deleted.
+    /// - `protocol`: Optional protocol filter. `None` matches every protocol.
+    /// - `host`: Optional exact host filter. `None` matches every host.
+    /// - `ids`: Credential ids to delete. An empty slice does not filter by id.
+    ///
+    /// # Returns
+    ///
+    /// Credentials that were deleted, ordered by id. Requested ids that do not
+    /// match the workspace and filters are omitted.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database cannot be opened or the delete
+    /// transaction fails.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let deleted = database.delete_credentials("default", Some(Protocol::Ssh), None, &[3])?;
+    /// ```
+    pub fn delete_credentials(
+        &self,
+        workspace: &str,
+        protocol: Option<Protocol>,
+        host: Option<&str>,
+        ids: &[i64],
+    ) -> Result<Vec<SavedCredential>> {
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let matched = query_saved(&tx, workspace, protocol, host, ids)?;
+        for row in &matched {
+            tx.execute("DELETE FROM credentials WHERE id = ?1", params![row.id])?;
+        }
+        tx.commit()?;
+        Ok(matched)
     }
 
     /// Opens a SQLite connection with a small busy timeout for concurrent success writes.
@@ -428,6 +451,78 @@ fn saved_credential_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedC
     })
 }
 
+/// Lists saved credentials on an existing connection.
+///
+/// # Parameters
+///
+/// - `conn`: Open SQLite connection or transaction.
+/// - `workspace`: Workspace name to search.
+/// - `protocol`: Optional protocol filter.
+/// - `host`: Optional exact host filter.
+/// - `ids`: Optional id allow-list. Empty means do not filter by id.
+///
+/// # Returns
+///
+/// Matching credentials ordered by id.
+///
+/// # Errors
+///
+/// Returns an error when the query cannot be prepared or a row cannot be read.
+fn query_saved(
+    conn: &Connection,
+    workspace: &str,
+    protocol: Option<Protocol>,
+    host: Option<&str>,
+    ids: &[i64],
+) -> Result<Vec<SavedCredential>> {
+    let mut sql = String::from(
+        r#"
+        SELECT c.id, w.name, c.protocol, c.host, c.port, c.username, c.password, c.conn_url
+        FROM credentials c
+        JOIN workspaces w ON w.id = c.workspace_id
+        WHERE w.name = ?1
+          AND (?2 IS NULL OR c.protocol = ?2)
+          AND (?3 IS NULL OR c.host = ?3)
+        "#,
+    );
+    if !ids.is_empty() {
+        sql.push_str(" AND c.id IN (");
+        for index in 0..ids.len() {
+            if index > 0 {
+                sql.push(',');
+            }
+            sql.push('?');
+        }
+        sql.push(')');
+    }
+    sql.push_str(" ORDER BY c.id");
+
+    let protocol_name = protocol.map(|protocol| protocol.as_str().to_string());
+    let host_value = host.map(str::to_owned);
+    let mut values = vec![
+        rusqlite::types::Value::Text(workspace.to_owned()),
+        match protocol_name {
+            Some(name) => rusqlite::types::Value::Text(name),
+            None => rusqlite::types::Value::Null,
+        },
+        match host_value {
+            Some(host) => rusqlite::types::Value::Text(host),
+            None => rusqlite::types::Value::Null,
+        },
+    ];
+    for id in ids {
+        values.push(rusqlite::types::Value::Integer(*id));
+    }
+
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(
+        rusqlite::params_from_iter(values.iter()),
+        saved_credential_from_row,
+    )?;
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(Into::into)
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs, path::PathBuf, time::SystemTime};
@@ -486,6 +581,45 @@ mod tests {
                 .list_credentials("audit", Some(Protocol::Ssh), None)?
                 .is_empty()
         );
+
+        let _ = fs::remove_file(path);
+        Ok(())
+    }
+
+    #[test]
+    fn deletes_credentials_without_crossing_workspaces() -> Result<()> {
+        let path = temp_database_path();
+        let _ = fs::remove_file(&path);
+        let database = CredentialDatabase::open(&path)?;
+        database.create_workspace("audit")?;
+        let credential = CredentialSet {
+            username: Some("admin".to_string()),
+            password: Some("123456".to_string()),
+            service_name: None,
+            sid: None,
+        };
+        database.save_success("default", Protocol::Ssh, "10.0.0.8", 22, &credential)?;
+        database.save_success("default", Protocol::Smb, "10.0.0.9", 445, &credential)?;
+        database.save_success("audit", Protocol::Ssh, "10.0.0.8", 22, &credential)?;
+
+        let default_rows = database.list_credentials("default", None, None)?;
+        let ssh_id = default_rows
+            .iter()
+            .find(|row| row.protocol == "ssh")
+            .expect("ssh row")
+            .id;
+        let audit_id = database.list_credentials("audit", None, None)?[0].id;
+
+        let deleted = database.delete_credentials("default", None, None, &[ssh_id, audit_id])?;
+        assert_eq!(deleted.len(), 1);
+        assert_eq!(deleted[0].id, ssh_id);
+        assert!(database.get_credential(audit_id, "audit").is_ok());
+
+        let deleted =
+            database.delete_credentials("default", Some(Protocol::Smb), Some("10.0.0.9"), &[])?;
+        assert_eq!(deleted.len(), 1);
+        assert!(database.list_credentials("default", None, None)?.is_empty());
+        assert_eq!(database.list_credentials("audit", None, None)?.len(), 1);
 
         let _ = fs::remove_file(path);
         Ok(())

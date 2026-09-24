@@ -5,10 +5,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Parser;
 
-use crate::cli::{
-    Cli, Command, CredsAction, CredsArgs, ProtocolArgs, WorkspaceAction, WorkspaceArgs,
-};
-use crate::database::{CredentialDatabase, SavedCredential};
+use crate::cli::{Cli, Command, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
+use crate::database::CredentialDatabase;
 use crate::engine::{SprayReporter, SprayRequest, run_spray};
 use crate::output::Console;
 use crate::protocol::{AttemptContext, AttemptOutcome, TargetContext};
@@ -31,7 +29,7 @@ pub async fn run() -> Result<()> {
             run_protocol(cli.no_color, cli.proxy, database, protocol_args).await
         }
         Command::Workspace(args) => run_workspace(database, args),
-        Command::Creds(args) => run_creds(database, args),
+        Command::Creds(args) => crate::creds::run(&database, args),
         Command::Mcp => crate::mcp::serve_stdio(database).await,
     }
 }
@@ -98,59 +96,6 @@ fn run_workspace(database: CredentialDatabase, args: WorkspaceArgs) -> Result<()
 
     Ok(())
 }
-
-/// Handles saved credential commands.
-fn run_creds(database: CredentialDatabase, args: CredsArgs) -> Result<()> {
-    match args.action {
-        CredsAction::List(args) => {
-            let workspace = match args.workspace {
-                Some(workspace) => workspace,
-                None => database.current_workspace()?,
-            };
-            let credentials =
-                database.list_credentials(&workspace, args.protocol, args.host.as_deref())?;
-            print_saved_credentials(&credentials, args.conn_url);
-        }
-    }
-
-    Ok(())
-}
-
-/// Prints saved credentials as a simple list table.
-fn print_saved_credentials(credentials: &[SavedCredential], show_conn_url: bool) {
-    if show_conn_url {
-        println!("{:<6} {:<12} CONN_URL", "ID", "PROTOCOL");
-    } else {
-        println!(
-            "{:<6} {:<16} {:<12} {:<20} {:<6} {:<20} PASSWORD",
-            "ID", "WORKSPACE", "PROTOCOL", "HOST", "PORT", "USERNAME"
-        );
-    }
-
-    for credential in credentials {
-        let username = credential.username.as_deref().unwrap_or("");
-        let password = credential.password.as_deref().unwrap_or("");
-
-        if show_conn_url {
-            println!(
-                "{:<6} {:<12} {}",
-                credential.id, credential.protocol, credential.conn_url
-            );
-        } else {
-            println!(
-                "{:<6} {:<16} {:<12} {:<20} {:<6} {:<20} {}",
-                credential.id,
-                credential.workspace,
-                credential.protocol,
-                credential.host,
-                credential.port,
-                username,
-                password
-            );
-        }
-    }
-}
-
 /// Console adapter that prints engine events in NetExec style.
 struct ConsoleReporter(Arc<Console>);
 

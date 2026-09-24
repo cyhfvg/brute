@@ -208,6 +208,17 @@ impl From<&SavedCredential> for CredentialRecord {
     }
 }
 
+/// Result of deleting saved credentials from one workspace.
+#[derive(Debug, Clone, Serialize)]
+pub struct CredentialDeleteReport {
+    /// Workspace the delete was scoped to.
+    pub workspace: String,
+    /// Credentials removed by this call.
+    pub deleted: Vec<CredentialRecord>,
+    /// Requested ids that did not match the workspace and filters.
+    pub missing_ids: Vec<i64>,
+}
+
 /// Implemented protocol list in CLI order.
 pub(crate) const ALL_PROTOCOLS: [Protocol; 48] = [
     Protocol::Ssh,
