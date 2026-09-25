@@ -82,6 +82,12 @@ pub struct ComboArgs {
     /// Timeout per attempt in milliseconds.
     #[arg(long, default_value_t = 5000, value_parser = parse_positive_u64)]
     pub timeout_ms: u64,
+    /// Fixed wait before each credential attempt, in milliseconds.
+    #[arg(long = "delay", default_value_t = 0)]
+    pub delay_ms: u64,
+    /// Inclusive extra random wait added to `--delay`, in milliseconds.
+    #[arg(long = "jitter", default_value_t = 0)]
+    pub jitter_ms: u64,
     /// Continue a host:port after the first success.
     #[arg(long)]
     pub continue_on_success: bool,
@@ -727,6 +733,12 @@ pub struct CommonArgs {
     /// Timeout per attempt in milliseconds.
     #[arg(long, default_value_t = 5000, value_parser = parse_positive_u64)]
     pub timeout_ms: u64,
+    /// Fixed wait before each credential attempt, in milliseconds.
+    #[arg(long = "delay", default_value_t = 0)]
+    pub delay_ms: u64,
+    /// Inclusive extra random wait added to `--delay`, in milliseconds.
+    #[arg(long = "jitter", default_value_t = 0)]
+    pub jitter_ms: u64,
     /// Continue authentication attempts even after successes.
     #[arg(long)]
     pub continue_on_success: bool,

@@ -194,6 +194,8 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误返�
 
 调度层对全部协议的凭据尝试使用 `attempt_with_retries`，`run_spray` 与 `run_paired_spray` 共用。`--retries` 是首次尝试之外的额外次数，默认 3，因此最多尝试 4 次。只重试 `AttemptFaultClass::Transport`；`Success`、`Auth` 与 `Lockout` 立即返回。两次尝试之间退避 `150ms * (已失败次数)`，第一次额外尝试等待 150ms。报告只记录最终结果，中间传输错误不单独入账。MCP 与 CLI 报告用 `status`（`success` / `failure` / `lockout` / `error`）和 `fault_class`（`auth` / `lockout` / `transport`，成功时为 `null`）表达结构化错误。`message` 仍是给人读的文本。
 
+`--delay` 与 `--jitter` 是每次凭据尝试前的等待，单位毫秒，默认都是 0。实际等待是 `delay + random(0..=jitter)`。两者都为 0 时不 sleep。这段等待发生在 `attempt_with_retries` 的循环之前，所以 `run_spray` 与 `run_paired_spray` 共用，且不会乘进传输层重试。重试之间仍只退避 `150ms * (已失败次数)`。`brute combo` 与 MCP `options.delay_ms` / `options.jitter_ms` 使用同一语义。这段等待目前不可取消。
+
 调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流：跨目标与凭据的同时进行尝试数不超过该值。不再使用 `--target-threads` 或单目标信号量。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads` 和 `--timeout-ms` 必须大于 0。RDP 尝试走 `spawn_blocking`（`run_blocking_with_timeout`），不在模块内加全局互斥锁。
 
 默认情况下，每个 target 命中 1 组成功凭据后会停止该 target 的后续尝试；`--continue-on-success` 用于显式开启继续爆破模式。

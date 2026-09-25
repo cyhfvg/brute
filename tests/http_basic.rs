@@ -234,6 +234,8 @@ fn attempt_ctx(
             threads: 1,
             retries: 0,
             timeout_ms,
+            delay_ms: 0,
+            jitter_ms: 0,
             continue_on_success: false,
             proxy: None,
         },

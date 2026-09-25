@@ -33,6 +33,7 @@
 - HTTP-family modules accept optional `--protocol http|https`. Omitted values use `https` for kubelet and websphere, otherwise `http`. The scheme is applied to both the client and the request URL. MCP uses the same default.
 - `--retries` applies to every protocol. The count is extra attempts after the first try. SSH no longer retries internally. Retry classification is `AttemptFaultClass::Transport` only.
 - Attempt results carry `AttemptFault` (`auth` / `transport` / `lockout`). The scheduler retries only `transport`. Reports expose `status` plus `fault_class`. Lockout is not retried and is printed as a yellow `[!]`.
+- `--delay` and `--jitter` wait before each credential attempt. The wait is `delay + random(0..=jitter)` milliseconds, default 0, and is not added again during transport retries. CLI, `brute combo`, and MCP share the fields.
 
 ## Completed Protocol Work
 

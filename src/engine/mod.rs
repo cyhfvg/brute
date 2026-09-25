@@ -3,11 +3,13 @@
 //! Shared by the CLI and the MCP server so both paths persist successes to the
 //! same SQLite workspace store and return structured attempt records.
 
+mod pacing;
 mod paired;
 mod query;
 mod run;
 mod types;
 
+pub use pacing::paced_delay_ms;
 pub use paired::run_paired_spray;
 pub use query::{
     delete_credentials, list_protocols, list_workspaces, protocol_names, query_credentials,

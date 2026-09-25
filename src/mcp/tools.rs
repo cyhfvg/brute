@@ -15,6 +15,10 @@ pub struct ProtocolOptions {
     pub timeout_ms: Option<u64>,
     /// Extra attempts after a transport error. Auth failures and lockouts are not retried. Default: 3.
     pub retries: Option<usize>,
+    /// Fixed wait before each credential attempt, in milliseconds. Default: 0.
+    pub delay_ms: Option<u64>,
+    /// Inclusive extra random wait added to `delay_ms`, in milliseconds. Default: 0.
+    pub jitter_ms: Option<u64>,
     /// Outbound proxy URL: `http://[user[:pass]@]host:port` or `socks5://...`.
     pub proxy: Option<String>,
     /// Workspace for `--id` lookup and success persistence. Defaults to current.
@@ -194,6 +198,12 @@ fn apply_options(request: &mut SprayRequest, options: ProtocolOptions) -> anyhow
     if let Some(retries) = options.retries {
         request.retries = retries;
     }
+    if let Some(delay_ms) = options.delay_ms {
+        request.delay_ms = delay_ms;
+    }
+    if let Some(jitter_ms) = options.jitter_ms {
+        request.jitter_ms = jitter_ms;
+    }
     if let Some(proxy) = options.proxy {
         request.proxy = Some(ProxyConfig::parse(&proxy).map_err(anyhow::Error::msg)?);
     }
@@ -223,6 +233,10 @@ pub struct ConnectionOptions {
     pub timeout_ms: Option<u64>,
     /// Extra attempts after a transport error. Auth failures and lockouts are not retried. Default: 3.
     pub retries: Option<usize>,
+    /// Fixed wait before each credential attempt, in milliseconds. Default: 0.
+    pub delay_ms: Option<u64>,
+    /// Inclusive extra random wait added to `delay_ms`, in milliseconds. Default: 0.
+    pub jitter_ms: Option<u64>,
     /// Continue a host:port after the first success. Default: false.
     #[serde(default)]
     pub continue_on_success: bool,
@@ -316,6 +330,8 @@ impl ConnectionOptions {
             threads,
             retries: self.retries.unwrap_or(3),
             timeout_ms,
+            delay_ms: self.delay_ms.unwrap_or(0),
+            jitter_ms: self.jitter_ms.unwrap_or(0),
             continue_on_success: self.continue_on_success,
             proxy,
             execute: self.execute,
@@ -369,6 +385,8 @@ mod tests {
             options: ProtocolOptions {
                 url_scheme: Some("https".into()),
                 path: Some("/login".into()),
+                delay_ms: Some(25),
+                jitter_ms: Some(5),
                 ..ProtocolOptions::default()
             },
         };
@@ -380,6 +398,8 @@ mod tests {
         assert_eq!(request.path.as_deref(), Some("/login"));
         assert_eq!(request.threads, 4);
         assert!(request.continue_on_success);
+        assert_eq!(request.delay_ms, 25);
+        assert_eq!(request.jitter_ms, 5);
     }
 
     /// Verifies connection tool input requires a file or inline URL.
@@ -397,6 +417,8 @@ mod tests {
             urls: vec!["ssh://root:password@192.168.5.1".into()],
             options: ConnectionOptions {
                 threads: Some(8),
+                delay_ms: Some(40),
+                jitter_ms: Some(0),
                 ..ConnectionOptions::default()
             },
         };
@@ -407,5 +429,7 @@ mod tests {
         );
         assert_eq!(options.threads, 8);
         assert_eq!(options.timeout_ms, 5_000);
+        assert_eq!(options.delay_ms, 40);
+        assert_eq!(options.jitter_ms, 0);
     }
 }

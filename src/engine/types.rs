@@ -41,6 +41,10 @@ pub struct SprayRequest {
     pub retries: usize,
     /// Per-attempt timeout in milliseconds.
     pub timeout_ms: u64,
+    /// Fixed wait before each credential attempt, in milliseconds.
+    pub delay_ms: u64,
+    /// Inclusive extra random wait added to `delay_ms`, in milliseconds.
+    pub jitter_ms: u64,
     /// Continue a target after the first success.
     pub continue_on_success: bool,
     /// Optional outbound proxy.
@@ -75,6 +79,8 @@ impl Default for SprayRequest {
             threads: 16,
             retries: 3,
             timeout_ms: 5_000,
+            delay_ms: 0,
+            jitter_ms: 0,
             continue_on_success: false,
             proxy: None,
             execute: None,
@@ -454,6 +460,8 @@ impl SprayRequest {
             threads: common.threads,
             retries: common.retries,
             timeout_ms: common.timeout_ms,
+            delay_ms: common.delay_ms,
+            jitter_ms: common.jitter_ms,
             continue_on_success: common.continue_on_success,
             proxy,
             execute: args.execute().map(ToOwned::to_owned),
@@ -477,6 +485,8 @@ impl SprayRequest {
             threads: self.threads,
             retries: self.retries,
             timeout_ms: self.timeout_ms,
+            delay_ms: self.delay_ms,
+            jitter_ms: self.jitter_ms,
             continue_on_success: self.continue_on_success,
             proxy: self.proxy.clone(),
         }

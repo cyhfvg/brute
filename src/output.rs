@@ -174,6 +174,8 @@ mod tests {
                 threads: 16,
                 retries: 3,
                 timeout_ms: 5_000,
+                delay_ms: 0,
+                jitter_ms: 0,
                 continue_on_success: false,
                 proxy: None,
             },

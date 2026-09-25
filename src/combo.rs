@@ -23,6 +23,10 @@ pub struct ComboOptions {
     pub retries: usize,
     /// Per-attempt timeout in milliseconds.
     pub timeout_ms: u64,
+    /// Fixed wait before each credential attempt, in milliseconds.
+    pub delay_ms: u64,
+    /// Inclusive extra random wait added to `delay_ms`, in milliseconds.
+    pub jitter_ms: u64,
     /// When false, a successful `host:port` skips the remaining logins for that endpoint.
     pub continue_on_success: bool,
     /// Outbound proxy applied to every group.
@@ -43,6 +47,8 @@ impl Default for ComboOptions {
             threads: 16,
             retries: 3,
             timeout_ms: 5_000,
+            delay_ms: 0,
+            jitter_ms: 0,
             continue_on_success: false,
             proxy: None,
             execute: None,
@@ -127,6 +133,8 @@ pub async fn run_connections(
             threads: options.threads,
             retries: options.retries,
             timeout_ms: options.timeout_ms,
+            delay_ms: options.delay_ms,
+            jitter_ms: options.jitter_ms,
             continue_on_success: options.continue_on_success,
             proxy: options.proxy.clone(),
             execute: options.execute.clone(),

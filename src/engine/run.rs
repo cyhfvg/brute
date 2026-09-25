@@ -392,17 +392,15 @@ pub(super) fn should_skip_attempt(
     account_succeeded || (!continue_on_success && target_success_flag.load(Ordering::Relaxed))
 }
 
-/// Retries a credential attempt only when the fault class is transport.
+/// Waits `--delay` plus inclusive `--jitter`, then retries only transport faults.
 ///
-/// `ctx.target.retries` is the number of extra tries after the first attempt.
-/// Success, authentication failure, and lockout return immediately. Only the
-/// final outcome is recorded by the caller. Backoff between tries is
-/// `150ms * (failed attempts)`.
+/// The pre-attempt wait runs once. `ctx.target.retries` is extra tries after the first attempt.
+/// Success, auth failure, and lockout return immediately. Retry backoff stays `150ms * (failed attempts)`.
 ///
 /// # Parameters
 ///
 /// - `module`: Protocol implementation. Each call performs exactly one try.
-/// - `ctx`: Attempt context, including the retry budget.
+/// - `ctx`: Attempt context, including delay, jitter, and the retry budget.
 ///
 /// # Returns
 ///
@@ -421,6 +419,7 @@ pub(super) async fn attempt_with_retries(
     module: &dyn BruteModule,
     ctx: &AttemptContext,
 ) -> AttemptOutcome {
+    super::pacing::wait_before_attempt(ctx.target.delay_ms, ctx.target.jitter_ms).await;
     let mut failed_attempts = 0usize;
     loop {
         let outcome = module.attempt(ctx).await;
@@ -515,6 +514,8 @@ mod tests {
                 threads: 1,
                 retries,
                 timeout_ms: 1000,
+                delay_ms: 0,
+                jitter_ms: 0,
                 continue_on_success: false,
                 proxy: None,
             },

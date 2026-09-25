@@ -336,6 +336,8 @@ Successful MCP verifications are saved to the selected workspace, same as the CL
 - `--port <PORT>`: Override the protocol default port.
 - `--threads <N>`: Concurrent in-flight login attempts (global cap across targets and credentials). Default: `16`; must be at least `1`.
 - `--retries <N>`: Extra attempts after a transient transport error. Authentication failures and lockouts are not retried. Non-success MCP records include `fault_class` (`auth`, `lockout`, or `transport`). Applies to every protocol. Default: `3`.
+- `--delay <MS>`: Fixed wait before each credential attempt, in milliseconds. Default: `0`. Also accepted by `brute combo`.
+- `--jitter <MS>`: Inclusive extra random wait added to `--delay`, in milliseconds. Default: `0`. Transport retries keep their own backoff and do not add this wait again.
 - `--timeout-ms <MS>`: Per-attempt timeout in milliseconds. Default: `5000`; must be at least `1`.
 - `--continue-on-success`: Continue attempts against a target after a successful credential is found.
 

@@ -97,6 +97,8 @@ async fn run_combo(
         threads: args.threads,
         retries: args.retries,
         timeout_ms: args.timeout_ms,
+        delay_ms: args.delay_ms,
+        jitter_ms: args.jitter_ms,
         continue_on_success: args.continue_on_success,
         proxy,
         execute: args.execute,

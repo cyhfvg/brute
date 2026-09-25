@@ -592,14 +592,26 @@ fn parses_mcp_stdio_command() {
 /// Verifies `brute combo` accepts a file or inline URL and the `urls` alias.
 #[test]
 fn parses_combo_file_and_inline_url() {
-    let cli = Cli::try_parse_from(["brute", "combo", "connections.txt", "--threads", "32"])
-        .expect("combo file should parse");
+    let cli = Cli::try_parse_from([
+        "brute",
+        "combo",
+        "connections.txt",
+        "--threads",
+        "32",
+        "--delay",
+        "25",
+        "--jitter",
+        "5",
+    ])
+    .expect("combo file should parse");
     let Command::Combo(args) = cli.command else {
         panic!("expected combo arguments");
     };
     assert_eq!(args.sources, ["connections.txt"]);
     assert_eq!(args.threads, 32);
     assert_eq!(args.timeout_ms, 5_000);
+    assert_eq!(args.delay_ms, 25);
+    assert_eq!(args.jitter_ms, 5);
 
     let aliased = Cli::try_parse_from(["brute", "urls", "ssh://root:password@192.168.5.1:22"])
         .expect("urls alias should parse");
@@ -1684,4 +1696,18 @@ fn parses_websphere_execute_and_default_port() {
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
     assert_eq!(args.execute.execute.as_deref(), Some("console"));
+}
+
+/// Verifies protocol commands accept `--delay` and `--jitter`, including zero.
+#[test]
+fn parses_delay_and_jitter_on_protocol_commands() {
+    let cli = Cli::try_parse_from([
+        "brute", "ssh", "10.0.0.8", "-u", "root", "-p", "toor", "--delay", "0", "--jitter", "15",
+    ])
+    .expect("delay and jitter should parse");
+    let Command::Protocol(args) = cli.command else {
+        panic!("expected protocol arguments");
+    };
+    assert_eq!(args.common().delay_ms, 0);
+    assert_eq!(args.common().jitter_ms, 15);
 }

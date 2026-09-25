@@ -289,6 +289,8 @@ mod tests {
                 threads: 1,
                 retries: 0,
                 timeout_ms: 300,
+                delay_ms: 0,
+                jitter_ms: 0,
                 continue_on_success: false,
                 proxy: None,
             },
