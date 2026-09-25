@@ -316,15 +316,13 @@ fn mcp_verify_account_returns_structured_report() {
     );
     assert_eq!(report["protocol"], "ssh");
     assert_eq!(report["workspace"], "default");
+    assert!(report.get("attempts").is_none(), "{report}");
+    assert_eq!(report["successes"].as_array().map(Vec::len), Some(0));
     assert!(
-        report["attempts"]
-            .as_array()
-            .map(|rows| !rows.is_empty())
-            .unwrap_or(false)
-            || report["successes"]
-                .as_array()
-                .map(Vec::is_empty)
-                .unwrap_or(false),
-        "verify report should include attempt outcome: {report}"
+        report["error_count"].as_u64().unwrap_or(0)
+            + report["failure_count"].as_u64().unwrap_or(0)
+            + report["lockout_count"].as_u64().unwrap_or(0)
+            >= 1,
+        "verify report should count the non-success outcome: {report}"
     );
 }

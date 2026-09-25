@@ -32,10 +32,11 @@
 - HTTP credential status classification is shared by `src/protocol/http_auth.rs`. 401 is always an auth failure, 2xx is always a hit, and 403 follows a per-protocol `CredentialHit` or `AuthFailure` policy.
 - HTTP-family modules accept optional `--protocol http|https`. Omitted values use `https` for kubelet and websphere, otherwise `http`. The scheme is applied to both the client and the request URL. MCP uses the same default.
 - `--retries` applies to every protocol. The count is extra attempts after the first try. SSH no longer retries internally. Retry classification is `AttemptFaultClass::Transport` only.
-- Attempt results carry `AttemptFault` (`auth` / `transport` / `lockout`). The scheduler retries only `transport`. Reports expose `status` plus `fault_class`. Lockout is not retried and is printed as a yellow `[!]`.
+- Attempt results carry `AttemptFault` (`auth` / `transport` / `lockout`). The scheduler retries only `transport`. CLI live output prints `status` plus `fault_class`. Lockout is not retried and is printed as a yellow `[!]`.
 - `--delay` and `--jitter` wait before each credential attempt. The wait is `delay + random(0..=jitter)` milliseconds, default 0, and is not added again during transport retries. CLI, `brute combo`, and MCP share the fields.
 - Ctrl-C and MCP request cancellation share one `CancellationToken`. In-flight attempts stop at delay, retry backoff, async I/O, and blocking waits. A per-target child token stops only that target after the first success unless `--continue-on-success` is set. Timed-out or cancelled blocking work keeps its proxy bridge until the blocking function returns.
 - Target probes overlap credential spray. A probe no longer serially blocks attempts and does not filter targets.
+- Spray reports retain successes and count failures, lockouts, and errors. Non-success records are streamed to the CLI reporter and are not returned as a bulk `attempts` array.
 
 ## Completed Protocol Work
 

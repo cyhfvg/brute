@@ -52,8 +52,8 @@ use super::types::{
 ///
 /// # Returns
 ///
-/// A [`SprayReport`] containing probe banners, executed attempts, and successes.
-/// Probe banners are collected concurrently and do not gate credential attempts.
+/// A [`SprayReport`] containing probe banners, successes, and non-success counts.
+/// Non-success records are streamed to `reporter` and are not retained.
 ///
 /// # Errors
 ///
@@ -118,7 +118,10 @@ pub async fn run_spray(
             .collect::<HashMap<_, _>>(),
     );
     let account_successes = Arc::new(Mutex::new(HashSet::new()));
-    let attempts = Arc::new(Mutex::new(Vec::new()));
+    let successes = Arc::new(Mutex::new(Vec::new()));
+    let failure_count = Arc::new(AtomicUsize::new(0));
+    let lockout_count = Arc::new(AtomicUsize::new(0));
+    let error_count = Arc::new(AtomicUsize::new(0));
     let skipped = Arc::new(AtomicUsize::new(0));
 
     let spray_task: Pin<Box<dyn Future<Output = ()> + Send + '_>> = Box::pin(
@@ -135,7 +138,10 @@ pub async fn run_spray(
             let execute = request_execute.clone();
             let target_success_flags = target_success_flags.clone();
             let account_successes = account_successes.clone();
-            let attempts = attempts.clone();
+            let successes = successes.clone();
+            let failure_count = failure_count.clone();
+            let lockout_count = lockout_count.clone();
+            let error_count = error_count.clone();
             let skipped = skipped.clone();
             let database = database.clone();
             let workspace = workspace.clone();
@@ -198,10 +204,15 @@ pub async fn run_spray(
                 if let Some(reporter) = reporter {
                     reporter.attempt(&ctx, &outcome);
                 }
-                attempts
-                    .lock()
-                    .await
-                    .push(attempt_record_from_outcome(&ctx, &outcome));
+                retain_attempt_outcome(
+                    &successes,
+                    &failure_count,
+                    &lockout_count,
+                    &error_count,
+                    &ctx,
+                    &outcome,
+                )
+                .await;
             }
         }),
     );
@@ -209,21 +220,18 @@ pub async fn run_spray(
         Box::pin(probe_task);
     let ((), probes) = tokio::join!(spray_task, probe_task);
 
-    let attempts = Arc::try_unwrap(attempts)
-        .map_err(|_| anyhow::anyhow!("attempt collector still shared"))?
+    let successes = Arc::try_unwrap(successes)
+        .map_err(|_| anyhow::anyhow!("success collector still shared"))?
         .into_inner();
-    let successes = attempts
-        .iter()
-        .filter(|record| record.status == AttemptStatus::Success)
-        .cloned()
-        .collect();
 
     Ok(SprayReport {
         workspace,
         protocol: protocol.as_str().to_string(),
         probes,
-        attempts,
         successes,
+        failure_count: failure_count.load(Ordering::Relaxed),
+        lockout_count: lockout_count.load(Ordering::Relaxed),
+        error_count: error_count.load(Ordering::Relaxed),
         skipped: skipped.load(Ordering::Relaxed),
     })
 }
@@ -436,6 +444,59 @@ pub(super) fn attempt_record_from_outcome(
         fault_class,
         message,
         post_auth,
+    }
+}
+
+/// Counts one finished attempt and retains only success records.
+///
+/// # Parameters
+///
+/// - `successes`: Shared success list. Only [`AttemptOutcome::Success`] is pushed.
+/// - `failure_count`: Authentication-failure counter.
+/// - `lockout_count`: Lockout counter.
+/// - `error_count`: Transport or timeout counter.
+/// - `ctx`: Attempt context used to build a success record.
+/// - `outcome`: Final outcome after retries.
+///
+/// # Returns
+///
+/// Nothing. Counters and `successes` are updated in place.
+///
+/// # Errors
+///
+/// This function does not return an error.
+///
+/// # Examples
+///
+/// ```ignore
+/// retain_attempt_outcome(&successes, &failure_count, &lockout_count, &error_count, &ctx, &outcome).await;
+/// ```
+pub(super) async fn retain_attempt_outcome(
+    successes: &Mutex<Vec<AttemptRecord>>,
+    failure_count: &AtomicUsize,
+    lockout_count: &AtomicUsize,
+    error_count: &AtomicUsize,
+    ctx: &AttemptContext,
+    outcome: &AttemptOutcome,
+) {
+    match outcome {
+        AttemptOutcome::Success(_) => {
+            successes
+                .lock()
+                .await
+                .push(attempt_record_from_outcome(ctx, outcome));
+        }
+        AttemptOutcome::Failure(fault) | AttemptOutcome::Error(fault) => match fault.class {
+            AttemptFaultClass::Auth => {
+                failure_count.fetch_add(1, Ordering::Relaxed);
+            }
+            AttemptFaultClass::Lockout => {
+                lockout_count.fetch_add(1, Ordering::Relaxed);
+            }
+            AttemptFaultClass::Transport => {
+                error_count.fetch_add(1, Ordering::Relaxed);
+            }
+        },
     }
 }
 

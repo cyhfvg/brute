@@ -192,7 +192,7 @@ SSH banner 获取在 target 级探测中进行，与凭据喷洒重叠，不作�
 
 SSH 单次登录中的连接、session 创建、handshake 等传输层错误返回 `AttemptOutcome::Error`，类别是 `AttemptFaultClass::Transport`，消息是 `ssh transport failed`，不暴露 `Failed getting banner` 等低层错误细节。认证失败返回 `Failure`，类别是 `Auth`，不重试。账户或服务锁定返回 `Failure`，类别是 `Lockout`，不重试。SSH 模块本身只尝试一次，重试由调度层统一处理，避免与 `--retries` 相乘。
 
-调度层对全部协议的凭据尝试使用 `attempt_with_retries`，`run_spray` 与 `run_paired_spray` 共用。`--retries` 是首次尝试之外的额外次数，默认 3，因此最多尝试 4 次。只重试 `AttemptFaultClass::Transport`；`Success`、`Auth` 与 `Lockout` 立即返回。两次尝试之间退避 `150ms * (已失败次数)`，第一次额外尝试等待 150ms。报告只记录最终结果，中间传输错误不单独入账。MCP 与 CLI 报告用 `status`（`success` / `failure` / `lockout` / `error`）和 `fault_class`（`auth` / `lockout` / `transport`，成功时为 `null`）表达结构化错误。`message` 仍是给人读的文本。
+调度层对全部协议的凭据尝试使用 `attempt_with_retries`，`run_spray` 与 `run_paired_spray` 共用。`--retries` 是首次尝试之外的额外次数，默认 3，因此最多尝试 4 次。只重试 `AttemptFaultClass::Transport`；`Success`、`Auth` 与 `Lockout` 立即返回。两次尝试之间退避 `150ms * (已失败次数)`，第一次额外尝试等待 150ms。报告只记录最终结果，中间传输错误不单独入账。CLI 通过 `SprayReporter` 即时打印每次结果。返回的 `SprayReport` 只保留 `successes`，非成功结果按 `failure_count`、`lockout_count`、`error_count` 计数，不再把整次喷洒的失败记录攒在内存里一次返回。MCP 使用同一报告形状。
 
 `--delay` 与 `--jitter` 是每次凭据尝试前的等待，单位毫秒，默认都是 0。实际等待是 `delay + random(0..=jitter)`。两者都为 0 时不 sleep。这段等待发生在 `attempt_with_retries` 的循环之前，所以 `run_spray` 与 `run_paired_spray` 共用，且不会乘进传输层重试。重试之间仍只退避 `150ms * (已失败次数)`。`brute combo` 与 MCP `options.delay_ms` / `options.jitter_ms` 使用同一语义。delay、jitter 与重试退避都可被取消令牌打断。
 

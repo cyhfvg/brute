@@ -29,10 +29,10 @@ use super::{
     attempt::{AttemptControl, attempt_with_retries},
     query::resolve_workspace,
     run::{
-        attempt_record_from_outcome, build_module, probe_targets_concurrent,
-        save_successful_credential, should_skip_attempt,
+        build_module, probe_targets_concurrent, retain_attempt_outcome, save_successful_credential,
+        should_skip_attempt,
     },
-    types::{AttemptStatus, ProbeRecord, SprayReport, SprayReporter, SprayRequest},
+    types::{ProbeRecord, SprayReport, SprayReporter, SprayRequest},
 };
 
 /// Runs paired logins for one protocol group.
@@ -48,12 +48,13 @@ use super::{
 /// # Returns
 ///
 /// A [`SprayReport`] for this group. Successful passwords are stored in the resolved workspace.
+/// Non-success outcomes are counted, not retained as records.
 ///
 /// # Errors
 ///
 /// Returns an error when `logins` is empty, concurrency settings are invalid, an
 /// Oracle login lacks exactly one identifier, or workspace resolution fails.
-/// Individual login failures are recorded on the report.
+/// Individual login failures increment the report counters.
 ///
 /// # Examples
 ///
@@ -132,7 +133,10 @@ pub async fn run_paired_spray(
 
     let target_success_flags = Arc::new(target_success_flags);
     let account_successes = Arc::new(Mutex::new(HashSet::<String>::new()));
-    let attempts = Arc::new(Mutex::new(Vec::new()));
+    let successes = Arc::new(Mutex::new(Vec::new()));
+    let failure_count = Arc::new(AtomicUsize::new(0));
+    let lockout_count = Arc::new(AtomicUsize::new(0));
+    let error_count = Arc::new(AtomicUsize::new(0));
     let skipped = Arc::new(AtomicUsize::new(0));
     let planned = planned_attempts(&request, logins);
     let protocol = request.protocol;
@@ -146,7 +150,10 @@ pub async fn run_paired_spray(
             let continue_on_success = request.continue_on_success;
             let target_success_flags = Arc::clone(&target_success_flags);
             let account_successes = Arc::clone(&account_successes);
-            let attempts = Arc::clone(&attempts);
+            let successes = Arc::clone(&successes);
+            let failure_count = Arc::clone(&failure_count);
+            let lockout_count = Arc::clone(&lockout_count);
+            let error_count = Arc::clone(&error_count);
             let skipped = Arc::clone(&skipped);
             let database = database.clone();
             let workspace = workspace.clone();
@@ -210,10 +217,15 @@ pub async fn run_paired_spray(
                 if let Some(reporter) = reporter {
                     reporter.attempt(&ctx, &outcome);
                 }
-                attempts
-                    .lock()
-                    .await
-                    .push(attempt_record_from_outcome(&ctx, &outcome));
+                retain_attempt_outcome(
+                    &successes,
+                    &failure_count,
+                    &lockout_count,
+                    &error_count,
+                    &ctx,
+                    &outcome,
+                )
+                .await;
             }
         }),
     );
@@ -221,21 +233,18 @@ pub async fn run_paired_spray(
         Box::pin(probe_task);
     let ((), probes) = tokio::join!(spray_task, probe_task);
 
-    let attempts = Arc::try_unwrap(attempts)
-        .map_err(|_| anyhow::anyhow!("attempt collector still shared"))?
+    let successes = Arc::try_unwrap(successes)
+        .map_err(|_| anyhow::anyhow!("success collector still shared"))?
         .into_inner();
-    let successes = attempts
-        .iter()
-        .filter(|record| record.status == AttemptStatus::Success)
-        .cloned()
-        .collect();
 
     Ok(SprayReport {
         workspace,
         protocol: protocol.as_str().to_string(),
         probes,
-        attempts,
         successes,
+        failure_count: failure_count.load(Ordering::Relaxed),
+        lockout_count: lockout_count.load(Ordering::Relaxed),
+        error_count: error_count.load(Ordering::Relaxed),
         skipped: skipped.load(Ordering::Relaxed),
     })
 }

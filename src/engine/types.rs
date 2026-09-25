@@ -156,11 +156,15 @@ pub struct SprayReport {
     pub protocol: String,
     /// Target-level probe lines.
     pub probes: Vec<ProbeRecord>,
-    /// Attempts that were actually executed.
-    pub attempts: Vec<AttemptRecord>,
-    /// Successful attempts only.
+    /// Successful attempts only. Non-success outcomes are counted, not stored.
     pub successes: Vec<AttemptRecord>,
-    /// Attempts skipped after an earlier success.
+    /// Executed authentication failures.
+    pub failure_count: usize,
+    /// Executed lockouts.
+    pub lockout_count: usize,
+    /// Executed transport or timeout errors.
+    pub error_count: usize,
+    /// Attempts skipped after an earlier success or cancellation.
     pub skipped: usize,
 }
 

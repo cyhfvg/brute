@@ -196,7 +196,7 @@
 
 ### 典型成功结果
 
-`status` 为 `success` / `failure` / `lockout` / `error`. 非成功记录另有 `fault_class`: `auth` / `lockout` / `transport`. 成功时 `fault_class` 为 `null`. `successes` 是 `attempts` 里成功项的子集. 成功后该凭据已写入当前 workspace.
+`successes` 只包含成功项. 非成功结果不进入返回体, 只按 `failure_count`、`lockout_count`、`error_count` 计数. CLI 仍会即时打印每次结果. 成功后该凭据已写入当前 workspace.
 
 ```json
 {
@@ -207,21 +207,6 @@
       "host": "192.168.10.5",
       "port": 22,
       "message": "SSH-2.0-OpenSSH_9.2"
-    }
-  ],
-  "attempts": [
-    {
-      "protocol": "ssh",
-      "host": "192.168.10.5",
-      "port": 22,
-      "username": "admin",
-      "password": "Summer2024!",
-      "service_name": null,
-      "sid": null,
-      "status": "success",
-      "fault_class": null,
-      "message": "Linux - Shell access!",
-      "post_auth": "uid=1000(admin) gid=1000(admin) groups=1000(admin)"
     }
   ],
   "successes": [
@@ -239,34 +224,25 @@
       "post_auth": "uid=1000(admin) gid=1000(admin) groups=1000(admin)"
     }
   ],
+  "failure_count": 0,
+  "lockout_count": 0,
+  "error_count": 0,
   "skipped": 0
 }
 ```
 
 ### 典型失败结果
 
-认证被拒时 `status` 为 `failure`, `fault_class` 为 `auth`, `successes` 为空. 账户或服务锁定为 `lockout`. 端口不可达或超时为 `error`, `fault_class` 为 `transport`. 只有 `transport` 会按 `--retries` 重试.
+认证被拒时 `failure_count` 增加, `successes` 为空. 账户或服务锁定增加 `lockout_count`. 端口不可达或超时增加 `error_count`. 只有 transport 错误会按 `--retries` 重试. 这些失败记录不会出现在返回的 JSON 里.
 
 ```json
 {
   "workspace": "default",
   "protocol": "ssh",
   "probes": [],
-  "attempts": [
-    {
-      "protocol": "ssh",
-      "host": "192.168.10.5",
-      "port": 22,
-      "username": "admin",
-      "password": "wrong",
-      "service_name": null,
-      "sid": null,
-      "status": "failure",
-      "fault_class": "auth",
-      "message": "authentication failed",
-      "post_auth": null
-    }
-  ],
+  "failure_count": 1,
+  "lockout_count": 0,
+  "error_count": 0,
   "successes": [],
   "skipped": 0
 }
@@ -855,7 +831,7 @@ FTP 那台用 users.txt / pass.txt, 成功后 PWD.
 | 字典在我笔记本上 | 传桌面相对路径 | 路径相对 **brute mcp 进程 cwd**, 或用绝对路径 |
 | 把结果发到群里 | 原样贴全部 password | 摘要命中数和主机, 密码按需最小化披露 |
 
-参数校验失败时 MCP 返回 `invalid_params` (例如 Oracle 缺少 SID、`credential_id` 与用户名同时出现). 网络/协议错误在报告的 `attempts[].status=error` 里, 不是工具调用失败.
+参数校验失败时 MCP 返回 `invalid_params` (例如 Oracle 缺少 SID、`credential_id` 与用户名同时出现). 网络/协议错误增加报告的 `error_count`, 不是工具调用失败.
 
 ---
 
