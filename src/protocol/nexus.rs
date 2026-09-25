@@ -117,17 +117,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, NexusAttem
 }
 
 fn classify_status(status: StatusCode) -> Result<(), NexusAttemptError> {
-    if status.is_success() {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        Err(NexusAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(NexusAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        || NexusAttemptError::Auth("invalid username or password".to_string()),
+        |status| NexusAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

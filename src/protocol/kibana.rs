@@ -88,8 +88,15 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
             .send()
             .await
             .map_err(|err| err.to_string())?;
-        if !response.status().is_success() {
+        if super::http_auth::classify_http_auth_status(
+            response.status(),
+            super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        ) == super::http_auth::HttpAuthDecision::AuthFailure
+        {
             return Err(format!("auth:anonymous status {}", response.status()));
+        }
+        if !response.status().is_success() {
+            return Err(format!("kibana status probe failed: {}", response.status()));
         }
         None
     } else {
@@ -154,11 +161,15 @@ async fn login(
         .map(|value| value.split(';').next().unwrap_or(value).to_string())
         .collect::<Vec<_>>()
         .join("; ");
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
+    if super::http_auth::classify_http_auth_status(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+    ) == super::http_auth::HttpAuthDecision::AuthFailure
+    {
         return Err(format!("auth:login {status}"));
     }
     if !status.is_success() {
-        return Err(format!("auth:login {status}"));
+        return Err(format!("kibana login failed: {status}"));
     }
     Ok(cookie)
 }

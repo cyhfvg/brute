@@ -4,7 +4,7 @@
 //! credentials POST `/login` and reuse the session cookie.
 
 use async_trait::async_trait;
-use reqwest::{StatusCode, header};
+use reqwest::header;
 
 use crate::cli::HttpUrlScheme;
 use crate::protocol::http::{build_http_basic_client, normalize_path};
@@ -105,13 +105,15 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
             .send()
             .await
             .map_err(|err| err.to_string())?;
-        if response.status() == StatusCode::UNAUTHORIZED
-            || response.status() == StatusCode::FORBIDDEN
+        if super::http_auth::classify_http_auth_status(
+            response.status(),
+            super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        ) == super::http_auth::HttpAuthDecision::AuthFailure
         {
             return Err(format!("auth:anonymous org {}", response.status()));
         }
         if !response.status().is_success() {
-            return Err(format!("auth:anonymous org {}", response.status()));
+            return Err(format!("grafana org probe failed: {}", response.status()));
         }
         None
     } else {
@@ -158,11 +160,15 @@ async fn login(
         .map_err(|err| err.to_string())?;
     let status = response.status();
     let cookie = cookie_header(response.headers());
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
+    if super::http_auth::classify_http_auth_status(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+    ) == super::http_auth::HttpAuthDecision::AuthFailure
+    {
         return Err(format!("auth:login {status}"));
     }
     if !status.is_success() {
-        return Err(format!("auth:login {status}"));
+        return Err(format!("grafana login failed: {status}"));
     }
     Ok(cookie)
 }

@@ -29,6 +29,7 @@
   docs and unit/integration coverage.
 - `creds list` and `creds delete` operate on the current workspace only. Neither accepts `--workspace`; other workspaces require `workspace use` first, and each command prints the current workspace name. MCP `list_credentials` and `delete_credentials` still accept an explicit workspace because MCP does not switch the global current workspace. Unscoped deletes are refused. CLI and MCP share `engine::query_credentials` and `engine::delete_credentials`.
 - `brute combo` / `urls` and MCP `verify_connections` parse paired connection URLs (`ssh://root:password@192.168.5.1:22`). Empty username, empty password, and omitted port are attempted; `https` with no port uses 443. Mixed-protocol files are grouped and run through `engine::run_paired_spray` without changing cartesian `-u`/`-p` spray.
+- HTTP credential status classification is shared by `src/protocol/http_auth.rs`. 401 is always an auth failure, 2xx is always a hit, and 403 follows a per-protocol `CredentialHit` or `AuthFailure` policy.
 
 ## Completed Protocol Work
 

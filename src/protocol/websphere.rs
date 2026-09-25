@@ -137,16 +137,14 @@ fn classify_login(status: StatusCode, location: &str) -> Result<(), WebsphereAtt
         ));
     }
     if status.is_success() || status.is_redirection() {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        Err(WebsphereAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(WebsphereAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
+        return Ok(());
     }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        || WebsphereAttemptError::Auth("invalid username or password".to_string()),
+        |status| WebsphereAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

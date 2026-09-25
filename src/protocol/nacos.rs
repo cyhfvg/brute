@@ -333,7 +333,11 @@ pub fn parse_access_token(body: &str) -> Option<String> {
 /// ```
 pub fn is_nacos_auth_error(status: StatusCode, body: &str) -> bool {
     let lower = body.to_ascii_lowercase();
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
+    if super::http_auth::classify_http_auth_status(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+    ) == super::http_auth::HttpAuthDecision::AuthFailure
+    {
         return true;
     }
     (lower.contains("user") && lower.contains("not found"))

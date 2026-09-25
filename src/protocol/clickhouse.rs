@@ -117,20 +117,20 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, ChAttemptE
 }
 
 fn classify_status(status: StatusCode, unauthenticated: bool) -> Result<(), ChAttemptError> {
-    if status.is_success() {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        Err(ChAttemptError::Auth(
+    match super::http_auth::classify_http_auth_status(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+    ) {
+        super::http_auth::HttpAuthDecision::Success => Ok(()),
+        super::http_auth::HttpAuthDecision::AuthFailure => Err(ChAttemptError::Auth(
             "invalid username or password".to_string(),
-        ))
-    } else if unauthenticated {
-        Err(ChAttemptError::Auth(format!(
-            "anonymous ping rejected: {status}"
-        )))
-    } else {
-        Err(ChAttemptError::Transport(format!(
+        )),
+        super::http_auth::HttpAuthDecision::Transport if unauthenticated => Err(
+            ChAttemptError::Auth(format!("anonymous ping rejected: {status}")),
+        ),
+        super::http_auth::HttpAuthDecision::Transport => Err(ChAttemptError::Transport(format!(
             "unexpected HTTP status: {status}"
-        )))
+        ))),
     }
 }
 

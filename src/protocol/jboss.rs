@@ -136,7 +136,11 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, JbossAttem
         .send()
         .await
         .map_err(|err| JbossAttemptError::Transport(err.to_string()))?;
-    if authed.status() == StatusCode::UNAUTHORIZED || authed.status() == StatusCode::FORBIDDEN {
+    if super::http_auth::classify_http_auth_status(
+        authed.status(),
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+    ) == super::http_auth::HttpAuthDecision::AuthFailure
+    {
         return Err(JbossAttemptError::Auth(
             "invalid username or password".to_string(),
         ));

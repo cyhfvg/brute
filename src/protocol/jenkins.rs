@@ -135,17 +135,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, JenkinsAtt
 }
 
 fn classify_status(status: StatusCode) -> Result<(), JenkinsAttemptError> {
-    if status.is_success() {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        Err(JenkinsAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(JenkinsAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        || JenkinsAttemptError::Auth("invalid username or password".to_string()),
+        |status| JenkinsAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

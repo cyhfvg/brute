@@ -117,17 +117,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, SolrAttemp
 }
 
 fn classify_status(status: StatusCode) -> Result<(), SolrAttemptError> {
-    if status.is_success() {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        Err(SolrAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(SolrAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        || SolrAttemptError::Auth("invalid username or password".to_string()),
+        |status| SolrAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

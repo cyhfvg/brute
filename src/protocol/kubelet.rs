@@ -124,17 +124,12 @@ fn authorize(request: reqwest::RequestBuilder, ctx: &AttemptContext) -> reqwest:
     }
 }
 fn classify_status(status: StatusCode) -> Result<(), KubeletAttemptError> {
-    if status.is_success() || status == StatusCode::FORBIDDEN {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED {
-        Err(KubeletAttemptError::Auth(
-            "invalid token or credentials".to_string(),
-        ))
-    } else {
-        Err(KubeletAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::CredentialHit,
+        || KubeletAttemptError::Auth("invalid username or password".to_string()),
+        |status| KubeletAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

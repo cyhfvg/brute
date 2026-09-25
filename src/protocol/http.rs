@@ -260,11 +260,8 @@ fn build_http_client(
 
 /// Maps an HTTP response status to a credential attempt outcome.
 ///
-/// Classification for Basic-protected resources:
-/// - `2xx`: authentication succeeded
-/// - `401 Unauthorized`: wrong credentials
-/// - `403 Forbidden`: credentials accepted but resource denied (still a hit for spray)
-/// - other statuses: transport/application error (not a clean auth decision)
+/// Uses [`crate::protocol::http_auth::HttpForbiddenPolicy::CredentialHit`]:
+/// 2xx and 403 are hits, 401 is rejection, other statuses are transport errors.
 ///
 /// # Parameters
 ///
@@ -286,22 +283,31 @@ fn build_http_client(
 ///     AttemptOutcome::Success(_)
 /// ));
 /// assert!(matches!(
+///     classify_http_basic_status(StatusCode::FORBIDDEN),
+///     AttemptOutcome::Success(_)
+/// ));
+/// assert!(matches!(
 ///     classify_http_basic_status(StatusCode::UNAUTHORIZED),
 ///     AttemptOutcome::Failure(_)
 /// ));
 /// ```
 pub fn classify_http_basic_status(status: StatusCode) -> AttemptOutcome {
-    if status.is_success() {
-        AttemptOutcome::Success(AttemptSuccess::new("HTTP Basic access!"))
-    } else if status == StatusCode::UNAUTHORIZED {
-        AttemptOutcome::Failure("http basic auth rejected credentials".to_string())
-    } else if status == StatusCode::FORBIDDEN {
-        // Valid Basic credentials often still receive 403 when the principal lacks
-        // a role (e.g. Tomcat Manager). Treat as a successful credential hit.
-        AttemptOutcome::Success(AttemptSuccess::new(
-            "Credentials accepted but access forbidden (HTTP 403)",
-        ))
-    } else {
-        AttemptOutcome::Error(format!("unexpected HTTP status: {status}"))
+    use crate::protocol::http_auth::{
+        HttpAuthDecision, HttpForbiddenPolicy, classify_http_auth_status,
+    };
+
+    match classify_http_auth_status(status, HttpForbiddenPolicy::CredentialHit) {
+        HttpAuthDecision::Success if status == StatusCode::FORBIDDEN => AttemptOutcome::Success(
+            AttemptSuccess::new("Credentials accepted but access forbidden (HTTP 403)"),
+        ),
+        HttpAuthDecision::Success => {
+            AttemptOutcome::Success(AttemptSuccess::new("HTTP Basic access!"))
+        }
+        HttpAuthDecision::AuthFailure => {
+            AttemptOutcome::Failure("http basic auth rejected credentials".to_string())
+        }
+        HttpAuthDecision::Transport => {
+            AttemptOutcome::Error(format!("unexpected HTTP status: {status}"))
+        }
     }
 }

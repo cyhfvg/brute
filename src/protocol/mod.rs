@@ -13,6 +13,7 @@ pub mod grafana;
 pub mod hadoop;
 pub mod harbor;
 pub mod http;
+pub mod http_auth;
 pub mod influxdb;
 pub mod jboss;
 pub mod jenkins;

@@ -117,17 +117,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, SparkAttem
 }
 
 fn classify_status(status: StatusCode) -> Result<(), SparkAttemptError> {
-    if status.is_success() {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        Err(SparkAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(SparkAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        || SparkAttemptError::Auth("invalid username or password".to_string()),
+        |status| SparkAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

@@ -105,8 +105,10 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, GitlabAtte
             .send()
             .await
             .map_err(|err| GitlabAttemptError::Transport(err.to_string()))?;
-        if response.status() == StatusCode::UNAUTHORIZED
-            || response.status() == StatusCode::FORBIDDEN
+        if super::http_auth::classify_http_auth_status(
+            response.status(),
+            super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        ) == super::http_auth::HttpAuthDecision::AuthFailure
         {
             return Err(GitlabAttemptError::Auth(
                 "anonymous access is disabled".to_string(),
@@ -138,7 +140,10 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, GitlabAtte
             .text()
             .await
             .map_err(|err| GitlabAttemptError::Transport(err.to_string()))?;
-        if status == StatusCode::UNAUTHORIZED
+        if super::http_auth::classify_http_auth_status(
+            status,
+            super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        ) == super::http_auth::HttpAuthDecision::AuthFailure
             || status == StatusCode::BAD_REQUEST
             || body.to_ascii_lowercase().contains("invalid_grant")
         {

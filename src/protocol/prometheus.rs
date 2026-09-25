@@ -136,17 +136,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, PromAttemp
 }
 
 fn classify_status(status: StatusCode) -> Result<(), PromAttemptError> {
-    if status.is_success() || status == StatusCode::FORBIDDEN {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED {
-        Err(PromAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(PromAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::CredentialHit,
+        || PromAttemptError::Auth("invalid username or password".to_string()),
+        |status| PromAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

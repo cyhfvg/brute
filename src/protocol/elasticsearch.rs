@@ -153,17 +153,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, EsAttemptE
 ///
 /// Returns [`EsAttemptError::Auth`] for 401 and [`EsAttemptError::Transport`] otherwise.
 fn classify_root_status(status: StatusCode) -> Result<(), EsAttemptError> {
-    if status.is_success() || status == StatusCode::FORBIDDEN {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED {
-        Err(EsAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(EsAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::CredentialHit,
+        || EsAttemptError::Auth("invalid username or password".to_string()),
+        |status| EsAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 /// Executes a post-auth Elasticsearch HTTP GET against `-x` as a path.

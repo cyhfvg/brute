@@ -151,17 +151,12 @@ async fn run_cypher(
 }
 
 fn classify_status(status: StatusCode) -> Result<(), Neo4jAttemptError> {
-    if status.is_success() {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        Err(Neo4jAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(Neo4jAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+        || Neo4jAttemptError::Auth("invalid username or password".to_string()),
+        |status| Neo4jAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 /// Builds `http://host:port{path}` for Neo4j HTTP.

@@ -112,8 +112,10 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, MinioAttem
         .await
         .map_err(|err| MinioAttemptError::Transport(err.to_string()))?;
     let status = response.status();
-    if status == StatusCode::UNAUTHORIZED
-        || status == StatusCode::FORBIDDEN
+    if super::http_auth::classify_http_auth_status(
+        status,
+        super::http_auth::HttpForbiddenPolicy::AuthFailure,
+    ) == super::http_auth::HttpAuthDecision::AuthFailure
         || status == StatusCode::BAD_REQUEST
     {
         return Err(MinioAttemptError::Auth(

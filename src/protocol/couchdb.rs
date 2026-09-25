@@ -117,17 +117,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, CouchAttem
 }
 
 fn classify_status(status: StatusCode) -> Result<(), CouchAttemptError> {
-    if status.is_success() || status == StatusCode::FORBIDDEN {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED {
-        Err(CouchAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(CouchAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::CredentialHit,
+        || CouchAttemptError::Auth("invalid username or password".to_string()),
+        |status| CouchAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 async fn execute_command(

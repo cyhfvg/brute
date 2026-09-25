@@ -1,7 +1,7 @@
 //! Apache Tomcat Manager brute-force implementation.
 
 use async_trait::async_trait;
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 
@@ -48,27 +48,33 @@ impl BruteModule for TomcatManagerModule {
             Err(err) => return AttemptOutcome::Error(format!("http client build failed: {err}")),
         };
 
-        match client
+        let response = match client
             .get(url)
             .basic_auth(username, Some(password))
             .send()
             .await
         {
-            Ok(response) if response.status().is_success() => {
+            Ok(response) => response,
+            Err(err) => return AttemptOutcome::Error(format!("http request failed: {err}")),
+        };
+        match super::http_auth::classify_http_auth_status(
+            response.status(),
+            super::http_auth::HttpForbiddenPolicy::CredentialHit,
+        ) {
+            super::http_auth::HttpAuthDecision::Success if response.status().is_success() => {
                 AttemptOutcome::Success(AttemptSuccess::new("Tomcat Manager access!"))
             }
-            Ok(response) if response.status() == StatusCode::UNAUTHORIZED => {
-                AttemptOutcome::Failure("tomcat manager rejected credentials".to_string())
-            }
-            Ok(response) if response.status() == StatusCode::FORBIDDEN => {
+            super::http_auth::HttpAuthDecision::Success => {
                 AttemptOutcome::Success(AttemptSuccess::new(
                     "Credentials accepted but account lacks manager role (HTTP 403)",
                 ))
             }
-            Ok(response) => {
+            super::http_auth::HttpAuthDecision::AuthFailure => {
+                AttemptOutcome::Failure("tomcat manager rejected credentials".to_string())
+            }
+            super::http_auth::HttpAuthDecision::Transport => {
                 AttemptOutcome::Error(format!("unexpected HTTP status: {}", response.status()))
             }
-            Err(err) => AttemptOutcome::Error(format!("http request failed: {err}")),
         }
     }
 }

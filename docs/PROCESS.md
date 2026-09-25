@@ -129,6 +129,16 @@
 
 `smb` 使用 `--shares` 代替 `-x`：认证成功后枚举 shares 与 Access，输出挂在成功登录行之后（不打印 “Executed command” 横幅）。
 
+### HTTP 认证判定
+
+HTTP 家族的凭据判定集中在 `src/protocol/http_auth.rs`。401 一律是认证失败，2xx 一律是命中，其它非 403 状态是传输错误。403 由协议策略决定：
+
+- `CredentialHit`（403 表示凭据已接受但资源拒绝）：`http`、`tomcat`、`elasticsearch`、`docker`、`couchdb`、`kubelet`、`prometheus`。
+- `AuthFailure`（403 表示认证失败）：`jenkins`、`grafana`、`gitlab`、`harbor`、`hadoop`、`clickhouse`、`influxdb`、`druid`、`neo4j`、`nexus`、`solr`、`spark`、`weblogic`、`websphere`、`kibana`、`jboss`、`minio`、`nacos`。
+
+协议特有信号仍保留在各模块：MinIO 的 400、Nacos 响应体、GitLab 的 `invalid_grant`/`400`、WebLogic/WebSphere 的登录回跳、etcd 的响应体启发式。探测路径里的 401/403 只表示服务在线，不走这张表。
+
+
 ### 凭据展开
 
 `-u` / `-p` 支持内联多值与字典文件；路径存在且为文件时按行展开（去空行）。`oracle` 的 `--service-name` 与 `--sid` 使用同一规则（二者互斥）。展开后：

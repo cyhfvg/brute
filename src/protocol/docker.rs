@@ -124,17 +124,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, DockerAtte
 
 /// Classifies Docker API status into auth success or failure.
 fn classify_status(status: StatusCode) -> Result<(), DockerAttemptError> {
-    if status.is_success() || status == StatusCode::FORBIDDEN {
-        Ok(())
-    } else if status == StatusCode::UNAUTHORIZED {
-        Err(DockerAttemptError::Auth(
-            "invalid username or password".to_string(),
-        ))
-    } else {
-        Err(DockerAttemptError::Transport(format!(
-            "unexpected HTTP status: {status}"
-        )))
-    }
+    super::http_auth::require_http_auth(
+        status,
+        super::http_auth::HttpForbiddenPolicy::CredentialHit,
+        || DockerAttemptError::Auth("invalid username or password".to_string()),
+        |status| DockerAttemptError::Transport(format!("unexpected HTTP status: {status}")),
+    )
 }
 
 /// Executes a post-auth Docker Engine API GET.
