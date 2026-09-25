@@ -109,14 +109,14 @@ pub async fn try_vnc_web_basic_login(
         match proxy.to_reqwest_proxy() {
             Ok(proxy) => builder = builder.proxy(proxy),
             Err(err) => {
-                return AttemptOutcome::Error(format!("vnc web proxy config failed: {err}"));
+                return AttemptOutcome::error(format!("vnc web proxy config failed: {err}"));
             }
         }
     }
     let client = match builder.build() {
         Ok(client) => client,
         Err(err) => {
-            return AttemptOutcome::Error(format!("vnc web client build failed: {err}"));
+            return AttemptOutcome::error(format!("vnc web client build failed: {err}"));
         }
     };
 
@@ -133,14 +133,14 @@ pub async fn try_vnc_web_basic_login(
             if response.status() == StatusCode::UNAUTHORIZED
                 || response.status() == StatusCode::FORBIDDEN =>
         {
-            AttemptOutcome::Failure(format!(
+            AttemptOutcome::failure(format!(
                 "vnc web auth failed: HTTP {}",
                 response.status().as_u16()
             ))
         }
         Ok(response) => {
-            AttemptOutcome::Error(format!("vnc web unexpected status: {}", response.status()))
+            AttemptOutcome::error(format!("vnc web unexpected status: {}", response.status()))
         }
-        Err(err) => AttemptOutcome::Error(format!("vnc web request failed: {err}")),
+        Err(err) => AttemptOutcome::error(format!("vnc web request failed: {err}")),
     }
 }

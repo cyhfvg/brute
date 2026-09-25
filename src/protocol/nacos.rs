@@ -71,10 +71,10 @@ impl BruteModule for NacosModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(NacosAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("nacos auth failed: {err}"))
+                AttemptOutcome::failure(format!("nacos auth failed: {err}"))
             }
             Ok(Err(NacosAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("nacos transport failed: {err}"))
+                AttemptOutcome::error(format!("nacos transport failed: {err}"))
             }
             Ok(Err(NacosAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -83,7 +83,7 @@ impl BruteModule for NacosModule {
                     format!("nacos command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

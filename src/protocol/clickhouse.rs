@@ -69,10 +69,10 @@ impl BruteModule for ClickHouseModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(ChAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("clickhouse auth failed: {err}"))
+                AttemptOutcome::failure(format!("clickhouse auth failed: {err}"))
             }
             Ok(Err(ChAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("clickhouse transport failed: {err}"))
+                AttemptOutcome::error(format!("clickhouse transport failed: {err}"))
             }
             Ok(Err(ChAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for ClickHouseModule {
                     format!("clickhouse command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

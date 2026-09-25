@@ -17,8 +17,8 @@ use crate::cli::Protocol;
 use crate::credentials::{LoadedCredentials, load_credentials, load_service_names, load_sids};
 use crate::database::CredentialDatabase;
 use crate::protocol::{
-    AttemptContext, AttemptOutcome, BruteModule, PostAuthResult, TargetContext, TargetProbe,
-    activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
+    AttemptContext, AttemptFaultClass, AttemptOutcome, BruteModule, PostAuthResult, TargetContext,
+    TargetProbe, activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
     docker::DockerModule, druid::DruidModule, elasticsearch::ElasticsearchModule, etcd::EtcdModule,
     ftp::FtpModule, gitlab::GitlabModule, grafana::GrafanaModule, hadoop::HadoopModule,
     harbor::HarborModule, http::HttpBasicModule, influxdb::InfluxDbModule, jboss::JbossModule,
@@ -329,7 +329,7 @@ pub(super) fn attempt_record_from_outcome(
     ctx: &AttemptContext,
     outcome: &AttemptOutcome,
 ) -> AttemptRecord {
-    let (status, message, post_auth) = match outcome {
+    let (status, message, post_auth, fault_class) = match outcome {
         AttemptOutcome::Success(success) => {
             let post_auth = success
                 .post_auth_result
@@ -338,10 +338,21 @@ pub(super) fn attempt_record_from_outcome(
                     PostAuthResult::Output(output) => output.clone(),
                     PostAuthResult::Failed(error) => format!("post-auth failed: {error}"),
                 });
-            (AttemptStatus::Success, success.message.clone(), post_auth)
+            (
+                AttemptStatus::Success,
+                success.message.clone(),
+                post_auth,
+                None,
+            )
         }
-        AttemptOutcome::Failure(reason) => (AttemptStatus::Failure, reason.clone(), None),
-        AttemptOutcome::Error(message) => (AttemptStatus::Error, message.clone(), None),
+        AttemptOutcome::Failure(fault) | AttemptOutcome::Error(fault) => {
+            let status = match fault.class {
+                AttemptFaultClass::Auth => AttemptStatus::Failure,
+                AttemptFaultClass::Lockout => AttemptStatus::Lockout,
+                AttemptFaultClass::Transport => AttemptStatus::Error,
+            };
+            (status, fault.message.clone(), None, Some(fault.class))
+        }
     };
     AttemptRecord {
         protocol: ctx.protocol.as_str().to_string(),
@@ -352,6 +363,7 @@ pub(super) fn attempt_record_from_outcome(
         service_name: ctx.credential.service_name.clone(),
         sid: ctx.credential.sid.clone(),
         status,
+        fault_class,
         message,
         post_auth,
     }
@@ -380,11 +392,12 @@ pub(super) fn should_skip_attempt(
     account_succeeded || (!continue_on_success && target_success_flag.load(Ordering::Relaxed))
 }
 
-/// Retries a credential attempt when the module reports a transport error.
+/// Retries a credential attempt only when the fault class is transport.
 ///
 /// `ctx.target.retries` is the number of extra tries after the first attempt.
-/// `Success` and `Failure` are returned immediately. Only the final outcome is
-/// recorded by the caller. Backoff between tries is `150ms * (failed attempts)`.
+/// Success, authentication failure, and lockout return immediately. Only the
+/// final outcome is recorded by the caller. Backoff between tries is
+/// `150ms * (failed attempts)`.
 ///
 /// # Parameters
 ///
@@ -393,7 +406,7 @@ pub(super) fn should_skip_attempt(
 ///
 /// # Returns
 ///
-/// The first non-error outcome, or the last [`AttemptOutcome::Error`] after the budget is spent.
+/// The first non-transport outcome, or the last transport fault after the budget is spent.
 ///
 /// # Errors
 ///
@@ -411,7 +424,7 @@ pub(super) async fn attempt_with_retries(
     let mut failed_attempts = 0usize;
     loop {
         let outcome = module.attempt(ctx).await;
-        if !matches!(outcome, AttemptOutcome::Error(_)) || failed_attempts >= ctx.target.retries {
+        if !outcome.is_retriable_transport() || failed_attempts >= ctx.target.retries {
             return outcome;
         }
         let delay_ms = transport_retry_backoff_ms(failed_attempts);
@@ -448,7 +461,7 @@ fn transport_retry_backoff_ms(failed_attempts: usize) -> u64 {
 mod tests {
     use std::sync::atomic::Ordering;
 
-    use super::{AttemptContext, AttemptOutcome, BruteModule};
+    use super::{AttemptContext, AttemptFaultClass, AttemptOutcome, AttemptStatus, BruteModule};
 
     /// Verifies the scheduler source applies global `--threads` via for_each_concurrent.
     #[test]
@@ -521,7 +534,7 @@ mod tests {
     async fn retries_transport_error_then_returns_success() {
         let module = ScriptedModule {
             outcomes: std::sync::Mutex::new(vec![
-                AttemptOutcome::Error("ssh transport failed".into()),
+                AttemptOutcome::error("ssh transport failed"),
                 AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("ok")),
             ]),
             calls: std::sync::atomic::AtomicUsize::new(0),
@@ -536,7 +549,7 @@ mod tests {
     async fn does_not_retry_auth_failure() {
         let module = ScriptedModule {
             outcomes: std::sync::Mutex::new(vec![
-                AttemptOutcome::Failure("auth failed".into()),
+                AttemptOutcome::failure("auth failed"),
                 AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("should not run")),
             ]),
             calls: std::sync::atomic::AtomicUsize::new(0),
@@ -551,7 +564,7 @@ mod tests {
     async fn zero_retries_returns_first_error() {
         let module = ScriptedModule {
             outcomes: std::sync::Mutex::new(vec![
-                AttemptOutcome::Error("down".into()),
+                AttemptOutcome::error("down"),
                 AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("should not run")),
             ]),
             calls: std::sync::atomic::AtomicUsize::new(0),
@@ -566,5 +579,21 @@ mod tests {
         assert_eq!(super::transport_retry_backoff_ms(0), 150);
         assert_eq!(super::transport_retry_backoff_ms(1), 300);
         assert_eq!(super::transport_retry_backoff_ms(2), 450);
+    }
+
+    /// Lockout is reported as a failure class and is not retried.
+    #[tokio::test]
+    async fn does_not_retry_lockout() {
+        let module = ScriptedModule {
+            outcomes: std::sync::Mutex::new(vec![AttemptOutcome::lockout("account locked")]),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        let outcome = super::attempt_with_retries(&module, &scripted_ctx(3)).await;
+        assert!(!outcome.is_retriable_transport());
+        assert_eq!(module.calls.load(Ordering::Relaxed), 1);
+        let record = super::attempt_record_from_outcome(&scripted_ctx(3), &outcome);
+        assert_eq!(record.status, AttemptStatus::Lockout);
+        assert_eq!(record.fault_class, Some(AttemptFaultClass::Lockout));
+        assert_eq!(record.message, "account locked");
     }
 }

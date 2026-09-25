@@ -83,7 +83,7 @@ impl BruteModule for SmbModule {
 
         match tokio::time::timeout(timeout, future).await {
             Ok(outcome) => outcome,
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }
@@ -135,7 +135,7 @@ async fn try_smb_login(
     let endpoint = match crate::proxy::resolve_tcp_endpoint(proxy, host, port).await {
         Ok(endpoint) => endpoint,
         Err(err) => {
-            return AttemptOutcome::Error(format!("smb proxy bridge failed: {err}"));
+            return AttemptOutcome::error(format!("smb proxy bridge failed: {err}"));
         }
     };
     let (connect_host, connect_port, _bridge) = endpoint;
@@ -414,16 +414,16 @@ fn is_transport_error_kind(kind: ErrorKind) -> bool {
 pub fn classify_smb_error(err: &smb2::Error) -> AttemptOutcome {
     let kind = err.kind();
     if is_smb_auth_failure_kind(kind) {
-        AttemptOutcome::Failure(format!("smb auth failed: {err}"))
+        AttemptOutcome::failure(format!("smb auth failed: {err}"))
     } else if is_transport_error_kind(kind) {
-        AttemptOutcome::Error(format!("smb transport error: {err}"))
+        AttemptOutcome::error(format!("smb transport error: {err}"))
     } else {
         // Auth-style messages can still surface as Other with a logon NTSTATUS.
         let message = err.to_string();
         if looks_like_auth_failure_message(&message) {
-            AttemptOutcome::Failure(format!("smb auth failed: {message}"))
+            AttemptOutcome::failure(format!("smb auth failed: {message}"))
         } else {
-            AttemptOutcome::Error(format!("smb error: {message}"))
+            AttemptOutcome::error(format!("smb error: {message}"))
         }
     }
 }

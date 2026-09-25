@@ -67,37 +67,37 @@ pub fn try_vnc_rfb_login(
         match crate::proxy::connect_std(proxy, host, port, timeout) {
             Ok(stream) => stream,
             Err(err) => {
-                return AttemptOutcome::Error(format!("vnc transport error: {err}"));
+                return AttemptOutcome::error(format!("vnc transport error: {err}"));
             }
         }
     } else {
         let server_addr = match resolve_addr(host, port) {
             Ok(addr) => addr,
             Err(err) => {
-                return AttemptOutcome::Error(format!("vnc resolve error: {err}"));
+                return AttemptOutcome::error(format!("vnc resolve error: {err}"));
             }
         };
         match TcpStream::connect_timeout(&server_addr, timeout) {
             Ok(stream) => stream,
             Err(err) => {
-                return AttemptOutcome::Error(format!("vnc transport error: {err}"));
+                return AttemptOutcome::error(format!("vnc transport error: {err}"));
             }
         }
     };
 
     if let Err(err) = apply_socket_timeouts(&stream, timeout) {
-        return AttemptOutcome::Error(format!("vnc socket setup error: {err}"));
+        return AttemptOutcome::error(format!("vnc socket setup error: {err}"));
     }
 
     match rfb_authenticate(&mut stream, password) {
         Ok(RfbAuthResult::Accepted) => AttemptOutcome::Success(AttemptSuccess::new("VNC access!")),
         Ok(RfbAuthResult::Rejected(reason)) => {
-            AttemptOutcome::Failure(format!("vnc auth failed: {reason}"))
+            AttemptOutcome::failure(format!("vnc auth failed: {reason}"))
         }
         Ok(RfbAuthResult::NoAuth) => {
             AttemptOutcome::Success(AttemptSuccess::new("VNC access (no authentication)!"))
         }
-        Err(err) => AttemptOutcome::Error(err),
+        Err(err) => AttemptOutcome::error(err),
     }
 }
 

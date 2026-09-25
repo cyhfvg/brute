@@ -74,7 +74,7 @@ pub(super) async fn try_winrm_login(
         Some(raw) => match resolve_execute_payload(raw) {
             Ok(body) => Some(body),
             Err(err) => {
-                return AttemptOutcome::Error(err);
+                return AttemptOutcome::error(err);
             }
         },
         None => None,
@@ -134,10 +134,10 @@ async fn login_without_execute(
                 ShellProbe::Available => powershell = Some(true),
                 ShellProbe::Denied => powershell = Some(false),
                 ShellProbe::AuthFailed(message) => {
-                    return AttemptOutcome::Failure(format!("winrm auth failed: {message}"));
+                    return AttemptOutcome::failure(format!("winrm auth failed: {message}"));
                 }
                 ShellProbe::Error(e) => {
-                    return AttemptOutcome::Error(format!("winrm powershell probe failed: {e}"));
+                    return AttemptOutcome::error(format!("winrm powershell probe failed: {e}"));
                 }
             }
         }
@@ -145,10 +145,10 @@ async fn login_without_execute(
             ShellProbe::Available => cmd = Some(true),
             ShellProbe::Denied => cmd = Some(false),
             ShellProbe::AuthFailed(message) => {
-                return AttemptOutcome::Failure(format!("winrm auth failed: {message}"));
+                return AttemptOutcome::failure(format!("winrm auth failed: {message}"));
             }
             ShellProbe::Error(e) => {
-                return AttemptOutcome::Error(format!("winrm cmd probe failed: {e}"));
+                return AttemptOutcome::error(format!("winrm cmd probe failed: {e}"));
             }
         },
         ShellProbePlan::AutoSerial => {
@@ -166,7 +166,7 @@ async fn login_without_execute(
                     // Never Failure here: auth already proven by PS deny.
                 }
                 ShellProbe::AuthFailed(message) => {
-                    return AttemptOutcome::Failure(format!("winrm auth failed: {message}"));
+                    return AttemptOutcome::failure(format!("winrm auth failed: {message}"));
                 }
                 ShellProbe::Error(e) => {
                     // Fall through to cmd so a PS-only glitch does not hide cmd access.
@@ -174,12 +174,12 @@ async fn login_without_execute(
                         ShellProbe::Available => cmd = Some(true),
                         ShellProbe::Denied => cmd = Some(false),
                         ShellProbe::AuthFailed(message) => {
-                            return AttemptOutcome::Failure(format!(
+                            return AttemptOutcome::failure(format!(
                                 "winrm auth failed: {message}"
                             ));
                         }
                         ShellProbe::Error(e2) => {
-                            return AttemptOutcome::Error(format!(
+                            return AttemptOutcome::error(format!(
                                 "winrm shell probe failed: powershell={e}; cmd={e2}"
                             ));
                         }
@@ -247,7 +247,7 @@ fn map_execute_error(
 ) -> AttemptOutcome {
     let text = err.to_string();
     if is_credential_rejection_message(&text) {
-        return AttemptOutcome::Failure(format!("winrm auth failed: {text}"));
+        return AttemptOutcome::failure(format!("winrm auth failed: {text}"));
     }
     if is_invoke_denied_error(err) {
         return AttemptOutcome::Success(AttemptSuccess::with_command_error(

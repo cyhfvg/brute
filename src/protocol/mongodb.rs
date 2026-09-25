@@ -71,10 +71,10 @@ impl BruteModule for MongoDbModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(MongoAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("mongodb auth failed: {err}"))
+                AttemptOutcome::failure(format!("mongodb auth failed: {err}"))
             }
             Ok(Err(MongoAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("mongodb transport failed: {err}"))
+                AttemptOutcome::error(format!("mongodb transport failed: {err}"))
             }
             Ok(Err(MongoAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -83,7 +83,7 @@ impl BruteModule for MongoDbModule {
                     format!("mongodb command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

@@ -132,7 +132,7 @@ impl BruteModule for WinrmModule {
 
         match tokio::time::timeout(attempt_timeout, future).await {
             Ok(outcome) => outcome,
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

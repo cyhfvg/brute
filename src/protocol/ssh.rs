@@ -89,7 +89,7 @@ impl BruteModule for SshModule {
         .await
         {
             Ok(Ok(outcome)) => outcome,
-            Ok(Err(_)) | Err(_) => AttemptOutcome::Error("ssh transport failed".to_string()),
+            Ok(Err(_)) | Err(_) => AttemptOutcome::error("ssh transport failed".to_string()),
         }
     }
 }
@@ -129,7 +129,7 @@ async fn try_ssh_login_once(
         let _ = session
             .disconnect(Disconnect::ByApplication, "", "English")
             .await;
-        return Ok(AttemptOutcome::Failure("ssh auth failed".to_string()));
+        return Ok(AttemptOutcome::failure("ssh auth failed".to_string()));
     }
 
     let success = match command {

@@ -149,9 +149,9 @@ impl BruteModule for PostgreSqlModule {
         match tokio::time::timeout(ctx.timeout(), attempt).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(PostgreSqlAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("postgresql auth failed: {err}"))
+                AttemptOutcome::failure(format!("postgresql auth failed: {err}"))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

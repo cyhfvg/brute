@@ -74,10 +74,10 @@ impl BruteModule for ZookeeperModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(ZkAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("zookeeper auth failed: {err}"))
+                AttemptOutcome::failure(format!("zookeeper auth failed: {err}"))
             }
             Ok(Err(ZkAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("zookeeper transport failed: {err}"))
+                AttemptOutcome::error(format!("zookeeper transport failed: {err}"))
             }
             Ok(Err(ZkAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -86,7 +86,7 @@ impl BruteModule for ZookeeperModule {
                     format!("zookeeper command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

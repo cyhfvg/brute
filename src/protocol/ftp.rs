@@ -73,7 +73,7 @@ impl BruteModule for FtpModule {
         match tokio::time::timeout(ctx.timeout(), future).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(FtpAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("ftp auth failed: {err}"))
+                AttemptOutcome::failure(format!("ftp auth failed: {err}"))
             }
             Ok(Err(FtpAttemptError::Command(err))) => {
                 AttemptOutcome::Success(AttemptSuccess::with_command_error(
@@ -81,7 +81,7 @@ impl BruteModule for FtpModule {
                     format!("ftp command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

@@ -191,7 +191,7 @@
 
 ### 典型成功结果
 
-`status` 为 `success` / `failure` / `error`. `successes` 是 `attempts` 里成功项的子集. 成功后该凭据已写入当前 workspace.
+`status` 为 `success` / `failure` / `lockout` / `error`. 非成功记录另有 `fault_class`: `auth` / `lockout` / `transport`. 成功时 `fault_class` 为 `null`. `successes` 是 `attempts` 里成功项的子集. 成功后该凭据已写入当前 workspace.
 
 ```json
 {
@@ -214,6 +214,7 @@
       "service_name": null,
       "sid": null,
       "status": "success",
+      "fault_class": null,
       "message": "Linux - Shell access!",
       "post_auth": "uid=1000(admin) gid=1000(admin) groups=1000(admin)"
     }
@@ -228,6 +229,7 @@
       "service_name": null,
       "sid": null,
       "status": "success",
+      "fault_class": null,
       "message": "Linux - Shell access!",
       "post_auth": "uid=1000(admin) gid=1000(admin) groups=1000(admin)"
     }
@@ -238,7 +240,7 @@
 
 ### 典型失败结果
 
-认证被拒时 `status` 为 `failure`, `successes` 为空. 端口不可达或超时为 `error`.
+认证被拒时 `status` 为 `failure`, `fault_class` 为 `auth`, `successes` 为空. 账户或服务锁定为 `lockout`. 端口不可达或超时为 `error`, `fault_class` 为 `transport`. 只有 `transport` 会按 `--retries` 重试.
 
 ```json
 {
@@ -255,6 +257,7 @@
       "service_name": null,
       "sid": null,
       "status": "failure",
+      "fault_class": "auth",
       "message": "authentication failed",
       "post_auth": null
     }

@@ -28,7 +28,7 @@ impl BruteModule for StubModule {
     }
 
     async fn attempt(&self, _ctx: &AttemptContext) -> AttemptOutcome {
-        AttemptOutcome::Error(format!(
+        AttemptOutcome::error(format!(
             "{} is scaffolded but not implemented in this build",
             self.name()
         ))

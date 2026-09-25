@@ -60,10 +60,10 @@ impl BruteModule for MssqlModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(err)) if is_auth_error(&err) => {
-                AttemptOutcome::Failure(format!("mssql auth failed: {err}"))
+                AttemptOutcome::failure(format!("mssql auth failed: {err}"))
             }
-            Ok(Err(err)) => AttemptOutcome::Error(format!("mssql transport failed: {err}")),
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Ok(Err(err)) => AttemptOutcome::error(format!("mssql transport failed: {err}")),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

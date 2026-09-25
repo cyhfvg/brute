@@ -137,12 +137,143 @@ pub enum TargetProbe {
     Ready(Option<String>),
 }
 
+pub use crate::error::{AttemptFault, AttemptFaultClass};
+
 /// High-level result of a login attempt.
 #[derive(Debug, Clone)]
 pub enum AttemptOutcome {
+    /// Authentication succeeded.
     Success(AttemptSuccess),
-    Failure(String),
-    Error(String),
+    /// Credentials were rejected or the account is locked. Not retried.
+    Failure(AttemptFault),
+    /// Transport or local failure. Retried only when the class is transport.
+    Error(AttemptFault),
+}
+
+impl AttemptOutcome {
+    /// Builds an authentication failure.
+    ///
+    /// # Parameters
+    ///
+    /// * `message`: Operator-facing rejection detail.
+    ///
+    /// # Returns
+    ///
+    /// [`AttemptOutcome::Failure`] with [`AttemptFaultClass::Auth`].
+    ///
+    /// # Errors
+    ///
+    /// Does not return [`Result`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use brute::protocol::AttemptOutcome;
+    ///
+    /// assert!(!AttemptOutcome::failure("rejected").is_retriable_transport());
+    /// ```
+    pub fn failure(message: impl Into<String>) -> Self {
+        Self::Failure(AttemptFault::auth(message))
+    }
+
+    /// Builds a retriable transport error.
+    ///
+    /// # Parameters
+    ///
+    /// * `message`: Operator-facing transport detail.
+    ///
+    /// # Returns
+    ///
+    /// [`AttemptOutcome::Error`] with [`AttemptFaultClass::Transport`].
+    ///
+    /// # Errors
+    ///
+    /// Does not return [`Result`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use brute::protocol::AttemptOutcome;
+    ///
+    /// assert!(AttemptOutcome::error("timed out").is_retriable_transport());
+    /// ```
+    pub fn error(message: impl Into<String>) -> Self {
+        Self::Error(AttemptFault::transport(message))
+    }
+
+    /// Builds an account or service lockout.
+    ///
+    /// # Parameters
+    ///
+    /// * `message`: Operator-facing lockout detail.
+    ///
+    /// # Returns
+    ///
+    /// [`AttemptOutcome::Failure`] with [`AttemptFaultClass::Lockout`].
+    ///
+    /// # Errors
+    ///
+    /// Does not return [`Result`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use brute::protocol::AttemptOutcome;
+    ///
+    /// assert!(!AttemptOutcome::lockout("account locked").is_retriable_transport());
+    /// ```
+    pub fn lockout(message: impl Into<String>) -> Self {
+        Self::Failure(AttemptFault::lockout(message))
+    }
+
+    /// Returns the structured fault when the attempt did not succeed.
+    ///
+    /// # Returns
+    ///
+    /// `None` for success. Otherwise the auth, lockout, or transport fault.
+    ///
+    /// # Errors
+    ///
+    /// Does not return [`Result`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use brute::error::AttemptFaultClass;
+    /// use brute::protocol::AttemptOutcome;
+    ///
+    /// let class = AttemptOutcome::error("down").fault().unwrap().class;
+    /// assert_eq!(class, AttemptFaultClass::Transport);
+    /// ```
+    pub fn fault(&self) -> Option<&AttemptFault> {
+        match self {
+            Self::Success(_) => None,
+            Self::Failure(fault) | Self::Error(fault) => Some(fault),
+        }
+    }
+
+    /// Reports whether the scheduler should retry this outcome.
+    ///
+    /// # Returns
+    ///
+    /// `true` only when the fault class is [`AttemptFaultClass::Transport`].
+    ///
+    /// # Errors
+    ///
+    /// Does not return [`Result`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use brute::protocol::AttemptOutcome;
+    ///
+    /// assert!(AttemptOutcome::error("down").is_retriable_transport());
+    /// assert!(!AttemptOutcome::failure("rejected").is_retriable_transport());
+    /// assert!(!AttemptOutcome::lockout("locked").is_retriable_transport());
+    /// ```
+    pub fn is_retriable_transport(&self) -> bool {
+        self.fault().is_some_and(AttemptFault::is_retriable)
+    }
 }
 
 /// Successful authentication result plus optional command output.
@@ -210,7 +341,7 @@ where
 {
     match tokio::time::timeout(timeout, tokio::task::spawn_blocking(task)).await {
         Ok(Ok(outcome)) => outcome,
-        Ok(Err(join_err)) => AttemptOutcome::Error(format!("task join error: {join_err}")),
-        Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+        Ok(Err(join_err)) => AttemptOutcome::error(format!("task join error: {join_err}")),
+        Err(_) => AttemptOutcome::error("attempt timed out"),
     }
 }

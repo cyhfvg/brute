@@ -69,10 +69,10 @@ impl BruteModule for Neo4jModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(Neo4jAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("neo4j auth failed: {err}"))
+                AttemptOutcome::failure(format!("neo4j auth failed: {err}"))
             }
             Ok(Err(Neo4jAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("neo4j transport failed: {err}"))
+                AttemptOutcome::error(format!("neo4j transport failed: {err}"))
             }
             Ok(Err(Neo4jAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for Neo4jModule {
                     format!("neo4j command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

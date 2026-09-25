@@ -69,10 +69,10 @@ impl BruteModule for NexusModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(NexusAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("nexus auth failed: {err}"))
+                AttemptOutcome::failure(format!("nexus auth failed: {err}"))
             }
             Ok(Err(NexusAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("nexus transport failed: {err}"))
+                AttemptOutcome::error(format!("nexus transport failed: {err}"))
             }
             Ok(Err(NexusAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for NexusModule {
                     format!("nexus command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

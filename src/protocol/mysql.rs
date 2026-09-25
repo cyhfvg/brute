@@ -41,7 +41,7 @@ impl BruteModule for MySqlModule {
         {
             Ok(endpoint) => endpoint,
             Err(err) => {
-                return AttemptOutcome::Error(format!("mysql proxy bridge failed: {err}"));
+                return AttemptOutcome::error(format!("mysql proxy bridge failed: {err}"));
             }
         };
         let (connect_host, connect_port, _bridge) = endpoint;
@@ -63,7 +63,7 @@ impl BruteModule for MySqlModule {
 
                     AttemptOutcome::Success(AttemptSuccess::new("MySQL access!"))
                 }
-                Err(err) => AttemptOutcome::Failure(format!("mysql auth failed: {err}")),
+                Err(err) => AttemptOutcome::failure(format!("mysql auth failed: {err}")),
             }
         })
         .await

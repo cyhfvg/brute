@@ -69,10 +69,10 @@ impl BruteModule for CouchDbModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(CouchAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("couchdb auth failed: {err}"))
+                AttemptOutcome::failure(format!("couchdb auth failed: {err}"))
             }
             Ok(Err(CouchAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("couchdb transport failed: {err}"))
+                AttemptOutcome::error(format!("couchdb transport failed: {err}"))
             }
             Ok(Err(CouchAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for CouchDbModule {
                     format!("couchdb command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

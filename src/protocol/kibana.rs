@@ -61,10 +61,10 @@ impl BruteModule for KibanaModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(err)) if is_auth_error(&err) => {
-                AttemptOutcome::Failure(format!("kibana auth failed: {err}"))
+                AttemptOutcome::failure(format!("kibana auth failed: {err}"))
             }
-            Ok(Err(err)) => AttemptOutcome::Error(format!("kibana transport failed: {err}")),
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Ok(Err(err)) => AttemptOutcome::error(format!("kibana transport failed: {err}")),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

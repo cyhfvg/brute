@@ -71,10 +71,10 @@ impl BruteModule for GitlabModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(GitlabAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("gitlab auth failed: {err}"))
+                AttemptOutcome::failure(format!("gitlab auth failed: {err}"))
             }
             Ok(Err(GitlabAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("gitlab transport failed: {err}"))
+                AttemptOutcome::error(format!("gitlab transport failed: {err}"))
             }
             Ok(Err(GitlabAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -83,7 +83,7 @@ impl BruteModule for GitlabModule {
                     format!("gitlab command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

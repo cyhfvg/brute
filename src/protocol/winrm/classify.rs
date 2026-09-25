@@ -92,7 +92,7 @@ pub fn classify_winrm_error(err: &WinrmError) -> AttemptOutcome {
             if is_authenticated_but_shell_denied(message) {
                 AttemptOutcome::Success(AttemptSuccess::new(AUTH_SHELL_DENIED_MESSAGE))
             } else {
-                AttemptOutcome::Failure(format!("winrm auth failed: {message}"))
+                AttemptOutcome::failure(format!("winrm auth failed: {message}"))
             }
         }
         WinrmError::HttpStatus { status, body } => {
@@ -107,41 +107,41 @@ pub fn classify_winrm_error(err: &WinrmError) -> AttemptOutcome {
             {
                 AttemptOutcome::Success(AttemptSuccess::new(AUTH_SHELL_DENIED_MESSAGE))
             } else if is_credential_rejection_message(&text) {
-                AttemptOutcome::Failure(format!("winrm auth failed: {text}"))
+                AttemptOutcome::failure(format!("winrm auth failed: {text}"))
             } else {
-                AttemptOutcome::Error(format!("winrm http status: {text}"))
+                AttemptOutcome::error(format!("winrm http status: {text}"))
             }
         }
         WinrmError::Ntlm(ntlm_err) => {
             let text = ntlm_err.to_string();
             if is_credential_rejection_message(&text) {
-                AttemptOutcome::Failure(format!("winrm auth failed: {text}"))
+                AttemptOutcome::failure(format!("winrm auth failed: {text}"))
             } else {
-                AttemptOutcome::Error(format!("winrm ntlm error: {text}"))
+                AttemptOutcome::error(format!("winrm ntlm error: {text}"))
             }
         }
         WinrmError::Http(http_err) => {
             let text = http_err.to_string();
             if is_credential_rejection_message(&text) {
-                AttemptOutcome::Failure(format!("winrm auth failed: {text}"))
+                AttemptOutcome::failure(format!("winrm auth failed: {text}"))
             } else {
-                AttemptOutcome::Error(format!("winrm transport error: {text}"))
+                AttemptOutcome::error(format!("winrm transport error: {text}"))
             }
         }
         WinrmError::Timeout(secs) => {
-            AttemptOutcome::Error(format!("winrm operation timed out after {secs}s"))
+            AttemptOutcome::error(format!("winrm operation timed out after {secs}s"))
         }
         WinrmError::Soap(soap_err) => {
             let text = soap_err.to_string();
             if is_access_denied_message(&text) {
                 AttemptOutcome::Success(AttemptSuccess::new(AUTH_SHELL_DENIED_MESSAGE))
             } else if is_credential_rejection_message(&text) {
-                AttemptOutcome::Failure(format!("winrm auth failed: {text}"))
+                AttemptOutcome::failure(format!("winrm auth failed: {text}"))
             } else {
-                AttemptOutcome::Error(format!("winrm soap error: {text}"))
+                AttemptOutcome::error(format!("winrm soap error: {text}"))
             }
         }
-        other => AttemptOutcome::Error(format!("winrm error: {other}")),
+        other => AttemptOutcome::error(format!("winrm error: {other}")),
     }
 }
 

@@ -69,10 +69,10 @@ impl BruteModule for PrometheusModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(PromAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("prometheus auth failed: {err}"))
+                AttemptOutcome::failure(format!("prometheus auth failed: {err}"))
             }
             Ok(Err(PromAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("prometheus transport failed: {err}"))
+                AttemptOutcome::error(format!("prometheus transport failed: {err}"))
             }
             Ok(Err(PromAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for PrometheusModule {
                     format!("prometheus command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

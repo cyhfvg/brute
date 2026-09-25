@@ -71,10 +71,10 @@ impl BruteModule for JbossModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(JbossAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("jboss auth failed: {err}"))
+                AttemptOutcome::failure(format!("jboss auth failed: {err}"))
             }
             Ok(Err(JbossAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("jboss transport failed: {err}"))
+                AttemptOutcome::error(format!("jboss transport failed: {err}"))
             }
             Ok(Err(JbossAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -83,7 +83,7 @@ impl BruteModule for JbossModule {
                     format!("jboss command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

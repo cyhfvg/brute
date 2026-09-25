@@ -37,7 +37,7 @@ impl BruteModule for TomcatManagerModule {
         ) {
             Ok(client) => client,
             Err(err) => {
-                return AttemptOutcome::Error(format!("http client build failed: {err}"));
+                return AttemptOutcome::error(format!("http client build failed: {err}"));
             }
         };
 
@@ -48,7 +48,7 @@ impl BruteModule for TomcatManagerModule {
             .await
         {
             Ok(response) => response,
-            Err(err) => return AttemptOutcome::Error(format!("http request failed: {err}")),
+            Err(err) => return AttemptOutcome::error(format!("http request failed: {err}")),
         };
         match super::http_auth::classify_http_auth_status(
             response.status(),
@@ -63,10 +63,10 @@ impl BruteModule for TomcatManagerModule {
                 ))
             }
             super::http_auth::HttpAuthDecision::AuthFailure => {
-                AttemptOutcome::Failure("tomcat manager rejected credentials".to_string())
+                AttemptOutcome::failure("tomcat manager rejected credentials".to_string())
             }
             super::http_auth::HttpAuthDecision::Transport => {
-                AttemptOutcome::Error(format!("unexpected HTTP status: {}", response.status()))
+                AttemptOutcome::error(format!("unexpected HTTP status: {}", response.status()))
             }
         }
     }

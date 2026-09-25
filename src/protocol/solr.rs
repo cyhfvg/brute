@@ -69,10 +69,10 @@ impl BruteModule for SolrModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(SolrAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("solr auth failed: {err}"))
+                AttemptOutcome::failure(format!("solr auth failed: {err}"))
             }
             Ok(Err(SolrAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("solr transport failed: {err}"))
+                AttemptOutcome::error(format!("solr transport failed: {err}"))
             }
             Ok(Err(SolrAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for SolrModule {
                     format!("solr command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

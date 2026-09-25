@@ -70,10 +70,10 @@ impl BruteModule for KubeletModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(KubeletAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("kubelet auth failed: {err}"))
+                AttemptOutcome::failure(format!("kubelet auth failed: {err}"))
             }
             Ok(Err(KubeletAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("kubelet transport failed: {err}"))
+                AttemptOutcome::error(format!("kubelet transport failed: {err}"))
             }
             Ok(Err(KubeletAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -82,7 +82,7 @@ impl BruteModule for KubeletModule {
                     format!("kubelet command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

@@ -31,7 +31,8 @@
 - `brute combo` / `urls` and MCP `verify_connections` parse paired connection URLs (`ssh://root:password@192.168.5.1:22`). Empty username, empty password, and omitted port are attempted; `https` with no port uses 443. Mixed-protocol files are grouped and run through `engine::run_paired_spray` without changing cartesian `-u`/`-p` spray.
 - HTTP credential status classification is shared by `src/protocol/http_auth.rs`. 401 is always an auth failure, 2xx is always a hit, and 403 follows a per-protocol `CredentialHit` or `AuthFailure` policy.
 - HTTP-family modules accept optional `--protocol http|https`. Omitted values use `https` for kubelet and websphere, otherwise `http`. The scheme is applied to both the client and the request URL. MCP uses the same default.
-- `--retries` applies to every protocol. The scheduler retries only `AttemptOutcome::Error`, not authentication failures. The count is extra attempts after the first try. SSH no longer retries internally.
+- `--retries` applies to every protocol. The count is extra attempts after the first try. SSH no longer retries internally. Retry classification is `AttemptFaultClass::Transport` only.
+- Attempt results carry `AttemptFault` (`auth` / `transport` / `lockout`). The scheduler retries only `transport`. Reports expose `status` plus `fault_class`. Lockout is not retried and is printed as a yellow `[!]`.
 
 ## Completed Protocol Work
 

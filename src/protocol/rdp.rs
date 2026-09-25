@@ -136,12 +136,12 @@ pub fn try_rdp_login(
     let tcp_stream = match connect_rdp_stream(host, port, timeout, proxy) {
         Ok(stream) => stream,
         Err(err) => {
-            return AttemptOutcome::Error(err);
+            return AttemptOutcome::error(err);
         }
     };
 
     if let Err(err) = apply_socket_timeouts(&tcp_stream, timeout) {
-        return AttemptOutcome::Error(format!("rdp socket setup error: {err}"));
+        return AttemptOutcome::error(format!("rdp socket setup error: {err}"));
     }
 
     let mut connector = Connector::new()
@@ -215,11 +215,11 @@ pub fn split_domain_user(username: &str) -> (String, String) {
 pub fn classify_rdp_error(err: &RdpClientError) -> AttemptOutcome {
     let message = format!("{err:?}");
     if is_rdp_auth_failure(err) || looks_like_auth_failure_message(&message) {
-        AttemptOutcome::Failure(format!("rdp auth failed: {message}"))
+        AttemptOutcome::failure(format!("rdp auth failed: {message}"))
     } else if looks_like_transport_message(&message) {
-        AttemptOutcome::Error(format!("rdp transport error: {message}"))
+        AttemptOutcome::error(format!("rdp transport error: {message}"))
     } else {
-        AttemptOutcome::Error(format!("rdp error: {message}"))
+        AttemptOutcome::error(format!("rdp error: {message}"))
     }
 }
 

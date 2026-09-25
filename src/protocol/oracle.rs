@@ -69,7 +69,7 @@ impl BruteModule for OracleModule {
         {
             Ok(endpoint) => endpoint,
             Err(error) => {
-                return AttemptOutcome::Error(format!("oracle proxy bridge failed: {error}"));
+                return AttemptOutcome::error(format!("oracle proxy bridge failed: {error}"));
             }
         };
         let (connect_host, connect_port, _bridge) = endpoint;
@@ -84,14 +84,14 @@ impl BruteModule for OracleModule {
             ctx.timeout(),
         ) {
             Ok(config) => config,
-            Err(error) => return AttemptOutcome::Error(error),
+            Err(error) => return AttemptOutcome::error(error),
         };
 
         let connection = match timeout(ctx.timeout(), Connection::connect_with_config(config)).await
         {
             Ok(Ok(connection)) => connection,
             Ok(Err(error)) => return oracle_connection_outcome(error),
-            Err(_) => return AttemptOutcome::Error("oracle connection timed out".to_string()),
+            Err(_) => return AttemptOutcome::error("oracle connection timed out".to_string()),
         };
 
         match ctx.execute.as_deref() {
@@ -162,14 +162,14 @@ fn oracle_config(
 fn oracle_connection_outcome(error: OracleError) -> AttemptOutcome {
     match error {
         OracleError::ProtocolVersionNotSupported(server, minimum) => {
-            AttemptOutcome::Error(format!(
+            AttemptOutcome::error(format!(
                 "unsupported Oracle server protocol version {server}; brute requires Oracle Database 11g R2 (11.2)+ (minimum protocol version {minimum})"
             ))
         }
-        OracleError::InvalidLengthIndicator(indicator) => AttemptOutcome::Error(format!(
+        OracleError::InvalidLengthIndicator(indicator) => AttemptOutcome::error(format!(
             "oracle-rs received an unsupported Oracle wire-protocol length indicator ({indicator})"
         )),
-        error => AttemptOutcome::Failure(format!("oracle authentication failed: {error}")),
+        error => AttemptOutcome::failure(format!("oracle authentication failed: {error}")),
     }
 }
 

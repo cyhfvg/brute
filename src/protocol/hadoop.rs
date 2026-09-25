@@ -69,10 +69,10 @@ impl BruteModule for HadoopModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(HadoopAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("hadoop auth failed: {err}"))
+                AttemptOutcome::failure(format!("hadoop auth failed: {err}"))
             }
             Ok(Err(HadoopAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("hadoop transport failed: {err}"))
+                AttemptOutcome::error(format!("hadoop transport failed: {err}"))
             }
             Ok(Err(HadoopAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for HadoopModule {
                     format!("hadoop command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

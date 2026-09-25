@@ -2,7 +2,9 @@
 
 use colored::{ColoredString, Colorize};
 
-use crate::protocol::{AttemptContext, AttemptOutcome, PostAuthResult, TargetContext};
+use crate::protocol::{
+    AttemptContext, AttemptFaultClass, AttemptOutcome, PostAuthResult, TargetContext,
+};
 
 /// Lightweight terminal output wrapper.
 #[derive(Debug)]
@@ -64,16 +66,25 @@ impl Console {
                     }
                 }
             }
-            AttemptOutcome::Failure(_reason) => {
-                println!("{} {} {}", prefix, self.paint("[-]", "red"), credential);
-            }
-            AttemptOutcome::Error(message) => {
+            AttemptOutcome::Failure(fault) if fault.class == AttemptFaultClass::Lockout => {
                 println!(
                     "{} {} {} {}",
                     prefix,
                     self.paint("[!]", "yellow"),
                     credential,
-                    message
+                    fault.message
+                );
+            }
+            AttemptOutcome::Failure(_fault) => {
+                println!("{} {} {}", prefix, self.paint("[-]", "red"), credential);
+            }
+            AttemptOutcome::Error(fault) => {
+                println!(
+                    "{} {} {} {}",
+                    prefix,
+                    self.paint("[!]", "yellow"),
+                    credential,
+                    fault.message
                 );
             }
         }

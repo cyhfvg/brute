@@ -58,12 +58,12 @@ impl BruteModule for ActiveMqModule {
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(err)) if err.starts_with("auth:") => AttemptOutcome::Failure(format!(
+            Ok(Err(err)) if err.starts_with("auth:") => AttemptOutcome::failure(format!(
                 "activemq auth failed: {}",
                 err.trim_start_matches("auth:")
             )),
-            Ok(Err(err)) => AttemptOutcome::Error(format!("activemq transport failed: {err}")),
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Ok(Err(err)) => AttemptOutcome::error(format!("activemq transport failed: {err}")),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

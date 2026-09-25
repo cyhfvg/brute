@@ -72,10 +72,10 @@ impl BruteModule for WeblogicModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(WeblogicAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("weblogic auth failed: {err}"))
+                AttemptOutcome::failure(format!("weblogic auth failed: {err}"))
             }
             Ok(Err(WeblogicAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("weblogic transport failed: {err}"))
+                AttemptOutcome::error(format!("weblogic transport failed: {err}"))
             }
             Ok(Err(WeblogicAttemptError::Command(err))) => {
                 AttemptOutcome::Success(AttemptSuccess::with_command_error(
@@ -83,7 +83,7 @@ impl BruteModule for WeblogicModule {
                     format!("weblogic command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

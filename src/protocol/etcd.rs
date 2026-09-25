@@ -60,12 +60,12 @@ impl BruteModule for EtcdModule {
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(err)) if err.starts_with("auth:") => AttemptOutcome::Failure(format!(
+            Ok(Err(err)) if err.starts_with("auth:") => AttemptOutcome::failure(format!(
                 "etcd auth failed: {}",
                 err.trim_start_matches("auth:")
             )),
-            Ok(Err(err)) => AttemptOutcome::Error(format!("etcd transport failed: {err}")),
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Ok(Err(err)) => AttemptOutcome::error(format!("etcd transport failed: {err}")),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

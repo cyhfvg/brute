@@ -61,7 +61,7 @@ impl BruteModule for HttpBasicModule {
             match build_http_basic_client(ctx.timeout(), self.scheme, ctx.target.proxy.as_ref()) {
                 Ok(client) => client,
                 Err(err) => {
-                    return AttemptOutcome::Error(format!("http client build failed: {err}"));
+                    return AttemptOutcome::error(format!("http client build failed: {err}"));
                 }
             };
 
@@ -72,7 +72,7 @@ impl BruteModule for HttpBasicModule {
             .await
         {
             Ok(response) => classify_http_basic_status(response.status()),
-            Err(err) => AttemptOutcome::Error(format!("http request failed: {err}")),
+            Err(err) => AttemptOutcome::error(format!("http request failed: {err}")),
         }
     }
 }
@@ -304,10 +304,10 @@ pub fn classify_http_basic_status(status: StatusCode) -> AttemptOutcome {
             AttemptOutcome::Success(AttemptSuccess::new("HTTP Basic access!"))
         }
         HttpAuthDecision::AuthFailure => {
-            AttemptOutcome::Failure("http basic auth rejected credentials".to_string())
+            AttemptOutcome::failure("http basic auth rejected credentials".to_string())
         }
         HttpAuthDecision::Transport => {
-            AttemptOutcome::Error(format!("unexpected HTTP status: {status}"))
+            AttemptOutcome::error(format!("unexpected HTTP status: {status}"))
         }
     }
 }

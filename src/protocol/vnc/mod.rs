@@ -109,7 +109,7 @@ impl BruteModule for VncModule {
         {
             Ok(value) => value,
             Err(err) => {
-                return AttemptOutcome::Error(format!("vnc probe task join error: {err}"));
+                return AttemptOutcome::error(format!("vnc probe task join error: {err}"));
             }
         };
 

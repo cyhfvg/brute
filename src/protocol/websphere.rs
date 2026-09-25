@@ -73,10 +73,10 @@ impl BruteModule for WebsphereModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(WebsphereAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("websphere auth failed: {err}"))
+                AttemptOutcome::failure(format!("websphere auth failed: {err}"))
             }
             Ok(Err(WebsphereAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("websphere transport failed: {err}"))
+                AttemptOutcome::error(format!("websphere transport failed: {err}"))
             }
             Ok(Err(WebsphereAttemptError::Command(err))) => {
                 AttemptOutcome::Success(AttemptSuccess::with_command_error(
@@ -84,7 +84,7 @@ impl BruteModule for WebsphereModule {
                     format!("websphere command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

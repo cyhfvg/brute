@@ -69,10 +69,10 @@ impl BruteModule for ElasticsearchModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(EsAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("elasticsearch auth failed: {err}"))
+                AttemptOutcome::failure(format!("elasticsearch auth failed: {err}"))
             }
             Ok(Err(EsAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("elasticsearch transport failed: {err}"))
+                AttemptOutcome::error(format!("elasticsearch transport failed: {err}"))
             }
             Ok(Err(EsAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for ElasticsearchModule {
                     format!("elasticsearch command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

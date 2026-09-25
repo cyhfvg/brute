@@ -70,10 +70,10 @@ impl BruteModule for DruidModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(DruidAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("druid auth failed: {err}"))
+                AttemptOutcome::failure(format!("druid auth failed: {err}"))
             }
             Ok(Err(DruidAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("druid transport failed: {err}"))
+                AttemptOutcome::error(format!("druid transport failed: {err}"))
             }
             Ok(Err(DruidAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -82,7 +82,7 @@ impl BruteModule for DruidModule {
                     format!("druid command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

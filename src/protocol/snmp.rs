@@ -70,8 +70,8 @@ impl BruteModule for SnmpModule {
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(err)) => AttemptOutcome::Failure(format!("snmp auth failed: {err}")),
-            Err(_) => AttemptOutcome::Failure("snmp auth failed: no response".to_string()),
+            Ok(Err(err)) => AttemptOutcome::failure(format!("snmp auth failed: {err}")),
+            Err(_) => AttemptOutcome::failure("snmp auth failed: no response".to_string()),
         }
     }
 }

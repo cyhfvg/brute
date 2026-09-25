@@ -69,10 +69,10 @@ impl BruteModule for SparkModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(SparkAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("spark auth failed: {err}"))
+                AttemptOutcome::failure(format!("spark auth failed: {err}"))
             }
             Ok(Err(SparkAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("spark transport failed: {err}"))
+                AttemptOutcome::error(format!("spark transport failed: {err}"))
             }
             Ok(Err(SparkAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for SparkModule {
                     format!("spark command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

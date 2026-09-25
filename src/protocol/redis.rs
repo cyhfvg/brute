@@ -44,7 +44,7 @@ impl BruteModule for RedisModule {
         {
             Ok(endpoint) => endpoint,
             Err(err) => {
-                return AttemptOutcome::Error(format!("redis proxy bridge failed: {err}"));
+                return AttemptOutcome::error(format!("redis proxy bridge failed: {err}"));
             }
         };
         let (connect_host, connect_port, _bridge) = endpoint;
@@ -84,7 +84,7 @@ impl BruteModule for RedisModule {
         match tokio::time::timeout(ctx.timeout(), attempt).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(RedisAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("redis auth failed: {err}"))
+                AttemptOutcome::failure(format!("redis auth failed: {err}"))
             }
             Ok(Err(RedisAttemptError::Command(err))) => {
                 AttemptOutcome::Success(AttemptSuccess::with_command_error(
@@ -92,7 +92,7 @@ impl BruteModule for RedisModule {
                     format!("redis command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

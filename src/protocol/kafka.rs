@@ -63,10 +63,10 @@ impl BruteModule for KafkaModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(err)) if is_auth_error(&err) => {
-                AttemptOutcome::Failure(format!("kafka auth failed: {err}"))
+                AttemptOutcome::failure(format!("kafka auth failed: {err}"))
             }
-            Ok(Err(err)) => AttemptOutcome::Error(format!("kafka transport failed: {err}")),
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Ok(Err(err)) => AttemptOutcome::error(format!("kafka transport failed: {err}")),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

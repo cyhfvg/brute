@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::cli::{CommonArgs, HttpUrlScheme, Protocol, ProtocolArgs, WinrmShellType};
 use crate::database::SavedCredential;
-use crate::protocol::{AttemptContext, AttemptOutcome, TargetContext};
+use crate::protocol::{AttemptContext, AttemptFaultClass, AttemptOutcome, TargetContext};
 use crate::proxy::ProxyConfig;
 
 /// Live reporter used by the CLI console path.
@@ -97,6 +97,8 @@ pub enum AttemptStatus {
     Success,
     /// Authentication was rejected.
     Failure,
+    /// Account or service lockout. Not retried.
+    Lockout,
     /// Transport, protocol, or local error.
     Error,
 }
@@ -120,6 +122,8 @@ pub struct AttemptRecord {
     pub sid: Option<String>,
     /// Attempt classification.
     pub status: AttemptStatus,
+    /// Structured class for a non-success attempt. Absent on success.
+    pub fault_class: Option<AttemptFaultClass>,
     /// Human-readable outcome message.
     pub message: String,
     /// Optional post-auth command or share-enum output.

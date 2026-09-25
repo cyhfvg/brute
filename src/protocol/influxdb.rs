@@ -69,10 +69,10 @@ impl BruteModule for InfluxDbModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(InfluxAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("influxdb auth failed: {err}"))
+                AttemptOutcome::failure(format!("influxdb auth failed: {err}"))
             }
             Ok(Err(InfluxAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("influxdb transport failed: {err}"))
+                AttemptOutcome::error(format!("influxdb transport failed: {err}"))
             }
             Ok(Err(InfluxAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for InfluxDbModule {
                     format!("influxdb command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

@@ -69,10 +69,10 @@ impl BruteModule for HarborModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(HarborAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("harbor auth failed: {err}"))
+                AttemptOutcome::failure(format!("harbor auth failed: {err}"))
             }
             Ok(Err(HarborAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("harbor transport failed: {err}"))
+                AttemptOutcome::error(format!("harbor transport failed: {err}"))
             }
             Ok(Err(HarborAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for HarborModule {
                     format!("harbor command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }

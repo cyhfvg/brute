@@ -69,10 +69,10 @@ impl BruteModule for DockerModule {
         match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
             Ok(Ok(success)) => AttemptOutcome::Success(success),
             Ok(Err(DockerAttemptError::Auth(err))) => {
-                AttemptOutcome::Failure(format!("docker auth failed: {err}"))
+                AttemptOutcome::failure(format!("docker auth failed: {err}"))
             }
             Ok(Err(DockerAttemptError::Transport(err))) => {
-                AttemptOutcome::Error(format!("docker transport failed: {err}"))
+                AttemptOutcome::error(format!("docker transport failed: {err}"))
             }
             Ok(Err(DockerAttemptError::Command(err))) => {
                 let message = success_message(is_unauthenticated(ctx));
@@ -81,7 +81,7 @@ impl BruteModule for DockerModule {
                     format!("docker command execution failed: {err}"),
                 ))
             }
-            Err(_) => AttemptOutcome::Error("attempt timed out".to_string()),
+            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
         }
     }
 }
