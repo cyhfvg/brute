@@ -13,7 +13,7 @@ pub struct ProtocolOptions {
     pub port: Option<u16>,
     /// Per-attempt timeout in milliseconds. Default: 5000.
     pub timeout_ms: Option<u64>,
-    /// Transient transport retry count. Default: 3.
+    /// Extra attempts after a transport error. Authentication failures are not retried. Default: 3.
     pub retries: Option<usize>,
     /// Outbound proxy URL: `http://[user[:pass]@]host:port` or `socks5://...`.
     pub proxy: Option<String>,
@@ -221,7 +221,7 @@ pub struct ConnectionOptions {
     pub threads: Option<usize>,
     /// Per-attempt timeout in milliseconds. Default: 5000.
     pub timeout_ms: Option<u64>,
-    /// Transient transport retry count. Default: 3.
+    /// Extra attempts after a transport error. Authentication failures are not retried. Default: 3.
     pub retries: Option<usize>,
     /// Continue a host:port after the first success. Default: false.
     #[serde(default)]

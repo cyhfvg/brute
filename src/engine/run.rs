@@ -6,6 +6,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
+    time::Duration,
 };
 
 use anyhow::{Result, bail};
@@ -180,7 +181,7 @@ pub async fn run_spray(
                 execute,
                 credential,
             };
-            let outcome = module.attempt(&ctx).await;
+            let outcome = attempt_with_retries(module.as_ref(), &ctx).await;
             if matches!(outcome, AttemptOutcome::Success(_)) {
                 account_successes.lock().await.insert(account_key);
                 if !ctx.target.continue_on_success {
@@ -379,8 +380,76 @@ pub(super) fn should_skip_attempt(
     account_succeeded || (!continue_on_success && target_success_flag.load(Ordering::Relaxed))
 }
 
+/// Retries a credential attempt when the module reports a transport error.
+///
+/// `ctx.target.retries` is the number of extra tries after the first attempt.
+/// `Success` and `Failure` are returned immediately. Only the final outcome is
+/// recorded by the caller. Backoff between tries is `150ms * (failed attempts)`.
+///
+/// # Parameters
+///
+/// - `module`: Protocol implementation. Each call performs exactly one try.
+/// - `ctx`: Attempt context, including the retry budget.
+///
+/// # Returns
+///
+/// The first non-error outcome, or the last [`AttemptOutcome::Error`] after the budget is spent.
+///
+/// # Errors
+///
+/// Does not return [`Result`]. Transport failures remain [`AttemptOutcome::Error`].
+///
+/// # Examples
+///
+/// ```ignore
+/// let outcome = attempt_with_retries(module.as_ref(), &ctx).await;
+/// ```
+pub(super) async fn attempt_with_retries(
+    module: &dyn BruteModule,
+    ctx: &AttemptContext,
+) -> AttemptOutcome {
+    let mut failed_attempts = 0usize;
+    loop {
+        let outcome = module.attempt(ctx).await;
+        if !matches!(outcome, AttemptOutcome::Error(_)) || failed_attempts >= ctx.target.retries {
+            return outcome;
+        }
+        let delay_ms = transport_retry_backoff_ms(failed_attempts);
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+        failed_attempts += 1;
+    }
+}
+
+/// Returns the delay before the next transport retry.
+///
+/// # Parameters
+///
+/// - `failed_attempts`: Number of failed tries already completed, starting at 0.
+///
+/// # Returns
+///
+/// Delay in milliseconds. The first retry waits 150ms, the second 300ms, and so on.
+///
+/// # Errors
+///
+/// None.
+///
+/// # Examples
+///
+/// ```ignore
+/// assert_eq!(transport_retry_backoff_ms(0), 150);
+/// assert_eq!(transport_retry_backoff_ms(1), 300);
+/// ```
+fn transport_retry_backoff_ms(failed_attempts: usize) -> u64 {
+    150 * (failed_attempts as u64 + 1)
+}
+
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
+    use super::{AttemptContext, AttemptOutcome, BruteModule};
+
     /// Verifies the scheduler source applies global `--threads` via for_each_concurrent.
     #[test]
     fn scheduler_uses_global_threads_without_per_target_semaphore() {
@@ -397,5 +466,105 @@ mod tests {
             !production.contains("Semaphore::new"),
             "per-target Semaphore must be removed; --threads alone caps concurrency"
         );
+    }
+
+    struct ScriptedModule {
+        outcomes: std::sync::Mutex<Vec<AttemptOutcome>>,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    #[async_trait::async_trait]
+    impl BruteModule for ScriptedModule {
+        fn name(&self) -> &'static str {
+            "scripted"
+        }
+
+        async fn attempt(&self, _ctx: &AttemptContext) -> AttemptOutcome {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            self.outcomes.lock().expect("scripted outcomes").remove(0)
+        }
+    }
+
+    fn scripted_ctx(retries: usize) -> AttemptContext {
+        use crate::cli::{CommonArgs, HttpUrlScheme, Protocol};
+        use crate::credentials::CredentialSet;
+
+        AttemptContext {
+            protocol: Protocol::Ssh,
+            target_host: "127.0.0.1".into(),
+            url_scheme: HttpUrlScheme::Http,
+            target: CommonArgs {
+                targets: vec!["127.0.0.1".into()],
+                usernames: vec!["root".into()],
+                passwords: vec!["secret".into()],
+                credential_id: None,
+                port: Some(22),
+                threads: 1,
+                retries,
+                timeout_ms: 1000,
+                continue_on_success: false,
+                proxy: None,
+            },
+            path: None,
+            execute: None,
+            credential: CredentialSet {
+                username: Some("root".into()),
+                password: Some("secret".into()),
+                service_name: None,
+                sid: None,
+            },
+        }
+    }
+
+    /// Transport errors are retried; the final success is the recorded outcome.
+    #[tokio::test]
+    async fn retries_transport_error_then_returns_success() {
+        let module = ScriptedModule {
+            outcomes: std::sync::Mutex::new(vec![
+                AttemptOutcome::Error("ssh transport failed".into()),
+                AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("ok")),
+            ]),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        let outcome = super::attempt_with_retries(&module, &scripted_ctx(1)).await;
+        assert!(matches!(outcome, AttemptOutcome::Success(_)));
+        assert_eq!(module.calls.load(Ordering::Relaxed), 2);
+    }
+
+    /// Authentication failures are not transport retries.
+    #[tokio::test]
+    async fn does_not_retry_auth_failure() {
+        let module = ScriptedModule {
+            outcomes: std::sync::Mutex::new(vec![
+                AttemptOutcome::Failure("auth failed".into()),
+                AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("should not run")),
+            ]),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        let outcome = super::attempt_with_retries(&module, &scripted_ctx(3)).await;
+        assert!(matches!(outcome, AttemptOutcome::Failure(_)));
+        assert_eq!(module.calls.load(Ordering::Relaxed), 1);
+    }
+
+    /// `--retries 0` means one try, even when that try is a transport error.
+    #[tokio::test]
+    async fn zero_retries_returns_first_error() {
+        let module = ScriptedModule {
+            outcomes: std::sync::Mutex::new(vec![
+                AttemptOutcome::Error("down".into()),
+                AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("should not run")),
+            ]),
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        let outcome = super::attempt_with_retries(&module, &scripted_ctx(0)).await;
+        assert!(matches!(outcome, AttemptOutcome::Error(_)));
+        assert_eq!(module.calls.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn backoff_grows_by_150ms() {
+        assert_eq!(super::transport_retry_backoff_ms(0), 150);
+        assert_eq!(super::transport_retry_backoff_ms(1), 300);
+        assert_eq!(super::transport_retry_backoff_ms(2), 450);
     }
 }

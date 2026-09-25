@@ -76,7 +76,7 @@ pub struct ComboArgs {
     /// Concurrent attempt cap within each protocol group.
     #[arg(long, default_value_t = 16, value_parser = parse_positive_usize)]
     pub threads: usize,
-    /// Retry count for transient transport failures.
+    /// Extra attempts after a transient transport error. Authentication failures are not retried.
     #[arg(long, default_value_t = 3)]
     pub retries: usize,
     /// Timeout per attempt in milliseconds.
@@ -721,7 +721,7 @@ pub struct CommonArgs {
     /// Concurrent attempt cap (in-flight logins across all targets and credentials).
     #[arg(long, default_value_t = 16, value_parser = parse_positive_usize)]
     pub threads: usize,
-    /// Retry count for transient transport failures.
+    /// Extra attempts after a transient transport error. Authentication failures are not retried.
     #[arg(long, default_value_t = 3)]
     pub retries: usize,
     /// Timeout per attempt in milliseconds.

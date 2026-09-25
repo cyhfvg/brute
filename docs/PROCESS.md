@@ -190,9 +190,11 @@ HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`t
 
 SSH banner 获取从单次登录尝试中前移到 target 级预探测阶段。每个 target 只读取一次 banner，成功时输出服务信息；失败时静默不显示 banner，但仍继续进入凭据尝试，避免因网络波动或 banner 被修改而漏测。
 
-SSH 单次登录中的连接、session 创建、handshake 等传输层错误会内部重试一次；重试后仍失败时按普通认证失败行输出，不暴露 `Failed getting banner` 等低层错误细节。
+SSH 单次登录中的连接、session 创建、handshake 等传输层错误返回 `AttemptOutcome::Error("ssh transport failed")`，不暴露 `Failed getting banner` 等低层错误细节。认证失败返回 `Failure`，不重试。SSH 模块本身只尝试一次，重试由调度层统一处理，避免与 `--retries` 相乘。
 
-调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流：跨目标与凭据的同时进行尝试数不超过该值。不再使用 `--target-threads` 或单目标信号量。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads` 和 `--timeout-ms` 必须大于 0。RDP 尝试走 `spawn_blocking`（`run_blocking_with_timeout`），不在模块内加全局互斥锁。SSH 传输层重试次数由 `--retries` 控制，默认 3 次，并使用短退避降低握手碰撞概率。
+调度层对全部协议的凭据尝试使用 `attempt_with_retries`，`run_spray` 与 `run_paired_spray` 共用。`--retries` 是首次尝试之外的额外次数，默认 3，因此最多尝试 4 次。只重试 `AttemptOutcome::Error`；`Success` 与 `Failure` 立即返回。两次尝试之间退避 `150ms * (已失败次数)`，第一次额外尝试等待 150ms。报告只记录最终结果，中间传输错误不单独入账。
+
+调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流：跨目标与凭据的同时进行尝试数不超过该值。不再使用 `--target-threads` 或单目标信号量。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads` 和 `--timeout-ms` 必须大于 0。RDP 尝试走 `spawn_blocking`（`run_blocking_with_timeout`），不在模块内加全局互斥锁。
 
 默认情况下，每个 target 命中 1 组成功凭据后会停止该 target 的后续尝试；`--continue-on-success` 用于显式开启继续爆破模式。
 

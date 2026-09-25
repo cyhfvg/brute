@@ -335,7 +335,7 @@ Successful MCP verifications are saved to the selected workspace, same as the CL
 - `--id <ID>`: Load a saved credential from the current workspace. Mutually exclusive with `-u/-p`.
 - `--port <PORT>`: Override the protocol default port.
 - `--threads <N>`: Concurrent in-flight login attempts (global cap across targets and credentials). Default: `16`; must be at least `1`.
-- `--retries <N>`: Retry count for transient transport errors. Default: `3`.
+- `--retries <N>`: Extra attempts after a transient transport error. Authentication failures are not retried. Applies to every protocol. Default: `3`.
 - `--timeout-ms <MS>`: Per-attempt timeout in milliseconds. Default: `5000`; must be at least `1`.
 - `--continue-on-success`: Continue attempts against a target after a successful credential is found.
 

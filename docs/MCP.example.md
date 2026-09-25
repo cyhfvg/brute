@@ -24,7 +24,7 @@
 |---|---|---|
 | `port` | 覆盖协议默认端口 | 协议默认端口 |
 | `timeout_ms` | 单次尝试超时 (毫秒) | `5000` |
-| `retries` | 传输层临时错误重试次数 | `3` |
+| `retries` | 全部协议的传输层 `Error` 额外重试次数；认证失败不重试 | `3` |
 | `proxy` | `http://[user[:pass]@]host:port` 或 `socks5://...` | 无 |
 | `workspace` | 保存成功凭据 / 读取 `--id` 的 workspace | 当前 workspace |
 | `execute` | 认证成功后的命令. 仅 `ssh`/`ftp`/`mysql`/`postgresql`/`redis`/`oracle`/`winrm`/`zookeeper`/`memcached`/`mongodb`/`elasticsearch`/`docker`/`snmp`/`activemq`/`rabbitmq`/`mssql`/`kafka`/`kibana`/`nfs`/`telnet`/`ldap`/`grafana`/`prometheus`/`jenkins`/`couchdb`/`clickhouse`/`neo4j`/`etcd`/`influxdb`/`solr`/`minio`/`nacos`/`nexus`/`jboss`/`druid`/`spark`/`hadoop`/`kubelet`/`gitlab`/`harbor`/`weblogic`/`websphere` | 无 |
@@ -52,7 +52,7 @@
 | `urls` | 内联连接 URL; 与 `file` 同时给出时文件在前 | 空 |
 | `options.threads` | 每个协议组内的并发上限 | `16` |
 | `options.timeout_ms` | 单次尝试超时 (毫秒) | `5000` |
-| `options.retries` | 传输层临时错误重试次数 | `3` |
+| `options.retries` | 全部协议的传输层 `Error` 额外重试次数；认证失败不重试 | `3` |
 | `options.continue_on_success` | 同一 `host:port` 命中后继续 | `false` |
 | `options.proxy` | 与其它工具相同的代理 URL | 无 |
 | `options.workspace` | 成功凭据写入的 workspace | 当前 workspace |

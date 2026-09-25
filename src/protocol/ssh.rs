@@ -9,7 +9,6 @@ use std::{
 
 use async_trait::async_trait;
 use russh::{ChannelMsg, Disconnect, MethodKind, client};
-use tokio::time::sleep;
 
 use super::{
     AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
@@ -72,38 +71,26 @@ impl BruteModule for SshModule {
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
         let command = ctx.execute.clone();
-        let retries = ctx.target.retries;
         let per_try_timeout = ctx.timeout();
         let proxy = ctx.target.proxy.clone();
 
-        for attempt in 0..=retries {
-            let result = tokio::time::timeout(
+        match tokio::time::timeout(
+            per_try_timeout,
+            try_ssh_login_once(
+                host,
+                port,
+                username,
+                password,
+                command,
                 per_try_timeout,
-                try_ssh_login_once(
-                    host.clone(),
-                    port,
-                    username.clone(),
-                    password.clone(),
-                    command.clone(),
-                    per_try_timeout,
-                    proxy.clone(),
-                ),
-            )
-            .await;
-
-            match result {
-                Ok(Ok(outcome)) => return outcome,
-                Ok(Err(_)) | Err(_) if attempt < retries => {
-                    let delay_ms = 150 * (attempt as u64 + 1);
-                    sleep(Duration::from_millis(delay_ms)).await;
-                }
-                Ok(Err(_)) | Err(_) => {
-                    return AttemptOutcome::Error("ssh transport failed".to_string());
-                }
-            }
+                proxy,
+            ),
+        )
+        .await
+        {
+            Ok(Ok(outcome)) => outcome,
+            Ok(Err(_)) | Err(_) => AttemptOutcome::Error("ssh transport failed".to_string()),
         }
-
-        AttemptOutcome::Error("ssh transport failed".to_string())
     }
 }
 

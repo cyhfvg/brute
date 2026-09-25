@@ -26,7 +26,8 @@ use crate::{
 use super::{
     query::resolve_workspace,
     run::{
-        attempt_record_from_outcome, build_module, save_successful_credential, should_skip_attempt,
+        attempt_record_from_outcome, attempt_with_retries, build_module,
+        save_successful_credential, should_skip_attempt,
     },
     types::{AttemptStatus, ProbeRecord, SprayReport, SprayReporter, SprayRequest},
 };
@@ -173,7 +174,7 @@ pub async fn run_paired_spray(
                     execute,
                     credential: planned.credential,
                 };
-                let outcome = module.attempt(&ctx).await;
+                let outcome = attempt_with_retries(module.as_ref(), &ctx).await;
                 if matches!(outcome, AttemptOutcome::Success(_)) {
                     account_successes.lock().await.insert(account);
                     if !ctx.target.continue_on_success {
