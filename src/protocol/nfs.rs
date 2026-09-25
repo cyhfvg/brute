@@ -8,9 +8,7 @@ use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 const RPC_CALL: u32 = 0;
 const RPC_REPLY: u32 = 1;
@@ -63,10 +61,10 @@ impl BruteModule for NfsModule {
         "nfs"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_null(ctx)).await {
-            Ok(true) => TargetProbe::Ready(Some("NFSv3".to_string())),
-            _ => TargetProbe::Ready(None),
+            Ok(true) => Some("NFSv3".to_string()),
+            _ => None,
         }
     }
 

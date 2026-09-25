@@ -8,9 +8,7 @@ use openssl::hash::{MessageDigest, hash};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// rsync daemon module configuration.
 #[derive(Debug, Clone)]
@@ -49,10 +47,10 @@ impl BruteModule for RsyncModule {
         "rsync"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_greeting(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

@@ -9,9 +9,7 @@ use reqwest::StatusCode;
 use crate::cli::HttpUrlScheme;
 use crate::protocol::http::{build_http_basic_client, normalize_path};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// Jenkins attempt errors split auth failures from post-auth command failures.
 type JenkinsAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
@@ -53,10 +51,10 @@ impl BruteModule for JenkinsModule {
         "jenkins"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_api(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

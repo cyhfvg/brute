@@ -8,9 +8,7 @@ use ldap3::exop::{WhoAmI, WhoAmIResp};
 use ldap3::{LdapConnAsync, Scope, SearchEntry};
 use tokio::net::TcpStream;
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// LDAP module configuration.
 #[derive(Debug, Clone)]
@@ -49,10 +47,10 @@ impl BruteModule for LdapModule {
         "ldap"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_tcp(ctx)).await {
-            Ok(true) => TargetProbe::Ready(Some("LDAP".to_string())),
-            _ => TargetProbe::Ready(None),
+            Ok(true) => Some("LDAP".to_string()),
+            _ => None,
         }
     }
 

@@ -35,7 +35,7 @@ use async_trait::async_trait;
 
 use crate::cli::WinrmShellType;
 
-use super::{AttemptContext, AttemptOutcome, BruteModule, TargetContext, TargetProbe};
+use super::{AttemptContext, AttemptOutcome, BruteModule, TargetContext};
 
 use attempt::try_winrm_login;
 use util::probe_winrm_port;
@@ -83,7 +83,7 @@ impl BruteModule for WinrmModule {
         "winrm"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         let host = ctx.target_host.clone();
         let port = ctx.port();
         let timeout = ctx.timeout();
@@ -93,8 +93,8 @@ impl BruteModule for WinrmModule {
             probe_winrm_port(&host, port, timeout, proxy.as_ref())
         });
         match tokio::time::timeout(timeout, probe).await {
-            Ok(Ok(Some(message))) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Ok(Some(message))) => Some(message),
+            _ => None,
         }
     }
 

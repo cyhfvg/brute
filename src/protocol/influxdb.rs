@@ -9,9 +9,7 @@ use reqwest::StatusCode;
 use crate::cli::HttpUrlScheme;
 use crate::protocol::http::{build_http_basic_client, normalize_path};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// InfluxDB attempt errors split auth failures from post-auth command failures.
 type InfluxAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
@@ -53,10 +51,10 @@ impl BruteModule for InfluxDbModule {
         "influxdb"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_ping(ctx)).await {
-            Ok(Some(())) => TargetProbe::Ready(Some("InfluxDB".to_string())),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(())) => Some("InfluxDB".to_string()),
+            _ => None,
         }
     }
 

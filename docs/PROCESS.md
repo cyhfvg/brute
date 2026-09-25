@@ -62,7 +62,7 @@
 3. 对同步库采用 `spawn_blocking + timeout` 包裹
 4. 对异步库采用 Tokio 并发编排
 5. 输出层与协议层解耦，便于后续增加 JSON 输出
-6. 通过占位模块为未来协议扩展保留接口稳定性
+6. 新协议直接实现 `BruteModule`, 不保留未接入 CLI 的占位模块
 7. 将目标来源解析与协议尝试上下文分离，便于支持目标文件、CIDR 与范围扩展
 8. 将 SQLite 凭据存储封装为独立模块，避免协议实现直接感知数据库细节
 
@@ -188,7 +188,7 @@ HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`t
 
 ### SSH Banner
 
-SSH banner 获取在 target 级探测中进行，与凭据喷洒重叠，不作为喷洒前的串行门槛。每个 target 只读取一次 banner，成功时输出服务信息；失败时静默不显示 banner，也不阻止该 target 的凭据尝试，避免因网络波动或 banner 被修改而漏测。
+SSH banner 获取在 target 级探测中进行，与凭据喷洒重叠，不作为喷洒前的串行门槛。探测返回可选 banner（`Option<String>`）：有文本才记录，没有 banner 不表示目标已确认就绪，也不表示目标不可达。失败时静默，不阻止该 target 的凭据尝试，避免因网络波动或 banner 被修改而漏测。
 
 SSH 单次登录中的连接、session 创建、handshake 等传输层错误返回 `AttemptOutcome::Error`，类别是 `AttemptFaultClass::Transport`，消息是 `ssh transport failed`，不暴露 `Failed getting banner` 等低层错误细节。认证失败返回 `Failure`，类别是 `Auth`，不重试。账户或服务锁定返回 `Failure`，类别是 `Lockout`，不重试。SSH 模块本身只尝试一次，重试由调度层统一处理，避免与 `--retries` 相乘。
 
@@ -218,9 +218,6 @@ Ctrl-C 与 MCP 请求取消共用 `CancellationToken`。取消后不再领取新
 
 **brute 不支持 IPv6。** `TARGET` 不接受 IPv6 地址或 IPv6 CIDR；此类输入会报错并拒绝展开。
 
-### 已保留接口但未实现
-
-（当前无 CLI 预留但未实现的协议占位）
 
 ## 协议环境测试
 

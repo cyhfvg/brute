@@ -10,9 +10,7 @@ use std::{
 use async_trait::async_trait;
 use russh::{ChannelMsg, Disconnect, MethodKind, client};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// SSH module configuration.
 #[derive(Debug, Clone)]
@@ -46,7 +44,7 @@ impl BruteModule for SshModule {
         "ssh"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         let host = ctx.target_host.clone();
         let port = ctx.port();
         let timeout = ctx.timeout();
@@ -60,8 +58,8 @@ impl BruteModule for SshModule {
         )
         .await
         {
-            Ok(Ok(Some(banner))) => TargetProbe::Ready(Some(banner)),
-            _ => TargetProbe::Ready(None),
+            Ok(Ok(Some(banner))) => Some(banner),
+            _ => None,
         }
     }
 

@@ -8,9 +8,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use smb2::{ClientConfig, ErrorKind, ShareInfo, SmbClient};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// SMB module configuration.
 #[derive(Debug, Clone)]
@@ -52,10 +50,10 @@ impl BruteModule for SmbModule {
         "smb"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_smb_service(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

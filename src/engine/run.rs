@@ -19,7 +19,7 @@ use crate::credentials::{LoadedCredentials, load_credentials, load_service_names
 use crate::database::CredentialDatabase;
 use crate::protocol::{
     AttemptContext, AttemptFaultClass, AttemptOutcome, BruteModule, PostAuthResult, TargetContext,
-    TargetProbe, activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
+    activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
     docker::DockerModule, druid::DruidModule, elasticsearch::ElasticsearchModule, etcd::EtcdModule,
     ftp::FtpModule, gitlab::GitlabModule, grafana::GrafanaModule, hadoop::HadoopModule,
     harbor::HarborModule, http::HttpBasicModule, influxdb::InfluxDbModule, jboss::JbossModule,
@@ -281,7 +281,7 @@ pub(super) async fn probe_targets_concurrent(
                     _ = cancel.cancelled() => return,
                     probe = module.probe_target(&target_ctx) => probe,
                 };
-                if let TargetProbe::Ready(Some(message)) = probe {
+                if let Some(message) = probe {
                     if let Some(reporter) = reporter {
                         reporter.probe(&target_ctx, &message);
                     }

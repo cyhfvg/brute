@@ -9,9 +9,7 @@ use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use zookeeper_client::{Client, Error as ZkError, SaslOptions};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 use crate::proxy::ProxyTcpBridge;
 
 mod command;
@@ -58,10 +56,10 @@ impl BruteModule for ZookeeperModule {
         "zookeeper"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_srvr(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

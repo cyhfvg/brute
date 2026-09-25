@@ -9,9 +9,7 @@ use reqwest::StatusCode;
 use crate::cli::HttpUrlScheme;
 use crate::protocol::http::build_http_basic_client;
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// ClickHouse attempt errors split auth failures from post-auth command failures.
 type ChAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
@@ -53,10 +51,10 @@ impl BruteModule for ClickHouseModule {
         "clickhouse"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_ping(ctx)).await {
-            Ok(Some(())) => TargetProbe::Ready(Some("ClickHouse".to_string())),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(())) => Some("ClickHouse".to_string()),
+            _ => None,
         }
     }
 

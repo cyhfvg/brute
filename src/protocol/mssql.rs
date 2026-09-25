@@ -8,9 +8,7 @@ use tiberius::{AuthMethod, Client, Config};
 use tokio::net::TcpStream;
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// MSSQL module configuration.
 #[derive(Debug, Clone)]
@@ -49,10 +47,10 @@ impl BruteModule for MssqlModule {
         "mssql"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_tcp(ctx)).await {
-            Ok(true) => TargetProbe::Ready(Some("MSSQL TDS".to_string())),
-            _ => TargetProbe::Ready(None),
+            Ok(true) => Some("MSSQL TDS".to_string()),
+            _ => None,
         }
     }
 

@@ -32,8 +32,7 @@ pub use util::ReadWrite;
 use async_trait::async_trait;
 
 use super::{
-    AttemptContext, AttemptOutcome, BruteModule, TargetContext, TargetProbe,
-    run_blocking_with_timeout,
+    AttemptContext, AttemptOutcome, BruteModule, TargetContext, run_blocking_with_timeout,
 };
 
 use rfb::try_vnc_rfb_login as try_rfb;
@@ -76,7 +75,7 @@ impl BruteModule for VncModule {
         "vnc"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         let host = ctx.target_host.clone();
         let port = ctx.port();
         let timeout = ctx.timeout();
@@ -86,8 +85,8 @@ impl BruteModule for VncModule {
             probe_vnc_port(&host, port, timeout, proxy.as_ref())
         });
         match tokio::time::timeout(timeout, probe).await {
-            Ok(Ok(Some(message))) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Ok(Some(message))) => Some(message),
+            _ => None,
         }
     }
 

@@ -11,9 +11,7 @@ use mongodb::error::ErrorKind;
 use mongodb::options::ClientOptions;
 use mongodb::{Client, error::Error as MongoError};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// MongoDB attempt errors split auth/connect failures from post-auth command failures.
 type MongoAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
@@ -55,10 +53,10 @@ impl BruteModule for MongoDbModule {
         "mongodb"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_hello(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

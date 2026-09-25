@@ -43,7 +43,6 @@ pub mod snmp;
 pub mod solr;
 pub mod spark;
 pub mod ssh;
-pub mod stub;
 pub mod telnet;
 pub mod tomcat;
 pub mod vnc;
@@ -130,12 +129,6 @@ impl AttemptContext {
     pub fn timeout(&self) -> Duration {
         Duration::from_millis(self.target.timeout_ms)
     }
-}
-
-/// Result of a per-target service probe.
-#[derive(Debug, Clone)]
-pub enum TargetProbe {
-    Ready(Option<String>),
 }
 
 pub use crate::error::{AttemptFault, AttemptFaultClass};
@@ -327,9 +320,31 @@ impl AttemptSuccess {
 pub trait BruteModule: Send + Sync {
     /// User-facing module name.
     fn name(&self) -> &'static str;
-    /// Performs one optional target-level probe before credential attempts.
-    async fn probe_target(&self, _ctx: &TargetContext) -> TargetProbe {
-        TargetProbe::Ready(None)
+    /// Returns an optional service banner.
+    ///
+    /// `None` means no banner was observed. Timeout, a closed port, and a probe
+    /// error are all `None`. This is not a readiness verdict and does not skip
+    /// the target. The scheduler overlaps this call with credential attempts.
+    ///
+    /// # Parameters
+    ///
+    /// * `ctx`: Target host, port, timeout, and proxy.
+    ///
+    /// # Returns
+    ///
+    /// Banner text when the probe observed one, otherwise `None`.
+    ///
+    /// # Errors
+    ///
+    /// This method does not return `Result`. Probe failures are `None`.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let banner = module.probe_target(&ctx).await;
+    /// ```
+    async fn probe_target(&self, _ctx: &TargetContext) -> Option<String> {
+        None
     }
     /// Executes one credential attempt against the remote service.
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome;

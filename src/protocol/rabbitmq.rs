@@ -6,9 +6,7 @@ use amqprs::channel::QueueDeclareArguments;
 use amqprs::connection::{Connection, OpenConnectionArguments};
 use async_trait::async_trait;
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// RabbitMQ module configuration.
 #[derive(Debug, Clone)]
@@ -47,10 +45,10 @@ impl BruteModule for RabbitMqModule {
         "rabbitmq"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_amqp(ctx)).await {
-            Ok(true) => TargetProbe::Ready(Some("RabbitMQ AMQP".to_string())),
-            _ => TargetProbe::Ready(None),
+            Ok(true) => Some("RabbitMQ AMQP".to_string()),
+            _ => None,
         }
     }
 

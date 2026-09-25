@@ -9,9 +9,7 @@ use reqwest::{StatusCode, header};
 use crate::cli::HttpUrlScheme;
 use crate::protocol::http::{build_http_basic_client, normalize_path};
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// etcd module configuration.
 #[derive(Debug, Clone)]
@@ -50,10 +48,10 @@ impl BruteModule for EtcdModule {
         "etcd"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_version(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

@@ -20,7 +20,7 @@ use rdp::core::client::Connector;
 use rdp::model::error::{Error as RdpClientError, RdpErrorKind};
 
 use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
+    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext,
     run_blocking_with_timeout,
 };
 
@@ -60,7 +60,7 @@ impl BruteModule for RdpModule {
         "rdp"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         let host = ctx.target_host.clone();
         let port = ctx.port();
         let timeout = ctx.timeout();
@@ -70,8 +70,8 @@ impl BruteModule for RdpModule {
             probe_rdp_port(&host, port, timeout, proxy.as_ref())
         });
         match tokio::time::timeout(timeout, probe).await {
-            Ok(Ok(Some(message))) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Ok(Some(message))) => Some(message),
+            _ => None,
         }
     }
 

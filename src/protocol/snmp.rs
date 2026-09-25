@@ -8,9 +8,7 @@ use std::net::SocketAddr;
 use async_trait::async_trait;
 use tokio::net::UdpSocket;
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 const SNMP_V2C: u8 = 1;
 const TAG_INTEGER: u8 = 0x02;
@@ -60,10 +58,10 @@ impl BruteModule for SnmpModule {
         "snmp"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_sys_descr(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

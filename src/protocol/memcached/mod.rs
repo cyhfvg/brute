@@ -16,9 +16,7 @@ use async_trait::async_trait;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
-use super::{
-    AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext, TargetProbe,
-};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 use codec::{
     OPCODE_SASL_AUTH, OPCODE_STAT, OPCODE_VERSION as BINARY_VERSION, STATUS_AUTH_ERROR, STATUS_OK,
     STATUS_UNKNOWN_COMMAND, encode_request as encode_bin, parse_version_banner as parse_banner,
@@ -65,10 +63,10 @@ impl BruteModule for MemcachedModule {
         "memcached"
     }
 
-    async fn probe_target(&self, ctx: &TargetContext) -> TargetProbe {
+    async fn probe_target(&self, ctx: &TargetContext) -> Option<String> {
         match tokio::time::timeout(ctx.timeout(), probe_version(ctx)).await {
-            Ok(Some(message)) => TargetProbe::Ready(Some(message)),
-            _ => TargetProbe::Ready(None),
+            Ok(Some(message)) => Some(message),
+            _ => None,
         }
     }
 

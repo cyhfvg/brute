@@ -40,12 +40,13 @@
 - Unix credential-store permissions: a directory created for the database is `0700`, an existing private parent loses bits outside `0700`, and shared parents such as `/tmp` are unchanged. New database files are `0600`; existing files and SQLite sidecars lose bits outside `0600`. Windows skips Unix mode bits.
 - Protocol attempt timeout and Auth/Transport/Command outcome wording share `src/protocol/http_attempt.rs`. HTTP 401/403 classification stays in `http_auth.rs`.
 - Protocol Docker labs under `tests/docker/` stay local-only. CI and release workflows do not run them, and `pre_commit_check.sh` rejects workflow references to those labs.
+- Removed the unused protocol placeholder module. Target probes return an optional banner (`Option<String>`); a missing banner is not a readiness verdict and does not skip the target.
 
 ## Completed Protocol Work
 
 - `smb`: pure-Rust `smb2` login/brute (default port 445); no `-x`/`--execute`; `--shares` enumerates
   share names and Access after successful authentication. Share enum failure does not downgrade a
-  verified login. Target probe reports service readiness; optional `name:` / `domain:` enrichment
+  verified login. Target probe may report a banner; a missing banner is not readiness. Optional `name:` / `domain:` enrichment
   remains a follow-up when NTLM TargetInfo is parsed without credentials.
 - `rdp`: pure-Rust `rdp-rs` NLA/CredSSP login/brute (default port 3389); no `-x`/`--execute`.
   IronRDP could not be used: aes-gcm pin conflict with `smb2` (no vendor patch). OpenSSL is
@@ -169,4 +170,3 @@
   9043, alias `was`); POST `/ibm/console/j_security_check`; `-x` console.
   HTTP `--proxy`.
 
-(none currently reserved as unimplemented stubs)
