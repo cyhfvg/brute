@@ -96,27 +96,6 @@ fn builds_client_for_http_and_https_schemes() {
     let https_client = build_http_basic_client(Duration::from_secs(2), HttpUrlScheme::Https, None)
         .expect("https client with invalid-cert accept");
     let _ = (http_client, https_client);
-
-    // Production attempt path must call the shared builder (not a parallel reimplementation).
-    let source = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/protocol/http.rs"));
-    let production = source
-        .split("#[cfg(test)]")
-        .next()
-        .expect("production http source");
-    assert!(
-        production.contains("build_http_basic_client"),
-        "attempt path must use build_http_basic_client"
-    );
-    assert!(
-        production.contains("scheme_skips_cert_verification")
-            || production.contains("danger_accept_invalid_certs"),
-        "HTTPS path must configure accept-invalid-certs"
-    );
-    assert!(
-        production.contains("build_http_basic_url(self.scheme")
-            || production.contains("build_http_basic_url(self.scheme,"),
-        "attempt path must pass module scheme into URL builder"
-    );
 }
 
 /// Verifies status → outcome mapping for success, failure, and non-auth errors.

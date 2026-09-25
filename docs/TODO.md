@@ -40,6 +40,7 @@
 - Unix credential-store permissions: a directory created for the database is `0700`, an existing private parent loses bits outside `0700`, and shared parents such as `/tmp` are unchanged. New database files are `0600`; existing files and SQLite sidecars lose bits outside `0600`. Windows skips Unix mode bits.
 - Protocol attempt timeout and Auth/Transport/Command outcome wording share `src/protocol/http_attempt.rs`. HTTP 401/403 classification stays in `http_auth.rs`.
 - HTTP-family client, URL, empty-credential, and Basic Auth construction share `src/protocol/http_request.rs` (re-exported from `http_attempt.rs`). HTTP 401/403 classification stays in `http_auth.rs`.
+- Direct `reqwest` is 0.13 (`rustls`, `http2`, `socks`, default features off) and is the same crate as `winrm-rs`. The 0.12 `rustls-tls` feature is gone. JSON and form bodies stay manual, so `json`/`form`/`query` stay off. Invalid-cert skip uses `tls_danger_accept_invalid_certs`.
 - Protocol Docker labs under `tests/docker/` stay local-only. CI and release workflows do not run them, and `pre_commit_check.sh` rejects workflow references to those labs.
 - Removed the unused protocol placeholder module. Target probes return an optional banner (`Option<String>`); a missing banner is not a readiness verdict and does not skip the target.
 

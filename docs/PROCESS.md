@@ -140,6 +140,8 @@ HTTP 家族的凭据判定集中在 `src/protocol/http_auth.rs`。401 一律是�
 
 HTTP 家族的 client 构造、URL、空凭据判断和 Basic Auth 应用集中在 `src/protocol/http_request.rs`，并由 `http_attempt.rs` 再导出。`classify_basic_status` 只调用 `http_auth.rs` 的 401/403 表，不复制 2xx/401/403 规则。`http` 与 `tomcat` 仍使用各自的 client 失败文案，不走 `open_attempt_client`。`etcd`、`gitlab`、`grafana`、`kibana`、`jboss`、`minio`、`nacos`、`weblogic`、`websphere`、`kubelet` 只复用 client 与 URL，认证方案留在各模块。ClickHouse 匿名非 2xx 仍使用 `anonymous ping rejected`，不走共享分类器。
 
+直接依赖 `reqwest` 0.13（`default-features = false`，features 为 `rustls`、`http2`、`socks`），与 `winrm-rs` 共用同一份 crate。0.12 的 `rustls-tls` feature 已改为 `rustls`。JSON/form 仍手写 body，不启用 `json`、`form`、`query`。跳过证书校验使用 `tls_danger_accept_invalid_certs`。
+
 
 ### HTTP scheme
 

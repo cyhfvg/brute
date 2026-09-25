@@ -103,7 +103,7 @@ pub async fn try_vnc_web_basic_login(
 ) -> AttemptOutcome {
     let url = format!("https://{host}:{port}/");
     let mut builder = Client::builder()
-        .danger_accept_invalid_certs(true)
+        .tls_danger_accept_invalid_certs(true)
         .timeout(timeout);
     if let Some(proxy) = proxy {
         match proxy.to_reqwest_proxy() {

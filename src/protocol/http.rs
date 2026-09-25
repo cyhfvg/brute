@@ -148,7 +148,7 @@ pub fn build_http_basic_url(scheme: HttpUrlScheme, host: &str, port: u16, path: 
 ///
 /// # Returns
 ///
-/// `true` when the client builder must call `danger_accept_invalid_certs(true)`.
+/// `true` when the client builder must call `tls_danger_accept_invalid_certs(true)`.
 ///
 /// # Examples
 ///
@@ -250,7 +250,7 @@ fn build_http_client(
     // HTTPS: always accept invalid/self-signed certificates by default.
     // Plain HTTP: no TLS; keep prior lenient builder if a hop redirects to TLS.
     if scheme_skips_cert_verification(scheme) || matches!(scheme, HttpUrlScheme::Http) {
-        builder = builder.danger_accept_invalid_certs(true);
+        builder = builder.tls_danger_accept_invalid_certs(true);
     }
     if let Some(proxy) = proxy {
         builder = builder.proxy(proxy.to_reqwest_proxy()?);

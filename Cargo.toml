@@ -24,8 +24,11 @@ openssl = { version = "0.10", features = ["vendored"] }
 redis = { version = "0.32", default-features = false, features = [
     "tokio-comp",
 ] }
-reqwest = { version = "0.12", default-features = false, features = [
-    "rustls-tls",
+# 0.13 renamed rustls-tls to rustls (aws-lc-rs + platform verifier).
+# http2 and socks stay explicit because default features are off.
+# Same major as winrm-rs so Cargo unifies to one reqwest crate.
+reqwest = { version = "0.13", default-features = false, features = [
+    "rustls",
     "http2",
     "socks",
 ] }
