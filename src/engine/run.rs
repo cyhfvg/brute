@@ -2,6 +2,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    pin::Pin,
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -51,7 +52,8 @@ use super::types::{
 ///
 /// # Returns
 ///
-/// A [`SprayReport`] containing probes, executed attempts, and successes.
+/// A [`SprayReport`] containing probe banners, executed attempts, and successes.
+/// Probe banners are collected concurrently and do not gate credential attempts.
 ///
 /// # Errors
 ///
@@ -89,63 +91,27 @@ pub async fn run_spray(
     let url_scheme = request.url_scheme;
     let request_path = request.effective_path();
     let request_execute = request.execute.clone();
-    let mut probes = Vec::new();
-    let mut ready_targets = Vec::new();
-
-    for target_host in targets {
-        if cancel.is_cancelled() {
-            break;
-        }
-        let target_ctx = TargetContext {
+    let target_contexts = targets
+        .iter()
+        .cloned()
+        .map(|target_host| TargetContext {
             protocol,
             target_host,
             target: common.clone(),
             url_scheme,
-        };
-        let probe = tokio::select! {
-            biased;
-            _ = cancel.cancelled() => None,
-            probe = module.probe_target(&target_ctx) => Some(probe),
-        };
-        let Some(probe) = probe else {
-            break;
-        };
-        match probe {
-            TargetProbe::Ready(Some(message)) => {
-                if let Some(reporter) = reporter {
-                    reporter.probe(&target_ctx, &message);
-                }
-                probes.push(ProbeRecord {
-                    host: target_ctx.target_host.clone(),
-                    port: target_ctx.port(),
-                    message,
-                });
-                ready_targets.push(target_ctx.target_host);
-            }
-            TargetProbe::Ready(None) => ready_targets.push(target_ctx.target_host),
-        }
-    }
-
-    if ready_targets.is_empty() {
-        return Ok(SprayReport {
-            workspace,
-            protocol: protocol.as_str().to_string(),
-            probes,
-            attempts: Vec::new(),
-            successes: Vec::new(),
-            skipped: 0,
-        });
-    }
-
+        })
+        .collect();
+    let probe_task =
+        probe_targets_concurrent(&module, target_contexts, common.threads, reporter, cancel);
     let target_success_flags = Arc::new(
-        ready_targets
+        targets
             .iter()
             .cloned()
             .map(|target_host| (target_host, Arc::new(AtomicBool::new(false))))
             .collect::<HashMap<_, _>>(),
     );
     let target_cancels = Arc::new(
-        ready_targets
+        targets
             .iter()
             .cloned()
             .map(|target_host| (target_host, cancel.child_token()))
@@ -155,88 +121,93 @@ pub async fn run_spray(
     let attempts = Arc::new(Mutex::new(Vec::new()));
     let skipped = Arc::new(AtomicUsize::new(0));
 
-    stream::iter(credentials.into_iter().flat_map(|credential| {
-        ready_targets
-            .iter()
-            .cloned()
-            .map(move |target_host| (target_host, credential.clone()))
-    }))
-    .for_each_concurrent(common.threads, |(target_host, credential)| {
-        let module = module.clone();
-        let target = common.clone();
-        let path = request_path.clone();
-        let execute = request_execute.clone();
-        let target_success_flags = target_success_flags.clone();
-        let account_successes = account_successes.clone();
-        let attempts = attempts.clone();
-        let skipped = skipped.clone();
-        let database = database.clone();
-        let workspace = workspace.clone();
+    let spray_task: Pin<Box<dyn Future<Output = ()> + Send + '_>> = Box::pin(
+        stream::iter(credentials.into_iter().flat_map(|credential| {
+            targets
+                .iter()
+                .cloned()
+                .map(move |target_host| (target_host, credential.clone()))
+        }))
+        .for_each_concurrent(common.threads, |(target_host, credential)| {
+            let module = module.clone();
+            let target = common.clone();
+            let path = request_path.clone();
+            let execute = request_execute.clone();
+            let target_success_flags = target_success_flags.clone();
+            let account_successes = account_successes.clone();
+            let attempts = attempts.clone();
+            let skipped = skipped.clone();
+            let database = database.clone();
+            let workspace = workspace.clone();
 
-        let target_cancels = Arc::clone(&target_cancels);
-        async move {
-            let success_flag = target_success_flags
-                .get(&target_host)
-                .expect("target success flag missing")
-                .clone();
-            let account_key = account_success_key(
-                &target_host,
-                &credential.service_name,
-                &credential.sid,
-                &credential.username,
-            );
+            let target_cancels = Arc::clone(&target_cancels);
+            async move {
+                let success_flag = target_success_flags
+                    .get(&target_host)
+                    .expect("target success flag missing")
+                    .clone();
+                let account_key = account_success_key(
+                    &target_host,
+                    &credential.service_name,
+                    &credential.sid,
+                    &credential.username,
+                );
 
-            if should_skip_attempt(
-                target.continue_on_success,
-                &success_flag,
-                account_successes.lock().await.contains(&account_key),
-            ) {
-                skipped.fetch_add(1, Ordering::Relaxed);
-                return;
-            }
-            let target_cancel = target_cancels
-                .get(&target_host)
-                .expect("target cancel token missing")
-                .clone();
-
-            let ctx = AttemptContext {
-                protocol,
-                target_host,
-                target,
-                url_scheme,
-                path,
-                execute,
-                credential,
-            };
-            let outcome = match attempt_with_retries(module.as_ref(), &ctx, &target_cancel).await {
-                AttemptControl::Cancelled => {
+                if should_skip_attempt(
+                    target.continue_on_success,
+                    &success_flag,
+                    account_successes.lock().await.contains(&account_key),
+                ) {
                     skipped.fetch_add(1, Ordering::Relaxed);
                     return;
                 }
-                AttemptControl::Finished(outcome) => outcome,
-            };
-            if matches!(outcome, AttemptOutcome::Success(_)) {
-                account_successes.lock().await.insert(account_key);
-                if !ctx.target.continue_on_success {
-                    success_flag.store(true, Ordering::Relaxed);
-                    target_cancel.cancel();
+                let target_cancel = target_cancels
+                    .get(&target_host)
+                    .expect("target cancel token missing")
+                    .clone();
+
+                let ctx = AttemptContext {
+                    protocol,
+                    target_host,
+                    target,
+                    url_scheme,
+                    path,
+                    execute,
+                    credential,
+                };
+                let outcome =
+                    match attempt_with_retries(module.as_ref(), &ctx, &target_cancel).await {
+                        AttemptControl::Cancelled => {
+                            skipped.fetch_add(1, Ordering::Relaxed);
+                            return;
+                        }
+                        AttemptControl::Finished(outcome) => outcome,
+                    };
+                if matches!(outcome, AttemptOutcome::Success(_)) {
+                    account_successes.lock().await.insert(account_key);
+                    if !ctx.target.continue_on_success {
+                        success_flag.store(true, Ordering::Relaxed);
+                        target_cancel.cancel();
+                    }
+                    if let Err(err) = save_successful_credential(&database, &workspace, &ctx)
+                        && let Some(reporter) = reporter
+                    {
+                        reporter.save_error(&err);
+                    }
                 }
-                if let Err(err) = save_successful_credential(&database, &workspace, &ctx)
-                    && let Some(reporter) = reporter
-                {
-                    reporter.save_error(&err);
+                if let Some(reporter) = reporter {
+                    reporter.attempt(&ctx, &outcome);
                 }
+                attempts
+                    .lock()
+                    .await
+                    .push(attempt_record_from_outcome(&ctx, &outcome));
             }
-            if let Some(reporter) = reporter {
-                reporter.attempt(&ctx, &outcome);
-            }
-            attempts
-                .lock()
-                .await
-                .push(attempt_record_from_outcome(&ctx, &outcome));
-        }
-    })
-    .await;
+        }),
+    );
+    let probe_task: Pin<Box<dyn Future<Output = Vec<ProbeRecord>> + Send + '_>> =
+        Box::pin(probe_task);
+    let ((), probes) = tokio::join!(spray_task, probe_task);
 
     let attempts = Arc::try_unwrap(attempts)
         .map_err(|_| anyhow::anyhow!("attempt collector still shared"))?
@@ -255,6 +226,71 @@ pub async fn run_spray(
         successes,
         skipped: skipped.load(Ordering::Relaxed),
     })
+}
+
+/// Probes targets concurrently. Credential attempts must not wait for this future.
+///
+/// # Parameters
+///
+/// - `module`: protocol implementation that performs the probe.
+/// - `targets`: one context per spray target.
+/// - `threads`: maximum concurrent probes. Probes do not consume attempt slots.
+/// - `reporter`: optional live banner sink.
+/// - `cancel`: stops probes that have not finished.
+///
+/// # Returns
+///
+/// Banner records. A probe without a banner is omitted. Probe failure does not
+/// remove the target from the spray.
+///
+/// # Errors
+///
+/// This function does not fail. Transport and timeout results are silent.
+///
+/// # Example
+///
+/// ```ignore
+/// let probes = probe_targets_concurrent(&module, contexts, 16, None, &cancel).await;
+/// ```
+pub(super) async fn probe_targets_concurrent(
+    module: &Arc<dyn BruteModule>,
+    targets: Vec<TargetContext>,
+    threads: usize,
+    reporter: Option<&dyn SprayReporter>,
+    cancel: &CancellationToken,
+) -> Vec<ProbeRecord> {
+    let probes = Arc::new(Mutex::new(Vec::new()));
+    stream::iter(targets)
+        .for_each_concurrent(threads, |target_ctx| {
+            let module = Arc::clone(module);
+            let probes = Arc::clone(&probes);
+            async move {
+                if cancel.is_cancelled() {
+                    return;
+                }
+                let probe = tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => return,
+                    probe = module.probe_target(&target_ctx) => probe,
+                };
+                if let TargetProbe::Ready(Some(message)) = probe {
+                    if let Some(reporter) = reporter {
+                        reporter.probe(&target_ctx, &message);
+                    }
+                    let port = target_ctx.port();
+                    probes.lock().await.push(ProbeRecord {
+                        host: target_ctx.target_host,
+                        port,
+                        message,
+                    });
+                }
+            }
+        })
+        .await;
+    match Arc::try_unwrap(probes) {
+        Ok(mutex) => mutex.into_inner(),
+        Err(probes) => probes.lock().await.clone(),
+    }
 }
 
 fn load_request_credentials(

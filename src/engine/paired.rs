@@ -5,6 +5,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    pin::Pin,
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -21,14 +22,15 @@ use crate::{
     connections::Connection,
     credentials::CredentialSet,
     database::CredentialDatabase,
-    protocol::{AttemptContext, AttemptOutcome, BruteModule, TargetContext, TargetProbe},
+    protocol::{AttemptContext, AttemptOutcome, TargetContext},
 };
 
 use super::{
     attempt::{AttemptControl, attempt_with_retries},
     query::resolve_workspace,
     run::{
-        attempt_record_from_outcome, build_module, save_successful_credential, should_skip_attempt,
+        attempt_record_from_outcome, build_module, probe_targets_concurrent,
+        save_successful_credential, should_skip_attempt,
     },
     types::{AttemptStatus, ProbeRecord, SprayReport, SprayReporter, SprayRequest},
 };
@@ -90,7 +92,6 @@ pub async fn run_paired_spray(
     let workspace = resolve_workspace(database, request.workspace.as_deref())?;
     let module = build_module(&request);
     let common = request.to_common_args();
-    let mut probes = Vec::new();
     let mut target_success_flags = HashMap::new();
     let mut target_cancels = HashMap::new();
     let mut unique_targets = Vec::new();
@@ -107,41 +108,25 @@ pub async fn run_paired_spray(
         unique_targets.push((login.host.clone(), login.port, effective_port));
     }
 
-    for (host, port, effective_port) in unique_targets {
-        if cancel.is_cancelled() {
-            break;
-        }
-        let mut target_args = common.clone();
-        target_args.targets = vec![host.clone()];
-        target_args.port = port;
-        target_args.usernames.clear();
-        target_args.passwords.clear();
-        target_args.credential_id = None;
-        let target_ctx = TargetContext {
-            protocol: request.protocol,
-            target_host: host.clone(),
-            target: target_args,
-            url_scheme: request.url_scheme,
-        };
-        let probe = tokio::select! {
-            biased;
-            _ = cancel.cancelled() => None,
-            probe = module.probe_target(&target_ctx) => Some(probe),
-        };
-        let Some(probe) = probe else {
-            break;
-        };
-        if let TargetProbe::Ready(Some(message)) = probe {
-            if let Some(reporter) = reporter {
-                reporter.probe(&target_ctx, &message);
+    let probe_contexts = unique_targets
+        .into_iter()
+        .map(|(host, port, _effective_port)| {
+            let mut target_args = common.clone();
+            target_args.targets = vec![host.clone()];
+            target_args.port = port;
+            target_args.usernames.clear();
+            target_args.passwords.clear();
+            target_args.credential_id = None;
+            TargetContext {
+                protocol: request.protocol,
+                target_host: host,
+                target: target_args,
+                url_scheme: request.url_scheme,
             }
-            probes.push(ProbeRecord {
-                host,
-                port: effective_port,
-                message,
-            });
-        }
-    }
+        })
+        .collect();
+    let probe_task =
+        probe_targets_concurrent(&module, probe_contexts, request.threads, reporter, cancel);
 
     let target_cancels = Arc::new(target_cancels);
 
@@ -149,13 +134,12 @@ pub async fn run_paired_spray(
     let account_successes = Arc::new(Mutex::new(HashSet::<String>::new()));
     let attempts = Arc::new(Mutex::new(Vec::new()));
     let skipped = Arc::new(AtomicUsize::new(0));
-    let module: Arc<dyn BruteModule> = module;
     let planned = planned_attempts(&request, logins);
     let protocol = request.protocol;
     let url_scheme = request.url_scheme;
 
-    stream::iter(planned)
-        .for_each_concurrent(request.threads, |planned| {
+    let spray_task: Pin<Box<dyn Future<Output = ()> + Send + '_>> = Box::pin(
+        stream::iter(planned).for_each_concurrent(request.threads, |planned| {
             let module = Arc::clone(&module);
             let common = common.clone();
             let execute = request.execute.clone();
@@ -231,8 +215,11 @@ pub async fn run_paired_spray(
                     .await
                     .push(attempt_record_from_outcome(&ctx, &outcome));
             }
-        })
-        .await;
+        }),
+    );
+    let probe_task: Pin<Box<dyn Future<Output = Vec<ProbeRecord>> + Send + '_>> =
+        Box::pin(probe_task);
+    let ((), probes) = tokio::join!(spray_task, probe_task);
 
     let attempts = Arc::try_unwrap(attempts)
         .map_err(|_| anyhow::anyhow!("attempt collector still shared"))?

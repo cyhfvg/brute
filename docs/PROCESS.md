@@ -188,7 +188,7 @@ HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`t
 
 ### SSH Banner
 
-SSH banner 获取从单次登录尝试中前移到 target 级预探测阶段。每个 target 只读取一次 banner，成功时输出服务信息；失败时静默不显示 banner，但仍继续进入凭据尝试，避免因网络波动或 banner 被修改而漏测。
+SSH banner 获取在 target 级探测中进行，与凭据喷洒重叠，不作为喷洒前的串行门槛。每个 target 只读取一次 banner，成功时输出服务信息；失败时静默不显示 banner，也不阻止该 target 的凭据尝试，避免因网络波动或 banner 被修改而漏测。
 
 SSH 单次登录中的连接、session 创建、handshake 等传输层错误返回 `AttemptOutcome::Error`，类别是 `AttemptFaultClass::Transport`，消息是 `ssh transport failed`，不暴露 `Failed getting banner` 等低层错误细节。认证失败返回 `Failure`，类别是 `Auth`，不重试。账户或服务锁定返回 `Failure`，类别是 `Lockout`，不重试。SSH 模块本身只尝试一次，重试由调度层统一处理，避免与 `--retries` 相乘。
 
@@ -198,7 +198,7 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误返�
 
 Ctrl-C 与 MCP 请求取消共用 `CancellationToken`。取消后不再领取新的凭据任务；已领取任务在 delay、重试退避、异步尝试和 blocking 超时等待处停止。blocking 线程本身不能被强制中断，调用方停止等待后由监督任务接手 join，因此超时或取消不会提前拆掉该线程持有的 proxy bridge。未开始或被取消的任务计入 `skipped`。每个 target 首次成功且未设置 `--continue-on-success` 时，只取消该 target 的后续尝试，其它 target 继续。
 
-调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流：跨目标与凭据的同时进行尝试数不超过该值。不再使用 `--target-threads` 或单目标信号量。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads` 和 `--timeout-ms` 必须大于 0。RDP 尝试走 `spawn_blocking`（`run_blocking_with_timeout`），不在模块内加全局互斥锁。
+调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流：跨目标与凭据的同时进行尝试数不超过该值。不再使用 `--target-threads` 或单目标信号量。target 探测与凭据尝试重叠执行；探测并发同样不超过 `--threads`，但不占用尝试槽位，也不过滤目标。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads` 和 `--timeout-ms` 必须大于 0。RDP 尝试走 `spawn_blocking`（`run_blocking_with_timeout`），不在模块内加全局互斥锁。
 
 默认情况下，每个 target 命中 1 组成功凭据后会停止该 target 的后续尝试；`--continue-on-success` 用于显式开启继续爆破模式。
 
