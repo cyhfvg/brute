@@ -6,6 +6,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use tokio_util::sync::CancellationToken;
+
 /// Combines a fixed delay with one inclusive jitter sample.
 ///
 /// # Parameters
@@ -51,26 +53,67 @@ pub fn paced_delay_ms(delay_ms: u64, jitter_ms: u64, sample: u64) -> u64 {
 ///
 /// - `delay_ms`: Fixed wait in milliseconds.
 /// - `jitter_ms`: Inclusive extra wait in milliseconds.
+/// - `cancel`: Token that aborts the wait. An already cancelled token returns
+///   immediately, including when the computed wait is zero.
 ///
 /// # Returns
 ///
-/// Completes after the computed wait. A zero total does not sleep.
+/// `true` after the wait completes. `false` when `cancel` fires first.
 ///
 /// # Errors
 ///
-/// Does not return [`Result`]. Cancellation of this sleep is not implemented here.
+/// Does not return [`Result`].
 ///
 /// # Examples
 ///
 /// ```ignore
-/// wait_before_attempt(ctx.target.delay_ms, ctx.target.jitter_ms).await;
+/// if !wait_before_attempt(ctx.target.delay_ms, ctx.target.jitter_ms, cancel).await {
+///     return AttemptControl::Cancelled;
+/// }
 /// ```
-pub(super) async fn wait_before_attempt(delay_ms: u64, jitter_ms: u64) {
-    let wait_ms = paced_delay_ms(delay_ms, jitter_ms, jitter_sample());
-    if wait_ms == 0 {
-        return;
+pub(super) async fn wait_before_attempt(
+    delay_ms: u64,
+    jitter_ms: u64,
+    cancel: &CancellationToken,
+) -> bool {
+    cancellable_sleep(paced_delay_ms(delay_ms, jitter_ms, jitter_sample()), cancel).await
+}
+
+/// Sleeps for `total_ms` unless `cancel` fires.
+///
+/// # Parameters
+///
+/// - `total_ms`: Wait in milliseconds. Zero does not sleep.
+/// - `cancel`: Token checked before and during the wait.
+///
+/// # Returns
+///
+/// `true` when the wait finished or was zero and the token was still active.
+/// `false` when the token was already cancelled or cancelled during the wait.
+///
+/// # Errors
+///
+/// Does not return [`Result`].
+///
+/// # Examples
+///
+/// ```ignore
+/// if !cancellable_sleep(150, cancel).await {
+///     return AttemptControl::Finished(outcome);
+/// }
+/// ```
+pub(super) async fn cancellable_sleep(total_ms: u64, cancel: &CancellationToken) -> bool {
+    if cancel.is_cancelled() {
+        return false;
     }
-    tokio::time::sleep(Duration::from_millis(wait_ms)).await;
+    if total_ms == 0 {
+        return true;
+    }
+    tokio::select! {
+        biased;
+        _ = cancel.cancelled() => false,
+        _ = tokio::time::sleep(Duration::from_millis(total_ms)) => true,
+    }
 }
 
 /// Mixes a process-local counter with the clock so concurrent attempts do not
@@ -87,7 +130,11 @@ fn jitter_sample() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::paced_delay_ms;
+    use std::time::{Duration, Instant};
+
+    use tokio_util::sync::CancellationToken;
+
+    use super::{cancellable_sleep, paced_delay_ms, wait_before_attempt};
 
     /// Verifies zero jitter ignores the sample and zero delay with zero jitter stays zero.
     #[test]
@@ -109,5 +156,32 @@ mod tests {
         assert_eq!(paced_delay_ms(20, 5, 0), 20);
         assert_eq!(paced_delay_ms(20, 5, 5), 25);
         assert_eq!(paced_delay_ms(20, 5, 6), 20);
+    }
+
+    /// An already cancelled token does not sleep, even when the wait is zero.
+    #[tokio::test]
+    async fn cancelled_token_skips_zero_wait() {
+        let cancel = CancellationToken::new();
+        cancel.cancel();
+        let started = Instant::now();
+
+        assert!(!wait_before_attempt(0, 0, &cancel).await);
+        assert!(!cancellable_sleep(0, &cancel).await);
+        assert!(started.elapsed() < Duration::from_millis(50));
+    }
+
+    /// Cancelling during a long wait returns before the sleep ends.
+    #[tokio::test]
+    async fn cancel_during_wait_returns_false() {
+        let cancel = CancellationToken::new();
+        let cancel_later = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            cancel_later.cancel();
+        });
+        let started = Instant::now();
+
+        assert!(!cancellable_sleep(60_000, &cancel).await);
+        assert!(started.elapsed() < Duration::from_millis(200));
     }
 }

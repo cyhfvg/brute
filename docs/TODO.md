@@ -34,6 +34,7 @@
 - `--retries` applies to every protocol. The count is extra attempts after the first try. SSH no longer retries internally. Retry classification is `AttemptFaultClass::Transport` only.
 - Attempt results carry `AttemptFault` (`auth` / `transport` / `lockout`). The scheduler retries only `transport`. Reports expose `status` plus `fault_class`. Lockout is not retried and is printed as a yellow `[!]`.
 - `--delay` and `--jitter` wait before each credential attempt. The wait is `delay + random(0..=jitter)` milliseconds, default 0, and is not added again during transport retries. CLI, `brute combo`, and MCP share the fields.
+- Ctrl-C and MCP request cancellation share one `CancellationToken`. In-flight attempts stop at delay, retry backoff, async I/O, and blocking waits. A per-target child token stops only that target after the first success unless `--continue-on-success` is set. Timed-out or cancelled blocking work keeps its proxy bridge until the blocking function returns.
 
 ## Completed Protocol Work
 

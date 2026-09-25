@@ -2,6 +2,7 @@
 
 use anyhow::{Result, bail};
 use serde::Serialize;
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     cli::{HttpUrlScheme, Protocol, WinrmShellType},
@@ -82,6 +83,7 @@ pub struct ComboReport {
 /// - `connections`: paired logins already parsed by [`crate::connections::load_connection_sources`].
 /// - `options`: concurrency, timeout, proxy, and protocol extras.
 /// - `reporter`: optional live CLI reporter. MCP passes `None`.
+/// - `cancel`: stops probes and in-flight attempts for every protocol group.
 ///
 /// # Returns
 ///
@@ -101,7 +103,8 @@ pub struct ComboReport {
 ///
 /// let database = CredentialDatabase::open_default()?;
 /// let conn = parse_connection_line("ssh://root:password@192.168.5.1:22")?;
-/// let report = run_connections(&database, vec![conn], ComboOptions::default(), None).await?;
+/// let cancel = tokio_util::sync::CancellationToken::new();
+/// let report = run_connections(&database, vec![conn], ComboOptions::default(), None, &cancel).await?;
 /// # Ok::<(), anyhow::Error>(())
 /// ```
 pub async fn run_connections(
@@ -109,6 +112,7 @@ pub async fn run_connections(
     connections: Vec<Connection>,
     options: ComboOptions,
     reporter: Option<&dyn SprayReporter>,
+    cancel: &CancellationToken,
 ) -> Result<ComboReport> {
     if connections.is_empty() {
         bail!("no connection URLs were found");
@@ -143,7 +147,7 @@ pub async fn run_connections(
             workspace: workspace.clone(),
             ..SprayRequest::default()
         };
-        let report = run_paired_spray(database, request, &group, reporter).await?;
+        let report = run_paired_spray(database, request, &group, reporter, cancel).await?;
         workspace = Some(report.workspace.clone());
         reports.push(report);
     }

@@ -8,6 +8,7 @@ mod tools;
 
 use anyhow::{Context, Result};
 use rmcp::{ServiceExt, transport::stdio};
+use tokio_util::sync::CancellationToken;
 
 use crate::database::CredentialDatabase;
 
@@ -18,6 +19,7 @@ use server::BruteMcp;
 /// # Parameters
 ///
 /// - `database`: Open credential database shared with the CLI.
+/// - `cancel`: Process token. Client request cancellation is a child of this token.
 ///
 /// # Returns
 ///
@@ -31,11 +33,11 @@ use server::BruteMcp;
 /// # Examples
 ///
 /// ```ignore
-/// brute::mcp::serve_stdio(database).await?;
+/// brute::mcp::serve_stdio(database, cancel).await?;
 /// ```
-pub async fn serve_stdio(database: CredentialDatabase) -> Result<()> {
+pub async fn serve_stdio(database: CredentialDatabase, cancel: CancellationToken) -> Result<()> {
     let service = BruteMcp::new(database)
-        .serve(stdio())
+        .serve_with_ct(stdio(), cancel)
         .await
         .context("failed to start MCP stdio server")?;
     service

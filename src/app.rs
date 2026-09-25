@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Parser;
+use tokio_util::sync::CancellationToken;
 
 use crate::cli::{Cli, ComboArgs, Command, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
 use crate::database::CredentialDatabase;
@@ -15,6 +16,13 @@ use crate::protocol::{AttemptContext, AttemptOutcome, TargetContext};
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
     let (database, initialized) = CredentialDatabase::open_default()?;
+    let cancel = CancellationToken::new();
+    let shutdown = cancel.clone();
+    let _shutdown_task = tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_ok() {
+            shutdown.cancel();
+        }
+    });
     let is_mcp = matches!(cli.command, Command::Mcp);
     if initialized && !is_mcp {
         println!(
@@ -26,12 +34,12 @@ pub async fn run() -> Result<()> {
 
     match cli.command {
         Command::Protocol(protocol_args) => {
-            run_protocol(cli.no_color, cli.proxy, database, protocol_args).await
+            run_protocol(cli.no_color, cli.proxy, database, protocol_args, &cancel).await
         }
-        Command::Combo(args) => run_combo(cli.no_color, cli.proxy, database, args).await,
+        Command::Combo(args) => run_combo(cli.no_color, cli.proxy, database, args, &cancel).await,
         Command::Workspace(args) => run_workspace(database, args),
         Command::Creds(args) => crate::creds::run(&database, args),
-        Command::Mcp => crate::mcp::serve_stdio(database).await,
+        Command::Mcp => crate::mcp::serve_stdio(database, cancel).await,
     }
 }
 
@@ -43,6 +51,7 @@ pub async fn run() -> Result<()> {
 /// - `proxy`: Optional top-level `--proxy` configuration applied to all attempts.
 /// - `database`: Open credential database handle.
 /// - `protocol_args`: Parsed protocol subcommand arguments.
+/// - `cancel`: Process cancellation token. Ctrl-C cancels in-flight attempts.
 ///
 /// # Returns
 ///
@@ -56,10 +65,11 @@ async fn run_protocol(
     proxy: Option<crate::proxy::ProxyConfig>,
     database: CredentialDatabase,
     protocol_args: ProtocolArgs,
+    cancel: &CancellationToken,
 ) -> Result<()> {
     let request = SprayRequest::from_protocol_args(&protocol_args, proxy);
     let reporter = ConsoleReporter(Arc::new(Console::new(no_color)));
-    run_spray(&database, request, Some(&reporter)).await?;
+    run_spray(&database, request, Some(&reporter), cancel).await?;
     Ok(())
 }
 
@@ -71,6 +81,7 @@ async fn run_protocol(
 /// - `proxy`: Top-level `--proxy` configuration applied to every protocol group.
 /// - `database`: Open credential database handle.
 /// - `args`: Parsed `combo` sources and shared options.
+/// - `cancel`: Process cancellation token shared by every protocol group.
 ///
 /// # Returns
 ///
@@ -90,6 +101,7 @@ async fn run_combo(
     proxy: Option<crate::proxy::ProxyConfig>,
     database: CredentialDatabase,
     args: ComboArgs,
+    cancel: &CancellationToken,
 ) -> Result<()> {
     let connections = crate::connections::load_connection_sources(&args.sources)?;
     let reporter = ConsoleReporter(Arc::new(Console::new(no_color)));
@@ -106,7 +118,7 @@ async fn run_combo(
         shell_type: args.shell_type,
         workspace: None,
     };
-    crate::combo::run_connections(&database, connections, options, Some(&reporter)).await?;
+    crate::combo::run_connections(&database, connections, options, Some(&reporter), cancel).await?;
     Ok(())
 }
 

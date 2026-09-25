@@ -334,14 +334,173 @@ pub trait BruteModule: Send + Sync {
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome;
 }
 
-/// Helper for wrapping blocking client libraries in a Tokio timeout.
+/// Runs a blocking login on the blocking pool and bounds the wait.
+///
+/// Dropping this future, including a timeout, does not abort the blocking thread.
+/// The join is detached onto a supervisor task so the thread can finish and drop
+/// values it owns, such as a proxy bridge.
+///
+/// # Parameters
+///
+/// - `timeout`: Maximum time to wait for the blocking function.
+/// - `task`: Blocking login. It must own every resource it needs until it returns.
+///
+/// # Returns
+///
+/// The blocking function's outcome, a join error, or an `attempt timed out` transport fault.
+///
+/// # Errors
+///
+/// Does not return [`Result`]. Join and timeout failures are [`AttemptOutcome::Error`].
+///
+/// # Examples
+///
+/// ```ignore
+/// run_blocking_with_timeout(timeout, move || connect(bridge)).await
+/// ```
 pub async fn run_blocking_with_timeout<F>(timeout: Duration, task: F) -> AttemptOutcome
 where
     F: FnOnce() -> AttemptOutcome + Send + 'static,
 {
-    match tokio::time::timeout(timeout, tokio::task::spawn_blocking(task)).await {
-        Ok(Ok(outcome)) => outcome,
-        Ok(Err(join_err)) => AttemptOutcome::error(format!("task join error: {join_err}")),
+    let mut supervised = SupervisedBlocking {
+        handle: Some(tokio::task::spawn_blocking(task)),
+    };
+    let joined = tokio::time::timeout(
+        timeout,
+        supervised
+            .handle
+            .as_mut()
+            .expect("blocking attempt handle is present"),
+    )
+    .await;
+    match joined {
+        Ok(Ok(outcome)) => {
+            supervised.handle.take();
+            outcome
+        }
+        Ok(Err(join_err)) => {
+            supervised.handle.take();
+            AttemptOutcome::error(format!("task join error: {join_err}"))
+        }
         Err(_) => AttemptOutcome::error("attempt timed out"),
+    }
+}
+
+/// Detaches a still-running blocking join when the caller stops waiting.
+struct SupervisedBlocking {
+    handle: Option<tokio::task::JoinHandle<AttemptOutcome>>,
+}
+
+impl Drop for SupervisedBlocking {
+    fn drop(&mut self) {
+        if let Some(handle) = self.handle.take() {
+            drop(tokio::spawn(async move {
+                let _ = handle.await;
+            }));
+        }
+    }
+}
+
+#[cfg(test)]
+mod blocking_timeout_tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    use std::time::Duration;
+
+    use super::run_blocking_with_timeout;
+
+    struct HoldUntilDrop {
+        dropped: Arc<AtomicBool>,
+    }
+
+    impl Drop for HoldUntilDrop {
+        fn drop(&mut self) {
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    async fn wait_until(flag: &AtomicBool) {
+        for _ in 0..50 {
+            if flag.load(Ordering::SeqCst) {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    }
+
+    /// A timeout must not drop resources owned by the still-running blocking function.
+    #[tokio::test]
+    async fn timeout_keeps_blocking_guard_until_the_task_returns() {
+        let dropped = Arc::new(AtomicBool::new(false));
+        let started = Arc::new(AtomicBool::new(false));
+        let release = Arc::new(AtomicBool::new(false));
+        let dropped_task = Arc::clone(&dropped);
+        let started_task = Arc::clone(&started);
+        let release_task = Arc::clone(&release);
+
+        let outcome = tokio::spawn(async move {
+            run_blocking_with_timeout(Duration::from_millis(40), move || {
+                let _guard = HoldUntilDrop {
+                    dropped: dropped_task,
+                };
+                started_task.store(true, Ordering::SeqCst);
+                while !release_task.load(Ordering::SeqCst) {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                crate::protocol::AttemptOutcome::failure("released")
+            })
+            .await
+        });
+
+        wait_until(&started).await;
+        let outcome = outcome.await.expect("timeout task");
+        match outcome {
+            super::AttemptOutcome::Error(fault) => assert_eq!(&*fault, "attempt timed out"),
+            other => panic!("expected timeout, got {other:?}"),
+        }
+        assert!(!dropped.load(Ordering::SeqCst));
+        release.store(true, Ordering::SeqCst);
+        wait_until(&dropped).await;
+        assert!(dropped.load(Ordering::SeqCst));
+    }
+
+    /// Dropping the helper future must not drop the blocking function's guard.
+    #[tokio::test]
+    async fn dropped_wait_keeps_blocking_guard_until_the_task_returns() {
+        let dropped = Arc::new(AtomicBool::new(false));
+        let started = Arc::new(AtomicBool::new(false));
+        let release = Arc::new(AtomicBool::new(false));
+        let dropped_task = Arc::clone(&dropped);
+        let started_task = Arc::clone(&started);
+        let release_task = Arc::clone(&release);
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let cancel_task = cancel.clone();
+
+        let run = tokio::spawn(async move {
+            tokio::select! {
+                biased;
+                _ = cancel_task.cancelled() => {}
+                _ = run_blocking_with_timeout(Duration::from_secs(5), move || {
+                    let _guard = HoldUntilDrop {
+                        dropped: dropped_task,
+                    };
+                    started_task.store(true, Ordering::SeqCst);
+                    while !release_task.load(Ordering::SeqCst) {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    crate::protocol::AttemptOutcome::failure("released")
+                }) => {}
+            }
+        });
+
+        wait_until(&started).await;
+        cancel.cancel();
+        run.await.expect("dropped wait");
+        assert!(!dropped.load(Ordering::SeqCst));
+        release.store(true, Ordering::SeqCst);
+        wait_until(&dropped).await;
+        assert!(dropped.load(Ordering::SeqCst));
     }
 }

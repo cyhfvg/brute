@@ -44,9 +44,12 @@ impl BruteModule for MySqlModule {
                 return AttemptOutcome::error(format!("mysql proxy bridge failed: {err}"));
             }
         };
-        let (connect_host, connect_port, _bridge) = endpoint;
+        let (connect_host, connect_port, bridge) = endpoint;
 
         run_blocking_with_timeout(timeout, move || {
+            // The bridge must live until the blocking connect returns. Dropping it
+            // here closes the local listener while the client may still be connecting.
+            let _bridge = bridge;
             let opts = OptsBuilder::default()
                 .ip_or_hostname(Some(connect_host))
                 .tcp_port(connect_port)

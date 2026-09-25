@@ -14,6 +14,7 @@ use std::{
 use anyhow::{Result, bail};
 use futures::{StreamExt, stream};
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     cli::Protocol,
@@ -24,10 +25,10 @@ use crate::{
 };
 
 use super::{
+    attempt::{AttemptControl, attempt_with_retries},
     query::resolve_workspace,
     run::{
-        attempt_record_from_outcome, attempt_with_retries, build_module,
-        save_successful_credential, should_skip_attempt,
+        attempt_record_from_outcome, build_module, save_successful_credential, should_skip_attempt,
     },
     types::{AttemptStatus, ProbeRecord, SprayReport, SprayReporter, SprayRequest},
 };
@@ -40,6 +41,7 @@ use super::{
 /// - `request`: protocol, scheme, concurrency, and persistence options. Target and credential fields are ignored.
 /// - `logins`: paired logins. Every login should already match `request.protocol`.
 /// - `reporter`: optional live progress sink.
+/// - `cancel`: stops probes and in-flight attempts. A cancelled try is counted as skipped.
 ///
 /// # Returns
 ///
@@ -55,13 +57,15 @@ use super::{
 ///
 /// ```ignore
 /// use brute::engine::run_paired_spray;
-/// let report = run_paired_spray(&database, request, &logins, None).await?;
+/// let cancel = tokio_util::sync::CancellationToken::new();
+/// let report = run_paired_spray(&database, request, &logins, None, &cancel).await?;
 /// ```
 pub async fn run_paired_spray(
     database: &CredentialDatabase,
     request: SprayRequest,
     logins: &[Connection],
     reporter: Option<&dyn SprayReporter>,
+    cancel: &CancellationToken,
 ) -> Result<SprayReport> {
     if logins.is_empty() {
         bail!("no connection URLs were found");
@@ -88,6 +92,8 @@ pub async fn run_paired_spray(
     let common = request.to_common_args();
     let mut probes = Vec::new();
     let mut target_success_flags = HashMap::new();
+    let mut target_cancels = HashMap::new();
+    let mut unique_targets = Vec::new();
     let mut seen_endpoints = HashSet::new();
 
     for login in logins {
@@ -96,30 +102,48 @@ pub async fn run_paired_spray(
         if !seen_endpoints.insert(key.clone()) {
             continue;
         }
+        target_success_flags.insert(key.clone(), Arc::new(AtomicBool::new(false)));
+        target_cancels.insert(key, cancel.child_token());
+        unique_targets.push((login.host.clone(), login.port, effective_port));
+    }
+
+    for (host, port, effective_port) in unique_targets {
+        if cancel.is_cancelled() {
+            break;
+        }
         let mut target_args = common.clone();
-        target_args.targets = vec![login.host.clone()];
-        target_args.port = login.port;
+        target_args.targets = vec![host.clone()];
+        target_args.port = port;
         target_args.usernames.clear();
         target_args.passwords.clear();
         target_args.credential_id = None;
         let target_ctx = TargetContext {
             protocol: request.protocol,
-            target_host: login.host.clone(),
+            target_host: host.clone(),
             target: target_args,
             url_scheme: request.url_scheme,
         };
-        if let TargetProbe::Ready(Some(message)) = module.probe_target(&target_ctx).await {
+        let probe = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => None,
+            probe = module.probe_target(&target_ctx) => Some(probe),
+        };
+        let Some(probe) = probe else {
+            break;
+        };
+        if let TargetProbe::Ready(Some(message)) = probe {
             if let Some(reporter) = reporter {
                 reporter.probe(&target_ctx, &message);
             }
             probes.push(ProbeRecord {
-                host: login.host.clone(),
+                host,
                 port: effective_port,
                 message,
             });
         }
-        target_success_flags.insert(key, Arc::new(AtomicBool::new(false)));
     }
+
+    let target_cancels = Arc::new(target_cancels);
 
     let target_success_flags = Arc::new(target_success_flags);
     let account_successes = Arc::new(Mutex::new(HashSet::<String>::new()));
@@ -143,6 +167,7 @@ pub async fn run_paired_spray(
             let database = database.clone();
             let workspace = workspace.clone();
             let path = planned.path.clone().or_else(|| request.effective_path());
+            let target_cancels = Arc::clone(&target_cancels);
 
             async move {
                 let success_flag = target_success_flags
@@ -174,11 +199,23 @@ pub async fn run_paired_spray(
                     execute,
                     credential: planned.credential,
                 };
-                let outcome = attempt_with_retries(module.as_ref(), &ctx).await;
+                let target_cancel = target_cancels
+                    .get(&endpoint_key(&ctx.target_host, planned.effective_port))
+                    .cloned()
+                    .expect("target cancel token missing");
+                let outcome =
+                    match attempt_with_retries(module.as_ref(), &ctx, &target_cancel).await {
+                        AttemptControl::Cancelled => {
+                            skipped.fetch_add(1, Ordering::Relaxed);
+                            return;
+                        }
+                        AttemptControl::Finished(outcome) => outcome,
+                    };
                 if matches!(outcome, AttemptOutcome::Success(_)) {
                     account_successes.lock().await.insert(account);
                     if !ctx.target.continue_on_success {
                         success_flag.store(true, Ordering::Relaxed);
+                        target_cancel.cancel();
                     }
                     if let Err(err) = save_successful_credential(&database, &workspace, &ctx)
                         && let Some(reporter) = reporter

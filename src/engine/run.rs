@@ -6,12 +6,12 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
-    time::Duration,
 };
 
 use anyhow::{Result, bail};
 use futures::{StreamExt, stream};
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 use crate::cli::Protocol;
 use crate::credentials::{LoadedCredentials, load_credentials, load_service_names, load_sids};
@@ -34,6 +34,7 @@ use crate::protocol::{
 };
 use crate::targets::load_targets;
 
+use super::attempt::{AttemptControl, attempt_with_retries};
 use super::query::resolve_workspace;
 use super::types::{
     AttemptRecord, AttemptStatus, ProbeRecord, SprayReport, SprayReporter, SprayRequest,
@@ -46,6 +47,7 @@ use super::types::{
 /// - `database`: Open credential database used for `--id` and success persistence.
 /// - `request`: Targets, credentials, and protocol options.
 /// - `reporter`: Optional live sink; MCP callers pass [`None`].
+/// - `cancel`: Stops probes and in-flight attempts. A cancelled try is counted as skipped.
 ///
 /// # Returns
 ///
@@ -59,13 +61,15 @@ use super::types::{
 /// # Examples
 ///
 /// ```ignore
-/// let report = run_spray(&database, request, None).await?;
+/// let cancel = tokio_util::sync::CancellationToken::new();
+/// let report = run_spray(&database, request, None, &cancel).await?;
 /// assert!(report.successes.iter().all(|item| item.status == AttemptStatus::Success));
 /// ```
 pub async fn run_spray(
     database: &CredentialDatabase,
     request: SprayRequest,
     reporter: Option<&dyn SprayReporter>,
+    cancel: &CancellationToken,
 ) -> Result<SprayReport> {
     request.validate()?;
     let workspace = resolve_workspace(database, request.workspace.as_deref())?;
@@ -89,13 +93,24 @@ pub async fn run_spray(
     let mut ready_targets = Vec::new();
 
     for target_host in targets {
+        if cancel.is_cancelled() {
+            break;
+        }
         let target_ctx = TargetContext {
             protocol,
             target_host,
             target: common.clone(),
             url_scheme,
         };
-        match module.probe_target(&target_ctx).await {
+        let probe = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => None,
+            probe = module.probe_target(&target_ctx) => Some(probe),
+        };
+        let Some(probe) = probe else {
+            break;
+        };
+        match probe {
             TargetProbe::Ready(Some(message)) => {
                 if let Some(reporter) = reporter {
                     reporter.probe(&target_ctx, &message);
@@ -129,6 +144,13 @@ pub async fn run_spray(
             .map(|target_host| (target_host, Arc::new(AtomicBool::new(false))))
             .collect::<HashMap<_, _>>(),
     );
+    let target_cancels = Arc::new(
+        ready_targets
+            .iter()
+            .cloned()
+            .map(|target_host| (target_host, cancel.child_token()))
+            .collect::<HashMap<_, _>>(),
+    );
     let account_successes = Arc::new(Mutex::new(HashSet::new()));
     let attempts = Arc::new(Mutex::new(Vec::new()));
     let skipped = Arc::new(AtomicUsize::new(0));
@@ -151,6 +173,7 @@ pub async fn run_spray(
         let database = database.clone();
         let workspace = workspace.clone();
 
+        let target_cancels = Arc::clone(&target_cancels);
         async move {
             let success_flag = target_success_flags
                 .get(&target_host)
@@ -171,6 +194,10 @@ pub async fn run_spray(
                 skipped.fetch_add(1, Ordering::Relaxed);
                 return;
             }
+            let target_cancel = target_cancels
+                .get(&target_host)
+                .expect("target cancel token missing")
+                .clone();
 
             let ctx = AttemptContext {
                 protocol,
@@ -181,11 +208,18 @@ pub async fn run_spray(
                 execute,
                 credential,
             };
-            let outcome = attempt_with_retries(module.as_ref(), &ctx).await;
+            let outcome = match attempt_with_retries(module.as_ref(), &ctx, &target_cancel).await {
+                AttemptControl::Cancelled => {
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+                AttemptControl::Finished(outcome) => outcome,
+            };
             if matches!(outcome, AttemptOutcome::Success(_)) {
                 account_successes.lock().await.insert(account_key);
                 if !ctx.target.continue_on_success {
                     success_flag.store(true, Ordering::Relaxed);
+                    target_cancel.cancel();
                 }
                 if let Err(err) = save_successful_credential(&database, &workspace, &ctx)
                     && let Some(reporter) = reporter
@@ -392,75 +426,9 @@ pub(super) fn should_skip_attempt(
     account_succeeded || (!continue_on_success && target_success_flag.load(Ordering::Relaxed))
 }
 
-/// Waits `--delay` plus inclusive `--jitter`, then retries only transport faults.
-///
-/// The pre-attempt wait runs once. `ctx.target.retries` is extra tries after the first attempt.
-/// Success, auth failure, and lockout return immediately. Retry backoff stays `150ms * (failed attempts)`.
-///
-/// # Parameters
-///
-/// - `module`: Protocol implementation. Each call performs exactly one try.
-/// - `ctx`: Attempt context, including delay, jitter, and the retry budget.
-///
-/// # Returns
-///
-/// The first non-transport outcome, or the last transport fault after the budget is spent.
-///
-/// # Errors
-///
-/// Does not return [`Result`]. Transport failures remain [`AttemptOutcome::Error`].
-///
-/// # Examples
-///
-/// ```ignore
-/// let outcome = attempt_with_retries(module.as_ref(), &ctx).await;
-/// ```
-pub(super) async fn attempt_with_retries(
-    module: &dyn BruteModule,
-    ctx: &AttemptContext,
-) -> AttemptOutcome {
-    super::pacing::wait_before_attempt(ctx.target.delay_ms, ctx.target.jitter_ms).await;
-    let mut failed_attempts = 0usize;
-    loop {
-        let outcome = module.attempt(ctx).await;
-        if !outcome.is_retriable_transport() || failed_attempts >= ctx.target.retries {
-            return outcome;
-        }
-        let delay_ms = transport_retry_backoff_ms(failed_attempts);
-        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-        failed_attempts += 1;
-    }
-}
-
-/// Returns the delay before the next transport retry.
-///
-/// # Parameters
-///
-/// - `failed_attempts`: Number of failed tries already completed, starting at 0.
-///
-/// # Returns
-///
-/// Delay in milliseconds. The first retry waits 150ms, the second 300ms, and so on.
-///
-/// # Errors
-///
-/// None.
-///
-/// # Examples
-///
-/// ```ignore
-/// assert_eq!(transport_retry_backoff_ms(0), 150);
-/// assert_eq!(transport_retry_backoff_ms(1), 300);
-/// ```
-fn transport_retry_backoff_ms(failed_attempts: usize) -> u64 {
-    150 * (failed_attempts as u64 + 1)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
-
-    use super::{AttemptContext, AttemptFaultClass, AttemptOutcome, AttemptStatus, BruteModule};
+    use super::{AttemptFaultClass, AttemptOutcome, AttemptStatus};
 
     /// Verifies the scheduler source applies global `--threads` via for_each_concurrent.
     #[test]
@@ -479,120 +447,12 @@ mod tests {
             "per-target Semaphore must be removed; --threads alone caps concurrency"
         );
     }
-
-    struct ScriptedModule {
-        outcomes: std::sync::Mutex<Vec<AttemptOutcome>>,
-        calls: std::sync::atomic::AtomicUsize,
-    }
-
-    #[async_trait::async_trait]
-    impl BruteModule for ScriptedModule {
-        fn name(&self) -> &'static str {
-            "scripted"
-        }
-
-        async fn attempt(&self, _ctx: &AttemptContext) -> AttemptOutcome {
-            self.calls.fetch_add(1, Ordering::Relaxed);
-            self.outcomes.lock().expect("scripted outcomes").remove(0)
-        }
-    }
-
-    fn scripted_ctx(retries: usize) -> AttemptContext {
-        use crate::cli::{CommonArgs, HttpUrlScheme, Protocol};
-        use crate::credentials::CredentialSet;
-
-        AttemptContext {
-            protocol: Protocol::Ssh,
-            target_host: "127.0.0.1".into(),
-            url_scheme: HttpUrlScheme::Http,
-            target: CommonArgs {
-                targets: vec!["127.0.0.1".into()],
-                usernames: vec!["root".into()],
-                passwords: vec!["secret".into()],
-                credential_id: None,
-                port: Some(22),
-                threads: 1,
-                retries,
-                timeout_ms: 1000,
-                delay_ms: 0,
-                jitter_ms: 0,
-                continue_on_success: false,
-                proxy: None,
-            },
-            path: None,
-            execute: None,
-            credential: CredentialSet {
-                username: Some("root".into()),
-                password: Some("secret".into()),
-                service_name: None,
-                sid: None,
-            },
-        }
-    }
-
-    /// Transport errors are retried; the final success is the recorded outcome.
-    #[tokio::test]
-    async fn retries_transport_error_then_returns_success() {
-        let module = ScriptedModule {
-            outcomes: std::sync::Mutex::new(vec![
-                AttemptOutcome::error("ssh transport failed"),
-                AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("ok")),
-            ]),
-            calls: std::sync::atomic::AtomicUsize::new(0),
-        };
-        let outcome = super::attempt_with_retries(&module, &scripted_ctx(1)).await;
-        assert!(matches!(outcome, AttemptOutcome::Success(_)));
-        assert_eq!(module.calls.load(Ordering::Relaxed), 2);
-    }
-
-    /// Authentication failures are not transport retries.
-    #[tokio::test]
-    async fn does_not_retry_auth_failure() {
-        let module = ScriptedModule {
-            outcomes: std::sync::Mutex::new(vec![
-                AttemptOutcome::failure("auth failed"),
-                AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("should not run")),
-            ]),
-            calls: std::sync::atomic::AtomicUsize::new(0),
-        };
-        let outcome = super::attempt_with_retries(&module, &scripted_ctx(3)).await;
-        assert!(matches!(outcome, AttemptOutcome::Failure(_)));
-        assert_eq!(module.calls.load(Ordering::Relaxed), 1);
-    }
-
-    /// `--retries 0` means one try, even when that try is a transport error.
-    #[tokio::test]
-    async fn zero_retries_returns_first_error() {
-        let module = ScriptedModule {
-            outcomes: std::sync::Mutex::new(vec![
-                AttemptOutcome::error("down"),
-                AttemptOutcome::Success(crate::protocol::AttemptSuccess::new("should not run")),
-            ]),
-            calls: std::sync::atomic::AtomicUsize::new(0),
-        };
-        let outcome = super::attempt_with_retries(&module, &scripted_ctx(0)).await;
-        assert!(matches!(outcome, AttemptOutcome::Error(_)));
-        assert_eq!(module.calls.load(Ordering::Relaxed), 1);
-    }
-
+    /// Lockout records keep the structured fault class.
     #[test]
-    fn backoff_grows_by_150ms() {
-        assert_eq!(super::transport_retry_backoff_ms(0), 150);
-        assert_eq!(super::transport_retry_backoff_ms(1), 300);
-        assert_eq!(super::transport_retry_backoff_ms(2), 450);
-    }
-
-    /// Lockout is reported as a failure class and is not retried.
-    #[tokio::test]
-    async fn does_not_retry_lockout() {
-        let module = ScriptedModule {
-            outcomes: std::sync::Mutex::new(vec![AttemptOutcome::lockout("account locked")]),
-            calls: std::sync::atomic::AtomicUsize::new(0),
-        };
-        let outcome = super::attempt_with_retries(&module, &scripted_ctx(3)).await;
-        assert!(!outcome.is_retriable_transport());
-        assert_eq!(module.calls.load(Ordering::Relaxed), 1);
-        let record = super::attempt_record_from_outcome(&scripted_ctx(3), &outcome);
+    fn lockout_record_keeps_fault_class() {
+        let outcome = AttemptOutcome::lockout("account locked");
+        let record =
+            super::attempt_record_from_outcome(&super::super::attempt::scripted_ctx(3), &outcome);
         assert_eq!(record.status, AttemptStatus::Lockout);
         assert_eq!(record.fault_class, Some(AttemptFaultClass::Lockout));
         assert_eq!(record.message, "account locked");

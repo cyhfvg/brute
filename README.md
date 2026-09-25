@@ -326,6 +326,8 @@ Detailed natural-language prompts and the matching tool JSON are in [docs/MCP.ex
 
 Successful MCP verifications are saved to the selected workspace, same as the CLI. Use these tools only against authorized targets.
 
+Ctrl-C and MCP request cancellation stop attempts that have not started and interrupt in-flight attempts at delay, retry backoff, async I/O, and blocking waits. Without `--continue-on-success`, the first success on a target cancels only that target.
+
 
 ## Common Options
 
@@ -339,6 +341,7 @@ Successful MCP verifications are saved to the selected workspace, same as the CL
 - `--delay <MS>`: Fixed wait before each credential attempt, in milliseconds. Default: `0`. Also accepted by `brute combo`.
 - `--jitter <MS>`: Inclusive extra random wait added to `--delay`, in milliseconds. Default: `0`. Transport retries keep their own backoff and do not add this wait again.
 - `--timeout-ms <MS>`: Per-attempt timeout in milliseconds. Default: `5000`; must be at least `1`.
+- Ctrl-C: Cancel attempts that have not started and interrupt in-flight attempts. A successful login cancels only that target unless `--continue-on-success` is set.
 - `--continue-on-success`: Continue attempts against a target after a successful credential is found.
 
 `-u/-p` and `--id` are mutually exclusive. Use `-u/-p` for normal spraying or brute force, and `--id` to reuse a saved credential.

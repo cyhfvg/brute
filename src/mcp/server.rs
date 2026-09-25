@@ -6,6 +6,7 @@ use rmcp::{
     model::{Implementation, ServerCapabilities, ServerInfo},
     tool, tool_handler, tool_router,
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::database::CredentialDatabase;
 use crate::engine::{
@@ -57,11 +58,12 @@ impl BruteMcp {
     async fn verify_account(
         &self,
         Parameters(params): Parameters<VerifyAccountParams>,
+        cancel: CancellationToken,
     ) -> Result<String, ErrorData> {
         let request = params
             .into_request()
             .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
-        let report = run_spray(&self.database, request, None)
+        let report = run_spray(&self.database, request, None, &cancel)
             .await
             .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
         to_json(&report)
@@ -79,11 +81,12 @@ impl BruteMcp {
     async fn spray_passwords(
         &self,
         Parameters(params): Parameters<SprayPasswordsParams>,
+        cancel: CancellationToken,
     ) -> Result<String, ErrorData> {
         let request = params
             .into_request()
             .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
-        let report = run_spray(&self.database, request, None)
+        let report = run_spray(&self.database, request, None, &cancel)
             .await
             .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
         to_json(&report)
@@ -171,15 +174,17 @@ impl BruteMcp {
     async fn verify_connections(
         &self,
         Parameters(params): Parameters<VerifyConnectionsParams>,
+        cancel: CancellationToken,
     ) -> Result<String, ErrorData> {
         let (sources, options) = params
             .into_run()
             .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
         let connections = crate::connections::load_connection_sources(&sources)
             .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
-        let report = crate::combo::run_connections(&self.database, connections, options, None)
-            .await
-            .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
+        let report =
+            crate::combo::run_connections(&self.database, connections, options, None, &cancel)
+                .await
+                .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
         to_json(&report)
     }
 }
@@ -200,7 +205,8 @@ impl ServerHandler for BruteMcp {
                 "verify_account checks one account. spray_passwords tests username/password ",
                 "lists. delete_credentials removes saved rows by id, protocol, host, or all ",
                 "and refuses an unscoped delete. list_workspaces and list_protocols help choose ",
-                "filters. Successful verifications are persisted automatically."
+                "filters. Successful verifications are persisted automatically. ",
+                "Ctrl-C and client request cancellation stop in-flight attempts."
             ))
     }
 }

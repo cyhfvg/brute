@@ -44,6 +44,7 @@
 - 空用户名/空密码传 `""`, 不要省略字段后指望模型猜.
 - 字典文件路径存在且为文件时按行展开 (与 CLI `-u`/`-p` 相同). `targets` 同样接受 IPv4 CIDR, 会展开为前缀内全部地址 (含网络/广播, 单个前缀最多 65536 个). 不支持 IPv6.
 - 成功登录会写入所选 workspace; 认证后命令失败不会丢掉已验证凭据.
+- 宿主取消 MCP 请求，或操作员按 Ctrl-C，会停止尚未开始的尝试，并在 delay、重试退避和单次尝试等待处打断进行中的尝试。某个 target 首次成功后只取消该 target，除非 `continue_on_success` 为 true。
 
 
 `verify_connections` 不用上面的笛卡尔 `options`. 参数是 `file` 和/或 `urls`, 以及独立 `options`:

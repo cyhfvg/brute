@@ -3,6 +3,7 @@
 //! Shared by the CLI and the MCP server so both paths persist successes to the
 //! same SQLite workspace store and return structured attempt records.
 
+mod attempt;
 mod pacing;
 mod paired;
 mod query;

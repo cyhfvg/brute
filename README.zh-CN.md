@@ -322,6 +322,8 @@ brute mcp
 
 MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。仅允许对授权目标使用。
 
+Ctrl-C 与 MCP 请求取消会停止尚未开始的尝试，并在 delay、重试退避、异步 I/O 和 blocking 等待处打断进行中的尝试。未设置 `--continue-on-success` 时，某个 target 首次成功只取消该 target。
+
 更完整的自然语言提问与对应 tool JSON 见 [docs/MCP.example.md](docs/MCP.example.md).
 
 
@@ -338,6 +340,7 @@ MCP 验证成功后的凭据会写入所选 workspace, 行为与 CLI 一致。�
 - `--delay <MS>`: 每次凭据尝试前的固定等待，单位毫秒，默认 `0`。`brute combo` 同样接受。
 - `--jitter <MS>`: 加在 `--delay` 上的额外随机等待，闭区间 `0..=MS`，单位毫秒，默认 `0`。传输层重试仍只使用自己的退避，不会再加这段等待。
 - `--timeout-ms <MS>`: 单次尝试超时，默认 `5000`，最小值为 `1`。
+- Ctrl-C: 取消尚未开始的尝试，并打断进行中的尝试。某个 target 首次登录成功后只取消该 target，除非设置了 `--continue-on-success`。
 - `--continue-on-success`: 命中成功凭据后仍继续尝试该目标剩余凭据。
 
 `-u/-p` 与 `--id` 二选一：普通爆破使用 `-u/-p`，复用保存凭据使用 `--id`。

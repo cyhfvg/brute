@@ -194,7 +194,9 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误返�
 
 调度层对全部协议的凭据尝试使用 `attempt_with_retries`，`run_spray` 与 `run_paired_spray` 共用。`--retries` 是首次尝试之外的额外次数，默认 3，因此最多尝试 4 次。只重试 `AttemptFaultClass::Transport`；`Success`、`Auth` 与 `Lockout` 立即返回。两次尝试之间退避 `150ms * (已失败次数)`，第一次额外尝试等待 150ms。报告只记录最终结果，中间传输错误不单独入账。MCP 与 CLI 报告用 `status`（`success` / `failure` / `lockout` / `error`）和 `fault_class`（`auth` / `lockout` / `transport`，成功时为 `null`）表达结构化错误。`message` 仍是给人读的文本。
 
-`--delay` 与 `--jitter` 是每次凭据尝试前的等待，单位毫秒，默认都是 0。实际等待是 `delay + random(0..=jitter)`。两者都为 0 时不 sleep。这段等待发生在 `attempt_with_retries` 的循环之前，所以 `run_spray` 与 `run_paired_spray` 共用，且不会乘进传输层重试。重试之间仍只退避 `150ms * (已失败次数)`。`brute combo` 与 MCP `options.delay_ms` / `options.jitter_ms` 使用同一语义。这段等待目前不可取消。
+`--delay` 与 `--jitter` 是每次凭据尝试前的等待，单位毫秒，默认都是 0。实际等待是 `delay + random(0..=jitter)`。两者都为 0 时不 sleep。这段等待发生在 `attempt_with_retries` 的循环之前，所以 `run_spray` 与 `run_paired_spray` 共用，且不会乘进传输层重试。重试之间仍只退避 `150ms * (已失败次数)`。`brute combo` 与 MCP `options.delay_ms` / `options.jitter_ms` 使用同一语义。delay、jitter 与重试退避都可被取消令牌打断。
+
+Ctrl-C 与 MCP 请求取消共用 `CancellationToken`。取消后不再领取新的凭据任务；已领取任务在 delay、重试退避、异步尝试和 blocking 超时等待处停止。blocking 线程本身不能被强制中断，调用方停止等待后由监督任务接手 join，因此超时或取消不会提前拆掉该线程持有的 proxy bridge。未开始或被取消的任务计入 `skipped`。每个 target 首次成功且未设置 `--continue-on-success` 时，只取消该 target 的后续尝试，其它 target 继续。
 
 调度层使用 `for_each_concurrent` 实施全局 `--threads` 限流：跨目标与凭据的同时进行尝试数不超过该值。不再使用 `--target-threads` 或单目标信号量。任务按 credential -> target 惰性生成，成功账号状态按需记录，不会预分配完整的凭据与目标笛卡尔积。`--threads` 和 `--timeout-ms` 必须大于 0。RDP 尝试走 `spawn_blocking`（`run_blocking_with_timeout`），不在模块内加全局互斥锁。
 
@@ -234,12 +236,11 @@ SSH 单次登录中的连接、session 创建、handshake 等传输层错误返�
 
 ## 后续建议
 
-1. 为已排队但尚未执行的 target 任务增加更强的主动取消控制
-2. 增加 JSON/NDJSON 输出模式，便于脚本接入
-3. 为 HTTP 模块扩展表单爆破、Digest Auth、严格 CA 校验开关等（Basic Auth 与 `--protocol http|https` 已实现）
-4. 为 WinRM 增加 HTTPS(5986)、Kerberos、CredSSP 与 NTLM hash 登录（按需）
-5. 增强 SMB 目标探测，在可解析时输出 `name:` / `domain:`（当前为服务可达性探测）
-6. 若 IronRDP 与 `smb2` 的 `aes-gcm` 依赖冲突消除，可评估迁移 RDP 至 IronRDP 并去掉 vendored OpenSSL
+1. 增加 JSON/NDJSON 输出模式，便于脚本接入
+2. 为 HTTP 模块扩展表单爆破、Digest Auth、严格 CA 校验开关等（Basic Auth 与 `--protocol http|https` 已实现）
+3. 为 WinRM 增加 HTTPS(5986)、Kerberos、CredSSP 与 NTLM hash 登录（按需）
+4. 增强 SMB 目标探测，在可解析时输出 `name:` / `domain:`（当前为服务可达性探测）
+5. 若 IronRDP 与 `smb2` 的 `aes-gcm` 依赖冲突消除，可评估迁移 RDP 至 IronRDP 并去掉 vendored OpenSSL
 
 ### 输出前缀
 
