@@ -16,12 +16,7 @@ use super::{
 };
 
 /// JBoss attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum JbossAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type JbossAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// JBoss / WildFly module configuration.
 #[derive(Debug, Clone)]
@@ -68,23 +63,13 @@ impl BruteModule for JbossModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(JbossAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("jboss auth failed: {err}"))
-            }
-            Ok(Err(JbossAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("jboss transport failed: {err}"))
-            }
-            Ok(Err(JbossAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("jboss command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "jboss",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

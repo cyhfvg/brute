@@ -15,10 +15,7 @@ use tokio_postgres_rustls::MakeRustlsConnect;
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 
 /// PostgreSQL attempt errors split auth/connect failures from post-auth command failures.
-#[derive(Debug)]
-enum PostgreSqlAttemptError {
-    Auth(String),
-}
+type PostgreSqlAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// PostgreSQL module configuration.
 #[derive(Debug, Clone)]
@@ -146,13 +143,13 @@ impl BruteModule for PostgreSqlModule {
             }
         };
 
-        match tokio::time::timeout(ctx.timeout(), attempt).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(PostgreSqlAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("postgresql auth failed: {err}"))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "postgresql",
+            || "PostgreSQL access!".to_string(),
+            attempt,
+        )
+        .await
     }
 }
 

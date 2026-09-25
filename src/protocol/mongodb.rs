@@ -16,12 +16,7 @@ use super::{
 };
 
 /// MongoDB attempt errors split auth/connect failures from post-auth command failures.
-#[derive(Debug)]
-enum MongoAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type MongoAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// MongoDB module configuration.
 #[derive(Debug, Clone)]
@@ -68,23 +63,13 @@ impl BruteModule for MongoDbModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(MongoAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("mongodb auth failed: {err}"))
-            }
-            Ok(Err(MongoAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("mongodb transport failed: {err}"))
-            }
-            Ok(Err(MongoAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("mongodb command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "mongodb",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

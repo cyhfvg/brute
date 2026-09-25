@@ -14,12 +14,7 @@ use super::{
 };
 
 /// InfluxDB attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum InfluxAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type InfluxAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// InfluxDB module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for InfluxDbModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(InfluxAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("influxdb auth failed: {err}"))
-            }
-            Ok(Err(InfluxAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("influxdb transport failed: {err}"))
-            }
-            Ok(Err(InfluxAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("influxdb command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "influxdb",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

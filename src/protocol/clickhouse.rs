@@ -14,12 +14,7 @@ use super::{
 };
 
 /// ClickHouse attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum ChAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type ChAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// ClickHouse module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for ClickHouseModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(ChAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("clickhouse auth failed: {err}"))
-            }
-            Ok(Err(ChAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("clickhouse transport failed: {err}"))
-            }
-            Ok(Err(ChAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("clickhouse command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "clickhouse",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

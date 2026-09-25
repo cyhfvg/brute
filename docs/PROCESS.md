@@ -136,7 +136,7 @@ HTTP 家族的凭据判定集中在 `src/protocol/http_auth.rs`。401 一律是�
 - `CredentialHit`（403 表示凭据已接受但资源拒绝）：`http`、`tomcat`、`elasticsearch`、`docker`、`couchdb`、`kubelet`、`prometheus`。
 - `AuthFailure`（403 表示认证失败）：`jenkins`、`grafana`、`gitlab`、`harbor`、`hadoop`、`clickhouse`、`influxdb`、`druid`、`neo4j`、`nexus`、`solr`、`spark`、`weblogic`、`websphere`、`kibana`、`jboss`、`minio`、`nacos`。
 
-协议特有信号仍保留在各模块：MinIO 的 400、Nacos 响应体、GitLab 的 `invalid_grant`/`400`、WebLogic/WebSphere 的登录回跳、etcd 的响应体启发式。探测路径里的 401/403 只表示服务在线，不走这张表。
+协议特有信号仍保留在各模块：MinIO 的 400、Nacos 响应体、GitLab 的 `invalid_grant`/`400`、WebLogic/WebSphere 的登录回跳、etcd 的响应体启发式。探测路径里的 401/403 只表示服务在线，不走这张表。单次尝试的超时与 Auth/Transport/Command 结果映射集中在 `src/protocol/http_attempt.rs` 的 `run_http_attempt`；401/403 判定仍只在 `http_auth.rs`。Kafka、Kibana、MSSQL、RabbitMQ 继续用各自的 `is_auth_error`，不剥 `auth:` 前缀。SNMP 超时仍记为认证失败，不走这个 helper。
 
 
 ### HTTP scheme

@@ -19,12 +19,7 @@ mod command;
 pub use command::{execute_zookeeper_command, join_zk_path, split_command};
 
 /// ZooKeeper attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum ZkAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type ZkAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// ZooKeeper module configuration.
 #[derive(Debug, Clone)]
@@ -71,23 +66,13 @@ impl BruteModule for ZookeeperModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(ZkAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("zookeeper auth failed: {err}"))
-            }
-            Ok(Err(ZkAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("zookeeper transport failed: {err}"))
-            }
-            Ok(Err(ZkAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("zookeeper command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "zookeeper",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

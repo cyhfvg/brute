@@ -14,12 +14,7 @@ use super::{
 };
 
 /// Nexus attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum NexusAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type NexusAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Nexus module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for NexusModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(NexusAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("nexus auth failed: {err}"))
-            }
-            Ok(Err(NexusAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("nexus transport failed: {err}"))
-            }
-            Ok(Err(NexusAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("nexus command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "nexus",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

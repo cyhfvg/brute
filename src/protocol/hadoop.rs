@@ -14,12 +14,7 @@ use super::{
 };
 
 /// Hadoop attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum HadoopAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type HadoopAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Hadoop module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for HadoopModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(HadoopAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("hadoop auth failed: {err}"))
-            }
-            Ok(Err(HadoopAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("hadoop transport failed: {err}"))
-            }
-            Ok(Err(HadoopAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("hadoop command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "hadoop",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

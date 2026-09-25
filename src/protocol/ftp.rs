@@ -6,11 +6,7 @@ use suppaftp::{Status, tokio::AsyncRustlsFtpStream};
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 
 /// FTP attempt errors split auth/connect failures from post-auth command failures.
-#[derive(Debug)]
-enum FtpAttemptError {
-    Auth(String),
-    Command(String),
-}
+type FtpAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// FTP module configuration.
 #[derive(Debug, Clone)]
@@ -70,19 +66,13 @@ impl BruteModule for FtpModule {
             Ok::<_, FtpAttemptError>(message)
         };
 
-        match tokio::time::timeout(ctx.timeout(), future).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(FtpAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("ftp auth failed: {err}"))
-            }
-            Ok(Err(FtpAttemptError::Command(err))) => {
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    "FTP access!",
-                    format!("ftp command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "ftp",
+            || "FTP access!".to_string(),
+            future,
+        )
+        .await
     }
 }
 

@@ -26,12 +26,7 @@ use codec::{
 };
 
 /// Memcached attempt errors split auth/connect failures from post-auth command failures.
-#[derive(Debug)]
-enum MemcachedAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type MemcachedAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Memcached module configuration.
 #[derive(Debug, Clone)]
@@ -78,23 +73,13 @@ impl BruteModule for MemcachedModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(MemcachedAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("memcached auth failed: {err}"))
-            }
-            Ok(Err(MemcachedAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("memcached transport failed: {err}"))
-            }
-            Ok(Err(MemcachedAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("memcached command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "memcached",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

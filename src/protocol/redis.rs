@@ -5,11 +5,7 @@ use async_trait::async_trait;
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
 
 /// Redis attempt errors split auth/connect failures from post-auth command failures.
-#[derive(Debug)]
-enum RedisAttemptError {
-    Auth(String),
-    Command(String),
-}
+type RedisAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Redis module configuration.
 #[derive(Debug, Clone)]
@@ -81,19 +77,13 @@ impl BruteModule for RedisModule {
             }
         };
 
-        match tokio::time::timeout(ctx.timeout(), attempt).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(RedisAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("redis auth failed: {err}"))
-            }
-            Ok(Err(RedisAttemptError::Command(err))) => {
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    "Redis access!",
-                    format!("redis command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "redis",
+            || "Redis access!".to_string(),
+            attempt,
+        )
+        .await
     }
 }
 

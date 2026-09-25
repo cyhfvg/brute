@@ -16,12 +16,7 @@ use super::{
 };
 
 /// Nacos attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum NacosAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type NacosAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Nacos module configuration.
 #[derive(Debug, Clone)]
@@ -68,23 +63,13 @@ impl BruteModule for NacosModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(NacosAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("nacos auth failed: {err}"))
-            }
-            Ok(Err(NacosAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("nacos transport failed: {err}"))
-            }
-            Ok(Err(NacosAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("nacos command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "nacos",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

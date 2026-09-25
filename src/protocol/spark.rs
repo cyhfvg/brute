@@ -14,12 +14,7 @@ use super::{
 };
 
 /// Spark attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum SparkAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type SparkAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Spark module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for SparkModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(SparkAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("spark auth failed: {err}"))
-            }
-            Ok(Err(SparkAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("spark transport failed: {err}"))
-            }
-            Ok(Err(SparkAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("spark command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "spark",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

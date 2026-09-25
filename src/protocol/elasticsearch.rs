@@ -14,12 +14,7 @@ use super::{
 };
 
 /// Elasticsearch attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum EsAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type EsAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Elasticsearch module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for ElasticsearchModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(EsAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("elasticsearch auth failed: {err}"))
-            }
-            Ok(Err(EsAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("elasticsearch transport failed: {err}"))
-            }
-            Ok(Err(EsAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("elasticsearch command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "elasticsearch",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

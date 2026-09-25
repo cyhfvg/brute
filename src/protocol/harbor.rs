@@ -14,12 +14,7 @@ use super::{
 };
 
 /// Harbor attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum HarborAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type HarborAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Harbor module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for HarborModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(HarborAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("harbor auth failed: {err}"))
-            }
-            Ok(Err(HarborAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("harbor transport failed: {err}"))
-            }
-            Ok(Err(HarborAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("harbor command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "harbor",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

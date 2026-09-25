@@ -17,12 +17,7 @@ use super::{
 };
 
 /// WebLogic attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum WeblogicAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type WeblogicAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// WebLogic module configuration.
 #[derive(Debug, Clone)]
@@ -69,22 +64,13 @@ impl BruteModule for WeblogicModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(WeblogicAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("weblogic auth failed: {err}"))
-            }
-            Ok(Err(WeblogicAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("weblogic transport failed: {err}"))
-            }
-            Ok(Err(WeblogicAttemptError::Command(err))) => {
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    "WebLogic access!",
-                    format!("weblogic command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "weblogic",
+            || "WebLogic access!".to_string(),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

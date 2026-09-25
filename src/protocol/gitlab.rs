@@ -16,12 +16,7 @@ use super::{
 };
 
 /// GitLab attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum GitlabAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type GitlabAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// GitLab module configuration.
 #[derive(Debug, Clone)]
@@ -68,23 +63,13 @@ impl BruteModule for GitlabModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(GitlabAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("gitlab auth failed: {err}"))
-            }
-            Ok(Err(GitlabAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("gitlab transport failed: {err}"))
-            }
-            Ok(Err(GitlabAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("gitlab command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "gitlab",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

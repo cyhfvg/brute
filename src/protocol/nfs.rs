@@ -71,15 +71,12 @@ impl BruteModule for NfsModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(err)) if err.starts_with("auth:") => AttemptOutcome::failure(format!(
-                "nfs auth failed: {}",
-                err.trim_start_matches("auth:")
-            )),
-            Ok(Err(err)) => AttemptOutcome::error(format!("nfs transport failed: {err}")),
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(ctx.timeout(), "nfs", String::new, async {
+            attempt_once(ctx)
+                .await
+                .map_err(crate::protocol::http_attempt::classify_auth_prefix)
+        })
+        .await
     }
 }
 

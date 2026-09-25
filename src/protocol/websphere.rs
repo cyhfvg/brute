@@ -18,12 +18,7 @@ use super::{
 };
 
 /// WebSphere attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum WebsphereAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type WebsphereAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// WebSphere module configuration.
 #[derive(Debug, Clone)]
@@ -70,22 +65,13 @@ impl BruteModule for WebsphereModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(WebsphereAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("websphere auth failed: {err}"))
-            }
-            Ok(Err(WebsphereAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("websphere transport failed: {err}"))
-            }
-            Ok(Err(WebsphereAttemptError::Command(err))) => {
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    "WebSphere access!",
-                    format!("websphere command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "websphere",
+            || "WebSphere access!".to_string(),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

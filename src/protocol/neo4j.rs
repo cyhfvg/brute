@@ -14,12 +14,7 @@ use super::{
 };
 
 /// Neo4j attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum Neo4jAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type Neo4jAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// Neo4j module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for Neo4jModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(Neo4jAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("neo4j auth failed: {err}"))
-            }
-            Ok(Err(Neo4jAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("neo4j transport failed: {err}"))
-            }
-            Ok(Err(Neo4jAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("neo4j command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "neo4j",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

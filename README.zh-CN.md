@@ -1086,6 +1086,7 @@ src/
     redis.rs
     tomcat.rs
     http.rs         # HTTP Basic Auth
+    http_attempt.rs # 共享的尝试超时与结果映射
     stub.rs         # 预留协议占位实现
 ```
 

@@ -1086,6 +1086,7 @@ src/
     redis.rs
     tomcat.rs
     http.rs         # HTTP Basic Auth
+    http_attempt.rs # shared attempt timeout and outcome mapping
     stub.rs         # reserved protocol placeholder
 ```
 

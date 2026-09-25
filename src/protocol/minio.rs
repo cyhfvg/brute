@@ -16,12 +16,7 @@ use super::{
 };
 
 /// MinIO attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum MinioAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type MinioAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// MinIO module configuration.
 #[derive(Debug, Clone)]
@@ -68,23 +63,13 @@ impl BruteModule for MinioModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(MinioAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("minio auth failed: {err}"))
-            }
-            Ok(Err(MinioAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("minio transport failed: {err}"))
-            }
-            Ok(Err(MinioAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("minio command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "minio",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 

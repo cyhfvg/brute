@@ -55,14 +55,21 @@ impl BruteModule for RabbitMqModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(err)) if is_auth_error(&err) => {
-                AttemptOutcome::failure(format!("rabbitmq auth failed: {err}"))
-            }
-            Ok(Err(err)) => AttemptOutcome::error(format!("rabbitmq transport failed: {err}")),
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "rabbitmq",
+            String::new,
+            async {
+                attempt_once(ctx).await.map_err(|err| {
+                    if is_auth_error(&err) {
+                        crate::protocol::http_attempt::HttpAttemptFailure::Auth(err)
+                    } else {
+                        crate::protocol::http_attempt::HttpAttemptFailure::Transport(err)
+                    }
+                })
+            },
+        )
+        .await
     }
 }
 

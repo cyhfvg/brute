@@ -14,12 +14,7 @@ use super::{
 };
 
 /// CouchDB attempt errors split auth failures from post-auth command failures.
-#[derive(Debug)]
-enum CouchAttemptError {
-    Auth(String),
-    Transport(String),
-    Command(String),
-}
+type CouchAttemptError = crate::protocol::http_attempt::HttpAttemptFailure;
 
 /// CouchDB module configuration.
 #[derive(Debug, Clone)]
@@ -66,23 +61,13 @@ impl BruteModule for CouchDbModule {
     }
 
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
-        match tokio::time::timeout(ctx.timeout(), attempt_once(ctx)).await {
-            Ok(Ok(success)) => AttemptOutcome::Success(success),
-            Ok(Err(CouchAttemptError::Auth(err))) => {
-                AttemptOutcome::failure(format!("couchdb auth failed: {err}"))
-            }
-            Ok(Err(CouchAttemptError::Transport(err))) => {
-                AttemptOutcome::error(format!("couchdb transport failed: {err}"))
-            }
-            Ok(Err(CouchAttemptError::Command(err))) => {
-                let message = success_message(is_unauthenticated(ctx));
-                AttemptOutcome::Success(AttemptSuccess::with_command_error(
-                    message,
-                    format!("couchdb command execution failed: {err}"),
-                ))
-            }
-            Err(_) => AttemptOutcome::error("attempt timed out".to_string()),
-        }
+        crate::protocol::http_attempt::run_http_attempt(
+            ctx.timeout(),
+            "couchdb",
+            || success_message(is_unauthenticated(ctx)),
+            attempt_once(ctx),
+        )
+        .await
     }
 }
 
