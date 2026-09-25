@@ -955,7 +955,7 @@ Saved credential fields include:
 - `password`
 - `conn_url`
 
-Database values are stored in plaintext. Protect `~/.config/brute/brute.db` according to your engagement rules and local security requirements.
+Database values are stored in plaintext. On Unix, `brute` creates the parent directory as `0700` and the database file as `0600`, and tightens an existing private store if it is looser. Shared directories such as `/tmp` are not changed. Windows does not apply Unix mode bits. Protect `~/.config/brute/brute.db` according to your engagement rules and local security requirements.
 
 ### Workspaces
 

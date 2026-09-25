@@ -955,7 +955,7 @@ SSH        192.168.10.5     22     uid=0(root) gid=0(root) groups=0(root)
 - `password`
 - `conn_url`
 
-数据库以明文保存凭据，请根据项目授权范围和本地安全要求保护 `~/.config/brute/brute.db`。
+数据库以明文保存凭据。Unix 上新建父目录为 `0700`、数据库文件为 `0600`，已有私有目录和文件若更宽松会被收紧；`/tmp` 等共享目录不会被修改。Windows 不设置 Unix 权限位。请根据项目授权范围和本地安全要求保护 `~/.config/brute/brute.db`。
 
 ### Workspace
 

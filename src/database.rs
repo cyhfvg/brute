@@ -1,6 +1,10 @@
 //! SQLite-backed workspace and credential storage.
 
-use std::{env, fs, path::PathBuf, time::Duration};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use anyhow::{Context, Result, bail};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -101,18 +105,40 @@ impl CredentialDatabase {
         Ok((database, initialized))
     }
 
-    /// Opens or creates the SQLite database and applies the schema.
+    /// Opens or creates the SQLite database and restricts Unix store permissions.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Database file path. Missing parent directories are created.
+    ///
+    /// # Returns
+    ///
+    /// An open [`CredentialDatabase`]. On Unix a parent directory created by this
+    /// call is `0o700`. An existing private parent loses mode bits outside `0o700`.
+    /// Shared parents such as `/tmp` are left unchanged. A new database file is
+    /// `0o600`; an existing file loses mode bits outside `0o600`. Windows skips
+    /// Unix mode bits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the parent directory cannot be created, permissions
+    /// cannot be applied, or the SQLite schema cannot be initialized.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let database = CredentialDatabase::open("/tmp/brute-store/brute.db")?;
+    /// ```
     pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
         let database = Self { path: path.into() };
-        if let Some(parent) = database.path.parent() {
-            fs::create_dir_all(parent).with_context(|| {
-                format!("failed to create database directory: {}", parent.display())
-            })?;
-        }
+        let created_dir = prepare_store_directory(&database.path)?;
+        restrict_store_directory(&database.path, created_dir)?;
+        let created_file = !database.path.exists();
         let conn = database.connect()?;
         database.init_schema(&conn)?;
         database.ensure_workspace(&conn, DEFAULT_WORKSPACE)?;
         database.ensure_current_workspace(&conn)?;
+        restrict_database_file(&database.path, created_file)?;
         Ok(database)
     }
 
@@ -523,6 +549,143 @@ fn query_saved(
         .map_err(Into::into)
 }
 
+/// Creates the database parent directory when the path has one.
+///
+/// # Parameters
+///
+/// - `path`: Database file path.
+///
+/// # Returns
+///
+/// `true` when this call created the immediate parent directory.
+///
+/// # Errors
+///
+/// Returns an error when `create_dir_all` fails.
+///
+/// # Examples
+///
+/// ```ignore
+/// let created = prepare_store_directory(Path::new("/tmp/brute-store/brute.db"))?;
+/// ```
+fn prepare_store_directory(path: &Path) -> Result<bool> {
+    let Some(parent) = store_parent(path) else {
+        return Ok(false);
+    };
+    let created = !parent.exists();
+    fs::create_dir_all(parent)
+        .with_context(|| format!("failed to create database directory: {}", parent.display()))?;
+    Ok(created)
+}
+
+/// Applies owner-only permissions to the credential-store directory on Unix.
+///
+/// # Parameters
+///
+/// - `path`: Database file path whose immediate parent may be restricted.
+/// - `created`: Whether this process just created that parent.
+///
+/// # Returns
+///
+/// Nothing. Shared directories such as the process temp dir are skipped.
+///
+/// # Errors
+///
+/// Returns an error when reading or setting the directory mode fails.
+///
+/// # Examples
+///
+/// ```ignore
+/// restrict_store_directory(Path::new("/tmp/brute-store/brute.db"), true)?;
+/// ```
+fn restrict_store_directory(path: &Path, created: bool) -> Result<()> {
+    let Some(parent) = store_parent(path) else {
+        return Ok(());
+    };
+    if !created && is_shared_directory(parent) {
+        return Ok(());
+    }
+    apply_unix_mode(parent, 0o700, created)
+}
+
+/// Applies owner-only permissions to the database file and SQLite sidecars.
+///
+/// # Parameters
+///
+/// - `path`: Database file path.
+/// - `created`: Whether the file did not exist before this open.
+///
+/// # Returns
+///
+/// Nothing. Missing sidecars are ignored.
+///
+/// # Errors
+///
+/// Returns an error when reading or setting a file mode fails.
+///
+/// # Examples
+///
+/// ```ignore
+/// restrict_database_file(Path::new("/tmp/brute-store/brute.db"), true)?;
+/// ```
+fn restrict_database_file(path: &Path, created: bool) -> Result<()> {
+    apply_unix_mode(path, 0o600, created)?;
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = sidecar_path(path, suffix);
+        if sidecar.exists() {
+            apply_unix_mode(&sidecar, 0o600, false)?;
+        }
+    }
+    Ok(())
+}
+
+fn store_parent(path: &Path) -> Option<&Path> {
+    path.parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+}
+
+fn is_shared_directory(path: &Path) -> bool {
+    if path == Path::new("/") {
+        return true;
+    }
+    if path == env::temp_dir() {
+        return true;
+    }
+    matches!(
+        path.to_str(),
+        Some("/tmp" | "/var/tmp" | "/dev/shm" | "/private/tmp")
+    )
+}
+
+fn sidecar_path(path: &Path, suffix: &str) -> PathBuf {
+    let mut owned = path.as_os_str().to_os_string();
+    owned.push(suffix);
+    PathBuf::from(owned)
+}
+
+fn apply_unix_mode(path: &Path, mask: u32, exact: bool) -> Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(path)
+            .with_context(|| format!("failed to read permissions: {}", path.display()))?;
+        let current = metadata.permissions().mode() & 0o777;
+        let next = if exact { mask } else { current & mask };
+        if next != current {
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(next);
+            fs::set_permissions(path, permissions)
+                .with_context(|| format!("failed to set permissions on {}", path.display()))?;
+        }
+        Ok(())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, mask, exact);
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs, path::PathBuf, time::SystemTime};
@@ -648,5 +811,61 @@ mod tests {
             joined,
             PathBuf::from("/home/example/.config/brute/brute.db")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn open_restricts_private_store_and_leaves_shared_temp_dir() -> Result<()> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let private = std::env::temp_dir().join(format!(
+            "brute-store-{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("system time before unix epoch")
+                .as_nanos()
+        ));
+        fs::create_dir(&private)?;
+        let mut loose_dir = fs::metadata(&private)?.permissions();
+        loose_dir.set_mode(0o755);
+        fs::set_permissions(&private, loose_dir)?;
+        let existing = private.join("creds.sqlite");
+        fs::write(&existing, [])?;
+        let mut loose_file = fs::metadata(&existing)?.permissions();
+        loose_file.set_mode(0o644);
+        fs::set_permissions(&existing, loose_file)?;
+
+        let _database = CredentialDatabase::open(&existing)?;
+        assert_eq!(unix_mode(&private), 0o700);
+        assert_eq!(unix_mode(&existing), 0o600);
+
+        let fresh_parent = std::env::temp_dir().join(format!(
+            "brute-store-fresh-{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("system time before unix epoch")
+                .as_nanos()
+        ));
+        let fresh = fresh_parent.join("brute.db");
+        let _created = CredentialDatabase::open(&fresh)?;
+        assert_eq!(unix_mode(&fresh_parent), 0o700);
+        assert_eq!(unix_mode(&fresh), 0o600);
+
+        let shared = temp_database_path();
+        let temp_before = unix_mode(&std::env::temp_dir());
+        let _shared_db = CredentialDatabase::open(&shared)?;
+        assert_eq!(unix_mode(&shared), 0o600);
+        assert_eq!(unix_mode(&std::env::temp_dir()), temp_before);
+
+        let _ = fs::remove_dir_all(&private);
+        let _ = fs::remove_dir_all(&fresh_parent);
+        let _ = fs::remove_file(shared);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn unix_mode(path: &std::path::Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt;
+        fs::metadata(path).expect("metadata").permissions().mode() & 0o777
     }
 }

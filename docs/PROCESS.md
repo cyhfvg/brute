@@ -159,7 +159,7 @@ HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`t
 
 ### 凭据数据库
 
-`database.rs` 使用 SQLite 保存成功凭据。数据库固定路径为 `~/.config/brute/brute.db`（与 XDG 风格配置目录一致，集中在 `~/.config/brute/` 下）。启动时会检测数据库是否存在；不存在时创建父目录、初始化 schema 和默认 workspace，并输出初始化提示；存在时静默打开。Schema 包含：
+`database.rs` 使用 SQLite 保存成功凭据。数据库固定路径为 `~/.config/brute/brute.db`（与 XDG 风格配置目录一致，集中在 `~/.config/brute/` 下）。启动时会检测数据库是否存在；不存在时创建父目录、初始化 schema 和默认 workspace，并输出初始化提示；存在时静默打开。Unix 上本次创建的父目录为 `0700`，已有私有父目录会去掉 `0700` 以外的权限位；`/tmp` 等共享目录不改。新建数据库文件为 `0600`，已有文件去掉 `0600` 以外的权限位，SQLite 的 `-wal`/`-shm` 同样收紧。Windows 不设置 Unix 权限位。Schema 包含：
 
 - `workspaces`: 保存 workspace 名称与 `is_current` 标识，默认 workspace 为 `default`
 - `credentials`: 保存 `id`、`workspace_id`、`protocol`、`host`、`port`、`username`、`password`、`conn_url` 和时间戳

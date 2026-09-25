@@ -37,6 +37,7 @@
 - Ctrl-C and MCP request cancellation share one `CancellationToken`. In-flight attempts stop at delay, retry backoff, async I/O, and blocking waits. A per-target child token stops only that target after the first success unless `--continue-on-success` is set. Timed-out or cancelled blocking work keeps its proxy bridge until the blocking function returns.
 - Target probes overlap credential spray. A probe no longer serially blocks attempts and does not filter targets.
 - Spray reports retain successes and count failures, lockouts, and errors. Non-success records are streamed to the CLI reporter and are not returned as a bulk `attempts` array.
+- Unix credential-store permissions: a directory created for the database is `0700`, an existing private parent loses bits outside `0700`, and shared parents such as `/tmp` are unchanged. New database files are `0600`; existing files and SQLite sidecars lose bits outside `0600`. Windows skips Unix mode bits.
 
 ## Completed Protocol Work
 
