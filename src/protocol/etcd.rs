@@ -7,8 +7,12 @@ use async_trait::async_trait;
 use reqwest::{StatusCode, header};
 
 use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    attempt_http_client, credentials_absent, http_attempt_url, http_service_url, http_target_url,
+    target_http_client,
+};
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// etcd module configuration.
@@ -67,9 +71,8 @@ impl BruteModule for EtcdModule {
 
 /// Runs one etcd login or unauthorized KV probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| err.to_string())?;
+    let unauthenticated = credentials_absent(ctx);
+    let client = attempt_http_client(ctx).map_err(|err| err.to_string())?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
     let token = if unauthenticated {
         kv_range(&client, ctx.url_scheme, &ctx.target_host, port, None).await?;
@@ -80,7 +83,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     let message = success_message(unauthenticated);
     if let Some(command) = ctx.execute.as_deref() {
         let path = execute_path(command);
-        let url = api_url(ctx.url_scheme, &ctx.target_host, port, &path);
+        let url = http_attempt_url(ctx, &path);
         let mut req = if path.contains("/v3/") {
             client
                 .post(&url)
@@ -112,7 +115,7 @@ async fn authenticate(
     port: u16,
     ctx: &AttemptContext,
 ) -> Result<String, String> {
-    let url = api_url(ctx.url_scheme, host, port, "/v3/auth/authenticate");
+    let url = http_service_url(ctx.url_scheme, host, port, "/v3/auth/authenticate");
     let body = serde_json::json!({
         "name": ctx.credential.username.as_deref().unwrap_or(""),
         "password": ctx.credential.password.as_deref().unwrap_or(""),
@@ -171,7 +174,7 @@ async fn kv_range(
     port: u16,
     token: Option<&str>,
 ) -> Result<(), String> {
-    let url = api_url(scheme, host, port, "/v3/kv/range");
+    let url = http_service_url(scheme, host, port, "/v3/kv/range");
     let mut req = client
         .post(&url)
         .header(header::CONTENT_TYPE, "application/json")
@@ -189,34 +192,6 @@ async fn kv_range(
         return Err(format!("kv range {status} {text}"));
     }
     Ok(())
-}
-
-/// Builds `http://host:port{path}` for etcd HTTP.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::etcd::api_url;
-///
-/// assert_eq!(api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 2379, "/version"), "http://10.0.0.5:2379/version");
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into an etcd HTTP path.
@@ -321,9 +296,8 @@ fn is_etcd_error(body: &str) -> bool {
 }
 
 async fn probe_version(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/version");
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/version");
     let response = client.get(&url).send().await.ok()?;
     let body = response.text().await.ok()?;
     parse_version_banner(&body).or(Some("etcd".to_string()))
@@ -337,11 +311,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {

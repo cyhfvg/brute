@@ -1086,7 +1086,8 @@ src/
     redis.rs
     tomcat.rs
     http.rs         # HTTP Basic Auth
-    http_attempt.rs # shared attempt timeout and outcome mapping
+    http_attempt.rs # shared attempt timeout, outcome mapping, and request construction
+    http_request.rs # HTTP client, URL, and Basic Auth construction
 ```
 
 ## Development

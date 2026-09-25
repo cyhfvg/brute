@@ -8,9 +8,11 @@ use openssl::hash::{MessageDigest, hash};
 use reqwest::StatusCode;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, WWW_AUTHENTICATE};
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    credentials_absent, http_attempt_url, http_target_url, open_attempt_client, target_http_client,
+};
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// JBoss attempt errors split auth failures from post-auth command failures.
@@ -64,7 +66,7 @@ impl BruteModule for JbossModule {
         crate::protocol::http_attempt::run_http_attempt(
             ctx.timeout(),
             "jboss",
-            || success_message(is_unauthenticated(ctx)),
+            || success_message(credentials_absent(ctx)),
             attempt_once(ctx),
         )
         .await
@@ -73,11 +75,9 @@ impl BruteModule for JbossModule {
 
 /// Runs one JBoss management probe or Digest login, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, JbossAttemptError> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| JbossAttemptError::Transport(err.to_string()))?;
-    let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/management");
+    let unauthenticated = credentials_absent(ctx);
+    let client = open_attempt_client(ctx)?;
+    let url = http_attempt_url(ctx, "/management");
     let response = client
         .get(&url)
         .send()
@@ -154,12 +154,7 @@ async fn execute_command(
     success_message: &str,
 ) -> Result<AttemptSuccess, JbossAttemptError> {
     let (path, body) = execute_request(command);
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        &path,
-    );
+    let url = http_attempt_url(ctx, &path);
     let first = client
         .post(&url)
         .header(CONTENT_TYPE, "application/json")
@@ -204,37 +199,6 @@ async fn execute_command(
             trim_body(&text)
         )))
     }
-}
-
-/// Builds `http://host:port{path}` for JBoss management HTTP.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::jboss::api_url;
-///
-/// assert_eq!(
-///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 9990, "/management"),
-///     "http://10.0.0.5:9990/management"
-/// );
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Maps `-x` text to a management path and JSON body.
@@ -381,9 +345,8 @@ fn md5_hex(data: &[u8]) -> Result<String, String> {
 }
 
 async fn probe_management(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/management");
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/management");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     if status.is_success() || status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN
@@ -402,11 +365,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {

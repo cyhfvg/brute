@@ -8,9 +8,11 @@ use reqwest::StatusCode;
 use reqwest::header;
 use serde_json::json;
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    credentials_absent, http_attempt_url, http_target_url, open_attempt_client, target_http_client,
+};
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// MinIO attempt errors split auth failures from post-auth command failures.
@@ -64,7 +66,7 @@ impl BruteModule for MinioModule {
         crate::protocol::http_attempt::run_http_attempt(
             ctx.timeout(),
             "minio",
-            || success_message(is_unauthenticated(ctx)),
+            || success_message(credentials_absent(ctx)),
             attempt_once(ctx),
         )
         .await
@@ -73,12 +75,10 @@ impl BruteModule for MinioModule {
 
 /// Runs one MinIO console login, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, MinioAttemptError> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| MinioAttemptError::Transport(err.to_string()))?;
-    let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
+    let unauthenticated = credentials_absent(ctx);
+    let client = open_attempt_client(ctx)?;
 
-    let login_url = api_url(ctx.url_scheme, &ctx.target_host, port, "/api/v1/login");
+    let login_url = http_attempt_url(ctx, "/api/v1/login");
     let body = json!({
         "accessKey": ctx.credential.username.as_deref().unwrap_or(""),
         "secretKey": ctx.credential.password.as_deref().unwrap_or(""),
@@ -130,12 +130,7 @@ async fn execute_command(
     success_message: &str,
 ) -> Result<AttemptSuccess, MinioAttemptError> {
     let path = execute_path(command);
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        &path,
-    );
+    let url = http_attempt_url(ctx, &path);
     let mut request = client.get(&url);
     if !cookie.is_empty() {
         request = request.header(reqwest::header::COOKIE, cookie);
@@ -160,37 +155,6 @@ async fn execute_command(
             trim_body(&body)
         )))
     }
-}
-
-/// Builds `http://host:port{path}` for MinIO HTTP.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::minio::api_url;
-///
-/// assert_eq!(
-///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 9001, "/api/v1/login"),
-///     "http://10.0.0.5:9001/api/v1/login"
-/// );
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a MinIO console path.
@@ -225,11 +189,9 @@ pub fn execute_path(command: &str) -> String {
 }
 
 async fn probe_health(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let port = ctx.port();
+    let client = target_http_client(ctx).ok()?;
     for path in ["/minio/health/live", "/api/v1/login"] {
-        let url = api_url(ctx.url_scheme, &ctx.target_host, port, path);
+        let url = http_target_url(ctx, path);
         if let Ok(response) = client.get(&url).send().await {
             let status = response.status();
             if status.is_success()
@@ -252,11 +214,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {

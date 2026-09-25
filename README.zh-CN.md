@@ -1086,7 +1086,8 @@ src/
     redis.rs
     tomcat.rs
     http.rs         # HTTP Basic Auth
-    http_attempt.rs # 共享的尝试超时与结果映射
+    http_attempt.rs # 共享的尝试超时、结果映射与请求构造
+    http_request.rs # HTTP client、URL 与 Basic Auth 构造
 ```
 
 ## 开发

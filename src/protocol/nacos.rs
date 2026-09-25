@@ -8,9 +8,11 @@ use reqwest::StatusCode;
 use reqwest::header;
 use serde_json::Value;
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    credentials_absent, http_attempt_url, http_target_url, open_attempt_client, target_http_client,
+};
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// Nacos attempt errors split auth failures from post-auth command failures.
@@ -64,7 +66,7 @@ impl BruteModule for NacosModule {
         crate::protocol::http_attempt::run_http_attempt(
             ctx.timeout(),
             "nacos",
-            || success_message(is_unauthenticated(ctx)),
+            || success_message(credentials_absent(ctx)),
             attempt_once(ctx),
         )
         .await
@@ -73,15 +75,11 @@ impl BruteModule for NacosModule {
 
 /// Runs one Nacos login or anonymous probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, NacosAttemptError> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| NacosAttemptError::Transport(err.to_string()))?;
-    let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
+    let unauthenticated = credentials_absent(ctx);
+    let client = open_attempt_client(ctx)?;
     let token = if unauthenticated {
-        let url = api_url(
-            ctx.url_scheme,
-            &ctx.target_host,
-            port,
+        let url = http_attempt_url(
+            ctx,
             "/nacos/v1/cs/configs?search=accurate&dataId=&group=&pageNo=1&pageSize=1",
         );
         let response = client
@@ -106,12 +104,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, NacosAttem
         }
         None
     } else {
-        let url = api_url(
-            ctx.url_scheme,
-            &ctx.target_host,
-            port,
-            "/nacos/v1/auth/login",
-        );
+        let url = http_attempt_url(ctx, "/nacos/v1/auth/login");
         let form = format!(
             "username={}&password={}",
             encode_form_component(ctx.credential.username.as_deref().unwrap_or("")),
@@ -159,12 +152,7 @@ async fn execute_command(
     success_message: &str,
 ) -> Result<AttemptSuccess, NacosAttemptError> {
     let path = execute_path(command);
-    let mut url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        &path,
-    );
+    let mut url = http_attempt_url(ctx, &path);
     if let Some(token) = token {
         let sep = if url.contains('?') { '&' } else { '?' };
         url.push_str(&format!(
@@ -193,37 +181,6 @@ async fn execute_command(
             trim_body(&body)
         )))
     }
-}
-
-/// Builds `http://host:port{path}` for Nacos HTTP.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::nacos::api_url;
-///
-/// assert_eq!(
-///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8848, "/nacos/v1/auth/login"),
-///     "http://10.0.0.5:8848/nacos/v1/auth/login"
-/// );
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a Nacos API path.
@@ -335,14 +292,8 @@ pub fn is_nacos_auth_error(status: StatusCode, body: &str) -> bool {
 }
 
 async fn probe_health(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.port(),
-        "/nacos/v1/console/health/readiness",
-    );
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/nacos/v1/console/health/readiness");
     let response = client.get(&url).send().await.ok()?;
     if response.status().is_success()
         || response.status() == StatusCode::UNAUTHORIZED
@@ -396,11 +347,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {

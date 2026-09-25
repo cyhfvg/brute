@@ -4,11 +4,14 @@
 //! Non-empty credentials use HTTP Basic Auth.
 
 use async_trait::async_trait;
-use reqwest::StatusCode;
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    classify_basic_status, credentials_absent, http_attempt_url, http_target_url,
+    open_attempt_client, target_http_client, with_basic_auth,
+};
+use super::http_auth::HttpForbiddenPolicy;
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// InfluxDB attempt errors split auth failures from post-auth command failures.
@@ -62,7 +65,7 @@ impl BruteModule for InfluxDbModule {
         crate::protocol::http_attempt::run_http_attempt(
             ctx.timeout(),
             "influxdb",
-            || success_message(is_unauthenticated(ctx)),
+            || success_message(credentials_absent(ctx)),
             attempt_once(ctx),
         )
         .await
@@ -71,65 +74,33 @@ impl BruteModule for InfluxDbModule {
 
 /// Runs one InfluxDB login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, InfluxAttemptError> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| InfluxAttemptError::Transport(err.to_string()))?;
-    let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        port,
-        "/query?q=SHOW%20DATABASES",
-    );
+    let unauthenticated = credentials_absent(ctx);
+    let client = open_attempt_client(ctx)?;
+    let url = http_attempt_url(ctx, "/query?q=SHOW%20DATABASES");
     let mut request = client.get(&url);
-    if !unauthenticated {
-        request = request.basic_auth(
-            ctx.credential.username.as_deref().unwrap_or(""),
-            Some(ctx.credential.password.as_deref().unwrap_or("")),
-        );
-    }
+    request = with_basic_auth(request, ctx);
     let response = request
         .send()
         .await
         .map_err(|err| InfluxAttemptError::Transport(err.to_string()))?;
-    classify_status(response.status())?;
+    classify_basic_status(response.status(), HttpForbiddenPolicy::AuthFailure)?;
     let message = success_message(unauthenticated);
     match ctx.execute.as_deref() {
-        Some(command) => execute_command(&client, ctx, command, unauthenticated, message).await,
+        Some(command) => execute_command(&client, ctx, command, message).await,
         None => Ok(AttemptSuccess::new(message)),
     }
-}
-
-fn classify_status(status: StatusCode) -> Result<(), InfluxAttemptError> {
-    super::http_auth::require_http_auth(
-        status,
-        super::http_auth::HttpForbiddenPolicy::AuthFailure,
-        || InfluxAttemptError::Auth("invalid username or password".to_string()),
-        |status| InfluxAttemptError::Transport(format!("unexpected HTTP status: {status}")),
-    )
 }
 
 async fn execute_command(
     client: &reqwest::Client,
     ctx: &AttemptContext,
     command: &str,
-    unauthenticated: bool,
     success_message: &str,
 ) -> Result<AttemptSuccess, InfluxAttemptError> {
     let path = execute_path(command);
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        &path,
-    );
+    let url = http_attempt_url(ctx, &path);
     let mut request = client.get(&url);
-    if !unauthenticated {
-        request = request.basic_auth(
-            ctx.credential.username.as_deref().unwrap_or(""),
-            Some(ctx.credential.password.as_deref().unwrap_or("")),
-        );
-    }
+    request = with_basic_auth(request, ctx);
     let response = request
         .send()
         .await
@@ -150,37 +121,6 @@ async fn execute_command(
             trim_body(&body)
         )))
     }
-}
-
-/// Builds `http://host:port{path}` for InfluxDB HTTP.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path or query.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::influxdb::api_url;
-///
-/// assert_eq!(
-///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8086, "/ping"),
-///     "http://10.0.0.5:8086/ping"
-/// );
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into an InfluxDB HTTP path.
@@ -217,9 +157,8 @@ pub fn execute_path(command: &str) -> String {
 }
 
 async fn probe_ping(ctx: &TargetContext) -> Option<()> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/ping");
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/ping");
     let response = client.get(&url).send().await.ok()?;
     response.status().is_success().then_some(())
 }
@@ -232,11 +171,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {

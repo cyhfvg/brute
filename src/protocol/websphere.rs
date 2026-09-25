@@ -8,11 +8,11 @@ use async_trait::async_trait;
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{
-    build_http_basic_client, build_http_no_redirect_client, normalize_path,
-};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    http_attempt_url, http_target_url, open_attempt_client_no_redirect, target_http_client,
+};
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// WebSphere attempt errors split auth failures from post-auth command failures.
@@ -75,18 +75,10 @@ impl BruteModule for WebsphereModule {
 
 /// Runs one WebSphere console login, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, WebsphereAttemptError> {
-    let client =
-        build_http_no_redirect_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-            .map_err(|err| WebsphereAttemptError::Transport(err.to_string()))?;
-    let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
+    let client = open_attempt_client_no_redirect(ctx)?;
     let username = ctx.credential.username.as_deref().unwrap_or("");
     let password = ctx.credential.password.as_deref().unwrap_or("");
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        port,
-        "/ibm/console/j_security_check",
-    );
+    let url = http_attempt_url(ctx, "/ibm/console/j_security_check");
     let form = format!(
         "j_username={}&j_password={}",
         encode_form(username),
@@ -140,12 +132,7 @@ async fn execute_command(
     cookie: &str,
 ) -> Result<AttemptSuccess, WebsphereAttemptError> {
     let path = execute_path(command);
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        &path,
-    );
+    let url = http_attempt_url(ctx, &path);
     let mut request = client.get(&url);
     if !cookie.is_empty() {
         request = request.header(reqwest::header::COOKIE, cookie);
@@ -170,37 +157,6 @@ async fn execute_command(
             trim_body(&body)
         )))
     }
-}
-
-/// Builds `https://host:port{path}` for the WebSphere admin console.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Console port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::websphere::api_url;
-///
-/// assert_eq!(
-///     api_url(brute::cli::HttpUrlScheme::Https, "10.0.0.5", 9043, "/ibm/console/"),
-///     "https://10.0.0.5:9043/ibm/console/"
-/// );
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into an admin console path.
@@ -260,14 +216,8 @@ fn encode_form(input: &str) -> String {
 }
 
 async fn probe_logon(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.port(),
-        "/ibm/console/logon.jsp",
-    );
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/ibm/console/logon.jsp");
     let response = client.get(&url).send().await.ok()?;
     if response.status().is_success() || response.status() == StatusCode::FORBIDDEN {
         Some("WebSphere".to_string())

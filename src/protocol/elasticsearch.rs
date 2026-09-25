@@ -6,9 +6,13 @@
 use async_trait::async_trait;
 use reqwest::StatusCode;
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    classify_basic_status, credentials_absent, http_attempt_url, http_target_url,
+    open_attempt_client, target_http_client, with_basic_auth,
+};
+use super::http_auth::HttpForbiddenPolicy;
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// Elasticsearch attempt errors split auth failures from post-auth command failures.
@@ -62,7 +66,7 @@ impl BruteModule for ElasticsearchModule {
         crate::protocol::http_attempt::run_http_attempt(
             ctx.timeout(),
             "elasticsearch",
-            || success_message(is_unauthenticated(ctx)),
+            || success_message(credentials_absent(ctx)),
             attempt_once(ctx),
         )
         .await
@@ -90,55 +94,22 @@ impl BruteModule for ElasticsearchModule {
 /// let success = attempt_once(&ctx).await?;
 /// ```
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, EsAttemptError> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| EsAttemptError::Transport(err.to_string()))?;
-    let url = cluster_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        "/",
-    );
+    let unauthenticated = credentials_absent(ctx);
+    let client = open_attempt_client(ctx)?;
+    let url = http_attempt_url(ctx, "/");
     let mut request = client.get(&url);
-    if !unauthenticated {
-        request = request.basic_auth(
-            ctx.credential.username.as_deref().unwrap_or(""),
-            Some(ctx.credential.password.as_deref().unwrap_or("")),
-        );
-    }
+    request = with_basic_auth(request, ctx);
     let response = request
         .send()
         .await
         .map_err(|err| EsAttemptError::Transport(err.to_string()))?;
-    classify_root_status(response.status())?;
+    classify_basic_status(response.status(), HttpForbiddenPolicy::CredentialHit)?;
 
     let message = success_message(unauthenticated);
     match ctx.execute.as_deref() {
-        Some(command) => execute_es_command(&client, ctx, command, unauthenticated, message).await,
+        Some(command) => execute_es_command(&client, ctx, command, message).await,
         None => Ok(AttemptSuccess::new(message)),
     }
-}
-
-/// Classifies `GET /` status into auth success or failure.
-///
-/// # Parameters
-///
-/// - `status`: HTTP status from the root request.
-///
-/// # Returns
-///
-/// `Ok(())` for 2xx/403.
-///
-/// # Errors
-///
-/// Returns [`EsAttemptError::Auth`] for 401 and [`EsAttemptError::Transport`] otherwise.
-fn classify_root_status(status: StatusCode) -> Result<(), EsAttemptError> {
-    super::http_auth::require_http_auth(
-        status,
-        super::http_auth::HttpForbiddenPolicy::CredentialHit,
-        || EsAttemptError::Auth("invalid username or password".to_string()),
-        |status| EsAttemptError::Transport(format!("unexpected HTTP status: {status}")),
-    )
 }
 
 /// Executes a post-auth Elasticsearch HTTP GET against `-x` as a path.
@@ -148,7 +119,6 @@ fn classify_root_status(status: StatusCode) -> Result<(), EsAttemptError> {
 /// - `client`: Shared reqwest client.
 /// - `ctx`: Target host, port, and credentials.
 /// - `command`: Path such as `_cat/indices` or `/_cluster/health`.
-/// - `unauthenticated`: Whether to omit Basic Auth.
 /// - `success_message`: Login banner.
 ///
 /// # Returns
@@ -162,23 +132,12 @@ async fn execute_es_command(
     client: &reqwest::Client,
     ctx: &AttemptContext,
     command: &str,
-    unauthenticated: bool,
     success_message: &str,
 ) -> Result<AttemptSuccess, EsAttemptError> {
     let path = execute_path(command);
-    let url = cluster_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        &path,
-    );
+    let url = http_attempt_url(ctx, &path);
     let mut request = client.get(&url);
-    if !unauthenticated {
-        request = request.basic_auth(
-            ctx.credential.username.as_deref().unwrap_or(""),
-            Some(ctx.credential.password.as_deref().unwrap_or("")),
-        );
-    }
+    request = with_basic_auth(request, ctx);
     let response = request
         .send()
         .await
@@ -199,37 +158,6 @@ async fn execute_es_command(
             trim_body(&body)
         )))
     }
-}
-
-/// Builds `{scheme}://host:port{path}` for Elasticsearch HTTP.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::elasticsearch::cluster_url;
-///
-/// assert_eq!(
-///     cluster_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 9200, "/_cluster/health"),
-///     "http://10.0.0.5:9200/_cluster/health"
-/// );
-/// ```
-pub fn cluster_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into an absolute request path.
@@ -266,9 +194,8 @@ pub fn execute_path(command: &str) -> String {
 
 /// Probes `GET /` without credentials and formats a version banner.
 async fn probe_root(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = cluster_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/");
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     let body = response.text().await.ok()?;
@@ -329,11 +256,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {

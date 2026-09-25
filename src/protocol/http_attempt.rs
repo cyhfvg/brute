@@ -1,13 +1,24 @@
-//! Shared timeout and Auth/Transport/Command mapping for protocol attempts.
+//! Shared timeout, outcome mapping, and HTTP request construction.
 //!
-//! This is not a second 401/403 table. Status classification stays in
-//! [`super::http_auth`]. Callers classify their own error type into
-//! [`HttpAttemptFailure`], then this module maps that class onto the existing
-//! outcome wording.
+//! Client, URL, and Basic Auth construction live in [`super::http_request`]
+//! and are re-exported here. This is not a second 401/403 table. Status
+//! classification stays in [`super::http_auth`]. [`classify_basic_status`]
+//! calls that table with the shared Basic Auth wording. It does not copy the
+//! 2xx/401/403 rules. Callers still map [`HttpAttemptFailure`] onto the
+//! existing outcome wording.
 
 use std::time::Duration;
 
-use super::{AttemptOutcome, AttemptSuccess};
+use reqwest::StatusCode;
+
+use super::http::build_http_no_redirect_client;
+use super::http_auth::{HttpForbiddenPolicy, require_http_auth};
+use super::{AttemptContext, AttemptOutcome, AttemptSuccess};
+
+pub use super::http_request::{
+    attempt_http_client, credentials_absent, http_attempt_url, http_service_url, http_target_url,
+    target_http_client, with_basic_auth,
+};
 
 /// Classified failure from one protocol attempt.
 ///
@@ -124,10 +135,142 @@ where
     }
 }
 
+/// Maps a client build failure onto [`HttpAttemptFailure::Transport`].
+///
+/// # Parameters
+///
+/// - `result`: `reqwest` client builder result.
+///
+/// # Returns
+///
+/// The built client.
+///
+/// # Errors
+///
+/// Returns [`HttpAttemptFailure::Transport`] with `err.to_string()` when the
+/// client cannot be built.
+///
+/// # Examples
+///
+/// ```ignore
+/// let client = client_build_failure(attempt_http_client(ctx))?;
+/// ```
+fn client_build_failure(
+    result: Result<reqwest::Client, reqwest::Error>,
+) -> Result<reqwest::Client, HttpAttemptFailure> {
+    result.map_err(|err| HttpAttemptFailure::Transport(err.to_string()))
+}
+
+/// Builds the attempt client and maps build failure to Transport.
+///
+/// # Parameters
+///
+/// - `ctx`: Attempt timeout, scheme, and proxy.
+///
+/// # Returns
+///
+/// Configured client.
+///
+/// # Errors
+///
+/// Returns [`HttpAttemptFailure::Transport`] with `err.to_string()`.
+///
+/// # Examples
+///
+/// ```ignore
+/// let client = open_attempt_client(ctx)?;
+/// ```
+pub fn open_attempt_client(ctx: &AttemptContext) -> Result<reqwest::Client, HttpAttemptFailure> {
+    client_build_failure(attempt_http_client(ctx))
+}
+
+/// Builds a no-redirect attempt client and maps build failure to Transport.
+///
+/// Form-login modules inspect `Location` and `Set-Cookie`, so redirects stay
+/// visible.
+///
+/// # Parameters
+///
+/// - `ctx`: Attempt timeout, scheme, and proxy.
+///
+/// # Returns
+///
+/// Client that does not follow redirects.
+///
+/// # Errors
+///
+/// Returns [`HttpAttemptFailure::Transport`] with `err.to_string()`.
+///
+/// # Examples
+///
+/// ```ignore
+/// let client = open_attempt_client_no_redirect(ctx)?;
+/// ```
+pub fn open_attempt_client_no_redirect(
+    ctx: &AttemptContext,
+) -> Result<reqwest::Client, HttpAttemptFailure> {
+    client_build_failure(build_http_no_redirect_client(
+        ctx.timeout(),
+        ctx.url_scheme,
+        ctx.target.proxy.as_ref(),
+    ))
+}
+
+/// Classifies a Basic Auth HTTP status with the shared wording.
+///
+/// Calls [`require_http_auth`]. It does not reimplement the 2xx/401/403 table.
+///
+/// # Parameters
+///
+/// - `status`: Response status.
+/// - `policy`: How HTTP 403 is classified for this protocol.
+///
+/// # Returns
+///
+/// `Ok(())` when the status is a credential hit.
+///
+/// # Errors
+///
+/// Returns [`HttpAttemptFailure::Auth`] with `invalid username or password`,
+/// or [`HttpAttemptFailure::Transport`] with `unexpected HTTP status: {status}`.
+///
+/// # Examples
+///
+/// ```
+/// use brute::protocol::http_attempt::{HttpAttemptFailure, classify_basic_status};
+/// use brute::protocol::http_auth::HttpForbiddenPolicy;
+/// use reqwest::StatusCode;
+///
+/// let err = classify_basic_status(StatusCode::UNAUTHORIZED, HttpForbiddenPolicy::AuthFailure)
+///     .expect_err("401 is an auth failure");
+/// assert_eq!(
+///     err,
+///     HttpAttemptFailure::Auth("invalid username or password".to_string())
+/// );
+/// ```
+pub fn classify_basic_status(
+    status: StatusCode,
+    policy: HttpForbiddenPolicy,
+) -> Result<(), HttpAttemptFailure> {
+    require_http_auth(
+        status,
+        policy,
+        || HttpAttemptFailure::Auth("invalid username or password".to_string()),
+        |status| HttpAttemptFailure::Transport(format!("unexpected HTTP status: {status}")),
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::time::Duration;
+
+    use reqwest::StatusCode;
+
+    use crate::cli::{HttpUrlScheme, Protocol};
     use crate::protocol::PostAuthResult;
+    use crate::protocol::http_auth::HttpForbiddenPolicy;
+
+    use super::*;
 
     #[tokio::test]
     async fn maps_auth_transport_command_and_timeout() {
@@ -212,5 +355,139 @@ mod tests {
             }
             other => panic!("expected timeout, got {other:?}"),
         }
+    }
+
+    fn sample_ctx(
+        username: Option<&str>,
+        password: Option<&str>,
+        port: Option<u16>,
+    ) -> AttemptContext {
+        use crate::cli::{CommonArgs, Protocol};
+        use crate::credentials::CredentialSet;
+
+        AttemptContext {
+            protocol: Protocol::Jenkins,
+            target_host: "10.0.0.5".into(),
+            url_scheme: HttpUrlScheme::Http,
+            target: CommonArgs {
+                targets: vec!["10.0.0.5".into()],
+                usernames: vec!["user".into()],
+                passwords: vec!["pass".into()],
+                credential_id: None,
+                port,
+                threads: 1,
+                retries: 0,
+                timeout_ms: 1000,
+                delay_ms: 0,
+                jitter_ms: 0,
+                continue_on_success: false,
+                proxy: None,
+            },
+            path: None,
+            execute: None,
+            credential: CredentialSet {
+                username: username.map(str::to_string),
+                password: password.map(str::to_string),
+                service_name: None,
+                sid: None,
+            },
+        }
+    }
+
+    #[test]
+    fn basic_auth_header_and_status_wording_stay_shared() {
+        use reqwest::header::AUTHORIZATION;
+
+        let client = reqwest::Client::new();
+        let empty = sample_ctx(None, None, Some(8080));
+        let authed = sample_ctx(Some("user"), Some("pass"), Some(8080));
+        let bare = client
+            .get("http://127.0.0.1/")
+            .build()
+            .expect("request builds");
+        let omitted = with_basic_auth(client.get("http://127.0.0.1/"), &empty)
+            .build()
+            .expect("request builds");
+        assert_eq!(
+            omitted.headers().get(AUTHORIZATION),
+            bare.headers().get(AUTHORIZATION)
+        );
+        assert!(omitted.headers().get(AUTHORIZATION).is_none());
+
+        let applied = with_basic_auth(client.get("http://127.0.0.1/"), &authed)
+            .build()
+            .expect("request builds");
+        let manual = client
+            .get("http://127.0.0.1/")
+            .basic_auth("user", Some("pass"))
+            .build()
+            .expect("request builds");
+        assert_eq!(
+            applied.headers().get(AUTHORIZATION),
+            manual.headers().get(AUTHORIZATION)
+        );
+
+        let password_only = sample_ctx(Some(""), Some("x"), Some(8080));
+        let password_header = with_basic_auth(client.get("http://127.0.0.1/"), &password_only)
+            .build()
+            .expect("request builds");
+        let password_manual = client
+            .get("http://127.0.0.1/")
+            .basic_auth("", Some("x"))
+            .build()
+            .expect("request builds");
+        assert_eq!(
+            password_header.headers().get(AUTHORIZATION),
+            password_manual.headers().get(AUTHORIZATION)
+        );
+
+        assert!(credentials_absent(&empty));
+        assert!(!credentials_absent(&authed));
+        assert!(credentials_absent(&sample_ctx(
+            Some(""),
+            Some(""),
+            Some(8080)
+        )));
+        assert!(!credentials_absent(&password_only));
+
+        assert!(classify_basic_status(StatusCode::OK, HttpForbiddenPolicy::AuthFailure).is_ok());
+        assert_eq!(
+            classify_basic_status(StatusCode::UNAUTHORIZED, HttpForbiddenPolicy::CredentialHit),
+            Err(HttpAttemptFailure::Auth(
+                "invalid username or password".to_string()
+            ))
+        );
+        assert!(
+            classify_basic_status(StatusCode::FORBIDDEN, HttpForbiddenPolicy::CredentialHit)
+                .is_ok()
+        );
+        assert_eq!(
+            classify_basic_status(StatusCode::FORBIDDEN, HttpForbiddenPolicy::AuthFailure),
+            Err(HttpAttemptFailure::Auth(
+                "invalid username or password".to_string()
+            ))
+        );
+        assert_eq!(
+            classify_basic_status(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                HttpForbiddenPolicy::AuthFailure
+            ),
+            Err(HttpAttemptFailure::Transport(
+                "unexpected HTTP status: 500 Internal Server Error".to_string()
+            ))
+        );
+        assert_eq!(
+            http_attempt_url(&authed, "/api/json"),
+            "http://10.0.0.5:8080/api/json"
+        );
+        assert_eq!(
+            http_attempt_url(&sample_ctx(None, None, None), "/api/json"),
+            http_service_url(
+                HttpUrlScheme::Http,
+                "10.0.0.5",
+                Protocol::Jenkins.default_port(),
+                "/api/json"
+            )
+        );
     }
 }

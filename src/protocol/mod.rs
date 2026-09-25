@@ -15,6 +15,7 @@ pub mod harbor;
 pub mod http;
 pub mod http_attempt;
 pub mod http_auth;
+pub mod http_request;
 pub mod influxdb;
 pub mod jboss;
 pub mod jenkins;
@@ -128,6 +129,21 @@ impl AttemptContext {
     /// Returns the timeout configured for this attempt.
     pub fn timeout(&self) -> Duration {
         Duration::from_millis(self.target.timeout_ms)
+    }
+
+    /// Returns the effective service port for this attempt.
+    ///
+    /// # Returns
+    ///
+    /// CLI `--port` when set, otherwise the protocol default.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let port = ctx.port();
+    /// ```
+    pub fn port(&self) -> u16 {
+        self.target.port.unwrap_or(self.protocol.default_port())
     }
 }
 

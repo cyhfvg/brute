@@ -7,9 +7,13 @@ use async_trait::async_trait;
 use reqwest::StatusCode;
 use reqwest::header::AUTHORIZATION;
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    classify_basic_status, credentials_absent, http_attempt_url, http_target_url,
+    open_attempt_client, target_http_client,
+};
+use super::http_auth::HttpForbiddenPolicy;
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// Kubelet attempt errors split auth failures from post-auth command failures.
@@ -63,7 +67,7 @@ impl BruteModule for KubeletModule {
         crate::protocol::http_attempt::run_http_attempt(
             ctx.timeout(),
             "kubelet",
-            || success_message(is_unauthenticated(ctx)),
+            || success_message(credentials_absent(ctx)),
             attempt_once(ctx),
         )
         .await
@@ -72,11 +76,9 @@ impl BruteModule for KubeletModule {
 
 /// Runs one kubelet login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, KubeletAttemptError> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| KubeletAttemptError::Transport(err.to_string()))?;
-    let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/runningpods/");
+    let unauthenticated = credentials_absent(ctx);
+    let client = open_attempt_client(ctx)?;
+    let url = http_attempt_url(ctx, "/runningpods/");
     let mut request = client.get(&url);
     if !unauthenticated {
         request = authorize(request, ctx);
@@ -85,7 +87,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, KubeletAtt
         .send()
         .await
         .map_err(|err| KubeletAttemptError::Transport(err.to_string()))?;
-    classify_status(response.status())?;
+    classify_basic_status(response.status(), HttpForbiddenPolicy::CredentialHit)?;
     let message = success_message(unauthenticated);
     match ctx.execute.as_deref() {
         Some(command) => execute_command(&client, ctx, command, unauthenticated, message).await,
@@ -102,14 +104,6 @@ fn authorize(request: reqwest::RequestBuilder, ctx: &AttemptContext) -> reqwest:
         request.basic_auth(username, Some(password))
     }
 }
-fn classify_status(status: StatusCode) -> Result<(), KubeletAttemptError> {
-    super::http_auth::require_http_auth(
-        status,
-        super::http_auth::HttpForbiddenPolicy::CredentialHit,
-        || KubeletAttemptError::Auth("invalid username or password".to_string()),
-        |status| KubeletAttemptError::Transport(format!("unexpected HTTP status: {status}")),
-    )
-}
 
 async fn execute_command(
     client: &reqwest::Client,
@@ -119,12 +113,7 @@ async fn execute_command(
     success_message: &str,
 ) -> Result<AttemptSuccess, KubeletAttemptError> {
     let path = execute_path(command);
-    let url = api_url(
-        ctx.url_scheme,
-        &ctx.target_host,
-        ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-        &path,
-    );
+    let url = http_attempt_url(ctx, &path);
     let mut request = client.get(&url);
     if !unauthenticated {
         request = authorize(request, ctx);
@@ -149,37 +138,6 @@ async fn execute_command(
             trim_body(&body)
         )))
     }
-}
-
-/// Builds `https://host:port{path}` for kubelet HTTPS.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::kubelet::api_url;
-///
-/// assert_eq!(
-///     api_url(brute::cli::HttpUrlScheme::Https, "10.0.0.5", 10250, "/healthz"),
-///     "https://10.0.0.5:10250/healthz"
-/// );
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a kubelet path.
@@ -215,9 +173,8 @@ pub fn execute_path(command: &str) -> String {
 }
 
 async fn probe_healthz(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/healthz");
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/healthz");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     if status.is_success() || status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN
@@ -236,11 +193,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {

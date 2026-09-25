@@ -6,9 +6,12 @@
 use async_trait::async_trait;
 use reqwest::header;
 
-use crate::cli::HttpUrlScheme;
-use crate::protocol::http::{build_http_basic_client, normalize_path};
+use crate::protocol::http::normalize_path;
 
+use super::http_attempt::{
+    attempt_http_client, credentials_absent, http_attempt_url, http_service_url, http_target_url,
+    target_http_client,
+};
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, TargetContext};
 
 /// Grafana module configuration.
@@ -90,12 +93,11 @@ impl BruteModule for GrafanaModule {
 /// let success = attempt_once(&ctx).await?;
 /// ```
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
-    let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
-        .map_err(|err| err.to_string())?;
+    let unauthenticated = credentials_absent(ctx);
+    let client = attempt_http_client(ctx).map_err(|err| err.to_string())?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
     let cookie = if unauthenticated {
-        let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/api/org");
+        let url = http_attempt_url(ctx, "/api/org");
         let response = client
             .get(&url)
             .send()
@@ -118,7 +120,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     let message = success_message(unauthenticated);
     if let Some(command) = ctx.execute.as_deref() {
         let path = execute_path(command);
-        let url = api_url(ctx.url_scheme, &ctx.target_host, port, &path);
+        let url = http_attempt_url(ctx, &path);
         let mut req = client.get(&url);
         if let Some(cookie) = cookie.as_deref() {
             req = req.header(header::COOKIE, cookie);
@@ -145,7 +147,7 @@ async fn login(
 ) -> Result<String, String> {
     let user = ctx.credential.username.as_deref().unwrap_or("");
     let pass = ctx.credential.password.as_deref().unwrap_or("");
-    let url = api_url(ctx.url_scheme, host, port, "/login");
+    let url = http_service_url(ctx.url_scheme, host, port, "/login");
     let body = serde_json::json!({ "user": user, "password": pass });
     let response = client
         .post(&url)
@@ -177,37 +179,6 @@ fn cookie_header(headers: &header::HeaderMap) -> String {
         .map(|value| value.split(';').next().unwrap_or(value).to_string())
         .collect::<Vec<_>>()
         .join("; ")
-}
-
-/// Builds `http://host:port{path}` for Grafana HTTP.
-///
-/// # Parameters
-///
-/// - `scheme`: URL scheme (`http` or `https`).
-/// - `host`: Target host.
-/// - `port`: Service port.
-/// - `path`: Absolute path.
-///
-/// # Returns
-///
-/// URL string.
-///
-/// # Errors
-///
-/// This function does not return errors.
-///
-/// # Examples
-///
-/// ```
-/// use brute::protocol::grafana::api_url;
-///
-/// assert_eq!(
-///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 3000, "/api/org"),
-///     "http://10.0.0.5:3000/api/org"
-/// );
-/// ```
-pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
-    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a Grafana API path.
@@ -276,9 +247,8 @@ pub fn parse_health_banner(body: &str) -> Option<String> {
 }
 
 async fn probe_health(ctx: &TargetContext) -> Option<String> {
-    let client =
-        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
-    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/api/health");
+    let client = target_http_client(ctx).ok()?;
+    let url = http_target_url(ctx, "/api/health");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     let body = response.text().await.ok()?;
@@ -300,11 +270,6 @@ fn trim_body(body: &str) -> String {
     } else {
         trimmed.to_string()
     }
-}
-
-fn is_unauthenticated(ctx: &AttemptContext) -> bool {
-    ctx.credential.username.as_deref().unwrap_or("").is_empty()
-        && ctx.credential.password.as_deref().unwrap_or("").is_empty()
 }
 
 fn success_message(unauthenticated: bool) -> &'static str {
