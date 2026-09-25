@@ -17,7 +17,7 @@ Options:
   -h, --help Print this help message.
 
 Checks:
-  bash syntax, rustfmt, clippy, tests, and a debug build.
+  bash syntax, protocol labs stay out of workflows, rustfmt, clippy, tests, and a debug build.
 EOF
 }
 
@@ -70,6 +70,15 @@ main() {
 
     log "checking shell script syntax"
     bash -n "${SCRIPT_DIR}/local_build.sh" "${SCRIPT_DIR}/pre_commit_check.sh"
+
+    log "keeping protocol labs out of CI workflows"
+    local workflow
+    for workflow in "${PROJECT_ROOT}/.github/workflows/"*.yml; do
+        [[ -f "${workflow}" ]] || continue
+        if grep -E -n 'tests/docker|docker-compose|docker compose' "${workflow}"; then
+            die "protocol docker labs must stay out of ${workflow}"
+        fi
+    done
 
     if [[ "${format_mode}" == "write" ]]; then
         log "formatting Rust sources"

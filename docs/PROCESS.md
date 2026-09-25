@@ -222,6 +222,10 @@ Ctrl-C 与 MCP 请求取消共用 `CancellationToken`。取消后不再领取新
 
 （当前无 CLI 预留但未实现的协议占位）
 
+## 协议环境测试
+
+`tests/docker/` 下的协议环境只在本地手动运行。`.github/workflows/ci.yml` 与 `release.yml` 不启动这些环境，也不执行 `docker compose`。`scripts/pre_commit_check.sh` 会拒绝把 `tests/docker`、`docker-compose` 或 `docker compose` 写进 workflow。
+
 ## Release CI
 
 `.github/workflows/release.yml` 在推送 `v*` 标签后矩阵构建并打包发布资产。每个 target 使用对应平台的 GitHub-hosted runner **原生编译**，不做跨 OS 交叉编译：

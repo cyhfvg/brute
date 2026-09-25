@@ -39,6 +39,7 @@
 - Spray reports retain successes and count failures, lockouts, and errors. Non-success records are streamed to the CLI reporter and are not returned as a bulk `attempts` array.
 - Unix credential-store permissions: a directory created for the database is `0700`, an existing private parent loses bits outside `0700`, and shared parents such as `/tmp` are unchanged. New database files are `0600`; existing files and SQLite sidecars lose bits outside `0600`. Windows skips Unix mode bits.
 - Protocol attempt timeout and Auth/Transport/Command outcome wording share `src/protocol/http_attempt.rs`. HTTP 401/403 classification stays in `http_auth.rs`.
+- Protocol Docker labs under `tests/docker/` stay local-only. CI and release workflows do not run them, and `pre_commit_check.sh` rejects workflow references to those labs.
 
 ## Completed Protocol Work
 

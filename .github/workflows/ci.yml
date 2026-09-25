@@ -33,6 +33,7 @@ jobs:
       - name: Lint with clippy
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
+      # Protocol environment labs are local-only. Do not add a compose job here.
       - name: Run tests
         run: cargo test --locked
 
