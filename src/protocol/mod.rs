@@ -66,6 +66,8 @@ pub struct TargetContext {
     pub protocol: Protocol,
     pub target_host: String,
     pub target: CommonArgs,
+    /// URL scheme from `--protocol`, or the protocol default.
+    pub url_scheme: crate::cli::HttpUrlScheme,
 }
 
 impl TargetContext {
@@ -95,6 +97,8 @@ pub struct AttemptContext {
     pub protocol: Protocol,
     pub target_host: String,
     pub target: CommonArgs,
+    /// URL scheme from `--protocol`, or the protocol default.
+    pub url_scheme: crate::cli::HttpUrlScheme,
     pub path: Option<String>,
     pub execute: Option<String>,
     pub credential: CredentialSet,
@@ -106,6 +110,7 @@ impl From<&AttemptContext> for TargetContext {
             protocol: ctx.protocol,
             target_host: ctx.target_host.clone(),
             target: ctx.target.clone(),
+            url_scheme: ctx.url_scheme,
         }
     }
 }

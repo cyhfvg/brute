@@ -49,7 +49,7 @@ pub struct SprayRequest {
     pub execute: Option<String>,
     /// HTTP/Tomcat request path.
     pub path: Option<String>,
-    /// HTTP URL scheme; ignored by other protocols.
+    /// HTTP URL scheme. Non-HTTP protocols keep `http`. Omitted values use `https` for kubelet and websphere.
     pub url_scheme: HttpUrlScheme,
     /// Oracle Service Name literals or wordlist paths.
     pub service_names: Vec<String>,
@@ -439,10 +439,7 @@ impl SprayRequest {
             ProtocolArgs::Oracle(oracle) => (oracle.service_name.clone(), oracle.sid.clone()),
             _ => (Vec::new(), Vec::new()),
         };
-        let url_scheme = match args {
-            ProtocolArgs::Http(http) => http.url_scheme,
-            _ => HttpUrlScheme::Http,
-        };
+        let url_scheme = args.url_scheme();
         Self {
             protocol: args.protocol(),
             targets: common.targets.clone(),

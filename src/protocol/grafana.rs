@@ -91,15 +91,11 @@ impl BruteModule for GrafanaModule {
 /// ```
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| err.to_string())?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| err.to_string())?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
     let cookie = if unauthenticated {
-        let url = api_url(&ctx.target_host, port, "/api/org");
+        let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/api/org");
         let response = client
             .get(&url)
             .send()
@@ -122,7 +118,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     let message = success_message(unauthenticated);
     if let Some(command) = ctx.execute.as_deref() {
         let path = execute_path(command);
-        let url = api_url(&ctx.target_host, port, &path);
+        let url = api_url(ctx.url_scheme, &ctx.target_host, port, &path);
         let mut req = client.get(&url);
         if let Some(cookie) = cookie.as_deref() {
             req = req.header(header::COOKIE, cookie);
@@ -149,7 +145,7 @@ async fn login(
 ) -> Result<String, String> {
     let user = ctx.credential.username.as_deref().unwrap_or("");
     let pass = ctx.credential.password.as_deref().unwrap_or("");
-    let url = api_url(host, port, "/login");
+    let url = api_url(ctx.url_scheme, host, port, "/login");
     let body = serde_json::json!({ "user": user, "password": pass });
     let response = client
         .post(&url)
@@ -187,6 +183,7 @@ fn cookie_header(headers: &header::HeaderMap) -> String {
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -205,12 +202,12 @@ fn cookie_header(headers: &header::HeaderMap) -> String {
 /// use brute::protocol::grafana::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 3000, "/api/org"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 3000, "/api/org"),
 ///     "http://10.0.0.5:3000/api/org"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a Grafana API path.
@@ -279,13 +276,9 @@ pub fn parse_health_banner(body: &str) -> Option<String> {
 }
 
 async fn probe_health(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/api/health");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/api/health");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     let body = response.text().await.ok()?;

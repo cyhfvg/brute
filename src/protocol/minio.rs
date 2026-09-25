@@ -91,15 +91,11 @@ impl BruteModule for MinioModule {
 /// Runs one MinIO console login, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, MinioAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| MinioAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| MinioAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
 
-    let login_url = api_url(&ctx.target_host, port, "/api/v1/login");
+    let login_url = api_url(ctx.url_scheme, &ctx.target_host, port, "/api/v1/login");
     let body = json!({
         "accessKey": ctx.credential.username.as_deref().unwrap_or(""),
         "secretKey": ctx.credential.password.as_deref().unwrap_or(""),
@@ -152,6 +148,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, MinioAttemptError> {
     let path = execute_path(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -186,6 +183,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -204,12 +202,12 @@ async fn execute_command(
 /// use brute::protocol::minio::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 9001, "/api/v1/login"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 9001, "/api/v1/login"),
 ///     "http://10.0.0.5:9001/api/v1/login"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a MinIO console path.
@@ -244,15 +242,11 @@ pub fn execute_path(command: &str) -> String {
 }
 
 async fn probe_health(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
     let port = ctx.port();
     for path in ["/minio/health/live", "/api/v1/login"] {
-        let url = api_url(&ctx.target_host, port, path);
+        let url = api_url(ctx.url_scheme, &ctx.target_host, port, path);
         if let Ok(response) = client.get(&url).send().await {
             let status = response.status();
             if status.is_success()

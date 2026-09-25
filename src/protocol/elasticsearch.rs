@@ -108,13 +108,10 @@ impl BruteModule for ElasticsearchModule {
 /// ```
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, EsAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| EsAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| EsAttemptError::Transport(err.to_string()))?;
     let url = cluster_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         "/",
@@ -187,6 +184,7 @@ async fn execute_es_command(
 ) -> Result<AttemptSuccess, EsAttemptError> {
     let path = execute_path(command);
     let url = cluster_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -224,6 +222,7 @@ async fn execute_es_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -242,12 +241,12 @@ async fn execute_es_command(
 /// use brute::protocol::elasticsearch::cluster_url;
 ///
 /// assert_eq!(
-///     cluster_url("10.0.0.5", 9200, "/_cluster/health"),
+///     cluster_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 9200, "/_cluster/health"),
 ///     "http://10.0.0.5:9200/_cluster/health"
 /// );
 /// ```
-pub fn cluster_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn cluster_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into an absolute request path.
@@ -284,13 +283,9 @@ pub fn execute_path(command: &str) -> String {
 
 /// Probes `GET /` without credentials and formats a version banner.
 async fn probe_root(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = cluster_url(&ctx.target_host, ctx.port(), "/");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = cluster_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     let body = response.text().await.ok()?;

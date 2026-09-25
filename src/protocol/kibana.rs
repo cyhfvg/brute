@@ -73,15 +73,11 @@ impl BruteModule for KibanaModule {
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     let unauthenticated = ctx.credential.username.as_deref().unwrap_or("").is_empty()
         && ctx.credential.password.as_deref().unwrap_or("").is_empty();
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| err.to_string())?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| err.to_string())?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
     let cookie = if unauthenticated {
-        let url = status_url(&ctx.target_host, port);
+        let url = status_url(ctx.url_scheme, &ctx.target_host, port);
         let response = client
             .get(&url)
             .header("kbn-xsrf", "true")
@@ -109,7 +105,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     };
     if let Some(command) = ctx.execute.as_deref() {
         let path = execute_path(command);
-        let url = format!("http://{}:{}{path}", ctx.target_host, port);
+        let url = super::http::build_http_basic_url(ctx.url_scheme, &ctx.target_host, port, &path);
         let mut req = client.get(&url).header("kbn-xsrf", "true");
         if let Some(cookie) = cookie.as_deref() {
             req = req.header(header::COOKIE, cookie);
@@ -136,7 +132,8 @@ async fn login(
 ) -> Result<String, String> {
     let user = ctx.credential.username.as_deref().unwrap_or("");
     let pass = ctx.credential.password.as_deref().unwrap_or("");
-    let url = format!("http://{host}:{port}/internal/security/login");
+    let url =
+        super::http::build_http_basic_url(ctx.url_scheme, host, port, "/internal/security/login");
     let body = serde_json::json!({
         "providerType": "basic",
         "providerName": "basic",
@@ -178,6 +175,7 @@ async fn login(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 ///
@@ -194,10 +192,10 @@ async fn login(
 /// ```
 /// use brute::protocol::kibana::status_url;
 ///
-/// assert_eq!(status_url("10.0.0.5", 5601), "http://10.0.0.5:5601/api/status");
+/// assert_eq!(status_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 5601), "http://10.0.0.5:5601/api/status");
 /// ```
-pub fn status_url(host: &str, port: u16) -> String {
-    format!("http://{host}:{port}/api/status")
+pub fn status_url(scheme: HttpUrlScheme, host: &str, port: u16) -> String {
+    super::http::build_http_basic_url(scheme, host, port, "/api/status")
 }
 
 /// Normalizes `-x` text into an absolute Kibana API path.
@@ -262,13 +260,9 @@ pub fn is_auth_error(err: &str) -> bool {
 }
 
 async fn probe_status(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = status_url(&ctx.target_host, ctx.port());
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = status_url(ctx.url_scheme, &ctx.target_host, ctx.port());
     let response = client
         .get(&url)
         .header("kbn-xsrf", "true")

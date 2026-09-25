@@ -279,6 +279,7 @@ mod tests {
         let ctx = AttemptContext {
             protocol: Protocol::Winrm,
             target_host: "127.0.0.1".into(),
+            url_scheme: crate::cli::HttpUrlScheme::Http,
             target: CommonArgs {
                 targets: vec!["127.0.0.1".into()],
                 usernames: vec!["admin".into()],

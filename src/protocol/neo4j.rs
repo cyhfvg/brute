@@ -89,12 +89,8 @@ impl BruteModule for Neo4jModule {
 /// Runs one Neo4j login or unauthorized probe, then optional `-x` Cypher.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, Neo4jAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| Neo4jAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| Neo4jAttemptError::Transport(err.to_string()))?;
     if unauthenticated {
         run_cypher(&client, ctx, "RETURN 1 AS n", false).await?;
     } else {
@@ -125,7 +121,12 @@ async fn run_cypher(
     with_auth: bool,
 ) -> Result<String, Neo4jAttemptError> {
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(&ctx.target_host, port, "/db/neo4j/tx/commit");
+    let url = api_url(
+        ctx.url_scheme,
+        &ctx.target_host,
+        port,
+        "/db/neo4j/tx/commit",
+    );
     let body = serde_json::json!({ "statements": [{ "statement": statement }] });
     let mut request = client
         .post(&url)
@@ -163,6 +164,7 @@ fn classify_status(status: StatusCode) -> Result<(), Neo4jAttemptError> {
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -181,12 +183,12 @@ fn classify_status(status: StatusCode) -> Result<(), Neo4jAttemptError> {
 /// use brute::protocol::neo4j::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 7474, "/db/neo4j/tx/commit"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 7474, "/db/neo4j/tx/commit"),
 ///     "http://10.0.0.5:7474/db/neo4j/tx/commit"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into Cypher.
@@ -221,13 +223,9 @@ pub fn execute_cypher(command: &str) -> String {
 }
 
 async fn probe_root(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/");
     let response = client.get(&url).send().await.ok()?;
     if response.status().is_success()
         || response.status() == StatusCode::UNAUTHORIZED

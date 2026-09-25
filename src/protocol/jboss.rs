@@ -91,14 +91,10 @@ impl BruteModule for JbossModule {
 /// Runs one JBoss management probe or Digest login, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, JbossAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| JbossAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| JbossAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(&ctx.target_host, port, "/management");
+    let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/management");
     let response = client
         .get(&url)
         .send()
@@ -176,6 +172,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, JbossAttemptError> {
     let (path, body) = execute_request(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -230,6 +227,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -248,12 +246,12 @@ async fn execute_command(
 /// use brute::protocol::jboss::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 9990, "/management"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 9990, "/management"),
 ///     "http://10.0.0.5:9990/management"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Maps `-x` text to a management path and JSON body.
@@ -400,13 +398,9 @@ fn md5_hex(data: &[u8]) -> Result<String, String> {
 }
 
 async fn probe_management(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/management");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/management");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     if status.is_success() || status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN

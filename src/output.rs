@@ -153,6 +153,7 @@ mod tests {
         let ctx = TargetContext {
             protocol: Protocol::Ssh,
             target_host: "192.168.5.5".to_string(),
+            url_scheme: crate::cli::HttpUrlScheme::Http,
             target: CommonArgs {
                 targets: vec!["192.168.5.5".to_string()],
                 usernames: vec!["admin".to_string()],

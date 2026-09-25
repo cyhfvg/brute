@@ -91,15 +91,12 @@ impl BruteModule for NacosModule {
 /// Runs one Nacos login or anonymous probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, NacosAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| NacosAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| NacosAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
     let token = if unauthenticated {
         let url = api_url(
+            ctx.url_scheme,
             &ctx.target_host,
             port,
             "/nacos/v1/cs/configs?search=accurate&dataId=&group=&pageNo=1&pageSize=1",
@@ -126,7 +123,12 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, NacosAttem
         }
         None
     } else {
-        let url = api_url(&ctx.target_host, port, "/nacos/v1/auth/login");
+        let url = api_url(
+            ctx.url_scheme,
+            &ctx.target_host,
+            port,
+            "/nacos/v1/auth/login",
+        );
         let form = format!(
             "username={}&password={}",
             encode_form_component(ctx.credential.username.as_deref().unwrap_or("")),
@@ -175,6 +177,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, NacosAttemptError> {
     let path = execute_path(command);
     let mut url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -213,6 +216,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -231,12 +235,12 @@ async fn execute_command(
 /// use brute::protocol::nacos::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 8848, "/nacos/v1/auth/login"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8848, "/nacos/v1/auth/login"),
 ///     "http://10.0.0.5:8848/nacos/v1/auth/login"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a Nacos API path.
@@ -348,13 +352,10 @@ pub fn is_nacos_auth_error(status: StatusCode, body: &str) -> bool {
 }
 
 async fn probe_health(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.port(),
         "/nacos/v1/console/health/readiness",

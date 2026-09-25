@@ -89,14 +89,15 @@ impl BruteModule for InfluxDbModule {
 /// Runs one InfluxDB login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, InfluxAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| InfluxAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| InfluxAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(&ctx.target_host, port, "/query?q=SHOW%20DATABASES");
+    let url = api_url(
+        ctx.url_scheme,
+        &ctx.target_host,
+        port,
+        "/query?q=SHOW%20DATABASES",
+    );
     let mut request = client.get(&url);
     if !unauthenticated {
         request = request.basic_auth(
@@ -134,6 +135,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, InfluxAttemptError> {
     let path = execute_path(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -171,6 +173,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path or query.
@@ -189,12 +192,12 @@ async fn execute_command(
 /// use brute::protocol::influxdb::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 8086, "/ping"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8086, "/ping"),
 ///     "http://10.0.0.5:8086/ping"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into an InfluxDB HTTP path.
@@ -231,13 +234,9 @@ pub fn execute_path(command: &str) -> String {
 }
 
 async fn probe_ping(ctx: &TargetContext) -> Option<()> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/ping");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/ping");
     let response = client.get(&url).send().await.ok()?;
     response.status().is_success().then_some(())
 }

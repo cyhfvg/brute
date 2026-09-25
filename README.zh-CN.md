@@ -78,6 +78,8 @@
 - `weblogic`（别名 `wls`；控制台表单登录；`-x` console；默认端口 `7001`）
 - `websphere`（别名 `was`；控制台表单登录；`-x` console；默认端口 `9043`）
 
+HTTP 家族（`http`、`tomcat`、`elasticsearch`、`docker`、`kibana`、`grafana`、`prometheus`、`jenkins`、`couchdb`、`clickhouse`、`neo4j`、`etcd`、`influxdb`、`solr`、`minio`、`nacos`、`nexus`、`jboss`、`druid`、`spark`、`hadoop`、`kubelet`、`gitlab`、`harbor`、`weblogic`、`websphere`）支持 `--protocol http|https`。省略时 `kubelet` 与 `websphere` 默认为 `https`，其余默认为 `http`。HTTPS 默认跳过证书校验。
+
 当前协议待办见：[docs/TODO.md](docs/TODO.md)。
 
 ## 安装与构建

@@ -332,7 +332,7 @@ fn parses_http_url_scheme_protocol_flag() {
     let Command::Protocol(ProtocolArgs::Http(args)) = default_http.command else {
         panic!("expected http protocol arguments");
     };
-    assert_eq!(args.url_scheme, HttpUrlScheme::Http);
+    assert_eq!(args.scheme.url_scheme, None);
     assert_eq!(args.path, "/");
 
     let https = Cli::try_parse_from([
@@ -352,9 +352,9 @@ fn parses_http_url_scheme_protocol_flag() {
     let Command::Protocol(ProtocolArgs::Http(args)) = https.command else {
         panic!("expected http protocol arguments");
     };
-    assert_eq!(args.url_scheme, HttpUrlScheme::Https);
+    assert_eq!(args.scheme.url_scheme, Some(HttpUrlScheme::Https));
     assert_eq!(args.path, "/manager/html");
-    assert_eq!(args.url_scheme.as_str(), "https");
+    assert_eq!(args.scheme.url_scheme.unwrap().as_str(), "https");
 
     let explicit_http = Cli::try_parse_from([
         "brute",
@@ -371,7 +371,82 @@ fn parses_http_url_scheme_protocol_flag() {
     let Command::Protocol(ProtocolArgs::Http(args)) = explicit_http.command else {
         panic!("expected http");
     };
-    assert_eq!(args.url_scheme, HttpUrlScheme::Http);
+    assert_eq!(args.scheme.url_scheme, Some(HttpUrlScheme::Http));
+}
+
+/// Verifies HTTP-family `--protocol` defaults and that non-HTTP protocols reject the flag.
+#[test]
+fn http_family_protocol_flag_uses_protocol_default() {
+    let kubelet =
+        Cli::try_parse_from(["brute", "kubelet", "192.168.5.10", "-u", "", "-p", "token"])
+            .expect("kubelet parses");
+    let Command::Protocol(args) = kubelet.command else {
+        panic!("expected protocol");
+    };
+    assert_eq!(args.url_scheme(), HttpUrlScheme::Https);
+
+    let websphere = Cli::try_parse_from([
+        "brute",
+        "websphere",
+        "192.168.5.10",
+        "-u",
+        "wsadmin",
+        "-p",
+        "pass",
+    ])
+    .expect("websphere parses");
+    let Command::Protocol(args) = websphere.command else {
+        panic!("expected protocol");
+    };
+    assert_eq!(args.url_scheme(), HttpUrlScheme::Https);
+
+    let jenkins = Cli::try_parse_from([
+        "brute",
+        "jenkins",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "pass",
+    ])
+    .expect("jenkins parses");
+    let Command::Protocol(args) = jenkins.command else {
+        panic!("expected protocol");
+    };
+    assert_eq!(args.url_scheme(), HttpUrlScheme::Http);
+
+    let https = Cli::try_parse_from([
+        "brute",
+        "jenkins",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "pass",
+        "--protocol",
+        "https",
+    ])
+    .expect("jenkins https parses");
+    let Command::Protocol(args) = https.command else {
+        panic!("expected protocol");
+    };
+    assert_eq!(args.url_scheme(), HttpUrlScheme::Https);
+
+    let rejected = Cli::try_parse_from([
+        "brute",
+        "ssh",
+        "192.168.5.10",
+        "-u",
+        "admin",
+        "-p",
+        "pass",
+        "--protocol",
+        "https",
+    ]);
+    assert!(
+        rejected.is_err(),
+        "non-HTTP protocols must reject --protocol"
+    );
 }
 
 /// Verifies invalid HTTP `--protocol` values are rejected by clap.
@@ -700,10 +775,10 @@ fn parses_elasticsearch_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Elasticsearch(args)) = cli.command else {
         panic!("expected elasticsearch protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.common.usernames, ["elastic"]);
-    assert_eq!(args.common.passwords, ["secret"]);
-    assert_eq!(args.execute.as_deref(), Some("indices"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.common.usernames, ["elastic"]);
+    assert_eq!(args.execute.common.passwords, ["secret"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("indices"));
 }
 
 /// Verifies the `es` alias maps to the Elasticsearch subcommand.
@@ -715,7 +790,7 @@ fn parses_elasticsearch_es_alias() {
     let Command::Protocol(ProtocolArgs::Elasticsearch(args)) = cli.command else {
         panic!("expected elasticsearch protocol arguments from es alias");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
 }
 
 /// Verifies Docker API default port and `-x` command parsing.
@@ -740,8 +815,8 @@ fn parses_docker_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Docker(args)) = cli.command else {
         panic!("expected docker protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("containers"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("containers"));
 }
 
 /// Verifies the `docker-api` alias maps to the Docker subcommand.
@@ -753,7 +828,7 @@ fn parses_docker_api_alias() {
     let Command::Protocol(ProtocolArgs::Docker(args)) = cli.command else {
         panic!("expected docker protocol arguments from docker-api alias");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
 }
 
 /// Verifies SNMP default port and `-x` OID parsing.
@@ -983,8 +1058,8 @@ fn parses_kibana_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Kibana(args)) = cli.command else {
         panic!("expected kibana protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("status"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("status"));
 }
 
 /// Verifies NFS default port and `-x` command parsing.
@@ -1087,8 +1162,8 @@ fn parses_grafana_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Grafana(args)) = cli.command else {
         panic!("expected grafana protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("org"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("org"));
 }
 
 /// Verifies Prometheus default port, alias, and `-x` command parsing.
@@ -1113,8 +1188,8 @@ fn parses_prometheus_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Prometheus(args)) = cli.command else {
         panic!("expected prometheus protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("query"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("query"));
 }
 
 /// Verifies Jenkins default port and `-x` command parsing.
@@ -1139,8 +1214,8 @@ fn parses_jenkins_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Jenkins(args)) = cli.command else {
         panic!("expected jenkins protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("whoami"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("whoami"));
 }
 
 /// Verifies CouchDB default port, alias, and `-x` command parsing.
@@ -1165,8 +1240,8 @@ fn parses_couchdb_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Couchdb(args)) = cli.command else {
         panic!("expected couchdb protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("dbs"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("dbs"));
 }
 
 /// Verifies ClickHouse default port, alias, and `-x` command parsing.
@@ -1191,8 +1266,8 @@ fn parses_clickhouse_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Clickhouse(args)) = cli.command else {
         panic!("expected clickhouse protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("version"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("version"));
 }
 
 /// Verifies Neo4j default port and `-x` command parsing.
@@ -1217,8 +1292,8 @@ fn parses_neo4j_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Neo4j(args)) = cli.command else {
         panic!("expected neo4j protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("ping"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("ping"));
 }
 
 /// Verifies etcd default port and `-x` command parsing.
@@ -1243,8 +1318,8 @@ fn parses_etcd_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Etcd(args)) = cli.command else {
         panic!("expected etcd protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("version"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("version"));
 }
 
 /// Verifies InfluxDB default port, alias, and `-x` command parsing.
@@ -1269,8 +1344,8 @@ fn parses_influxdb_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Influxdb(args)) = cli.command else {
         panic!("expected influxdb protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("dbs"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("dbs"));
 }
 
 /// Verifies Solr default port and `-x` command parsing.
@@ -1295,8 +1370,8 @@ fn parses_solr_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Solr(args)) = cli.command else {
         panic!("expected solr protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("cores"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("cores"));
 }
 
 /// Verifies MinIO default port and `-x` command parsing.
@@ -1321,8 +1396,8 @@ fn parses_minio_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Minio(args)) = cli.command else {
         panic!("expected minio protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("buckets"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("buckets"));
 }
 
 /// Verifies Nacos default port and `-x` command parsing.
@@ -1347,8 +1422,8 @@ fn parses_nacos_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Nacos(args)) = cli.command else {
         panic!("expected nacos protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("namespaces"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("namespaces"));
 }
 
 /// Verifies Nexus default port and `-x` command parsing.
@@ -1373,8 +1448,8 @@ fn parses_nexus_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Nexus(args)) = cli.command else {
         panic!("expected nexus protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("repos"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("repos"));
 }
 
 /// Verifies JBoss default port, alias, and `-x` command parsing.
@@ -1399,8 +1474,8 @@ fn parses_jboss_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Jboss(args)) = cli.command else {
         panic!("expected jboss protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("version"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("version"));
 }
 
 /// Verifies Druid default port and `-x` command parsing.
@@ -1425,8 +1500,8 @@ fn parses_druid_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Druid(args)) = cli.command else {
         panic!("expected druid protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("status"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("status"));
 }
 
 /// Verifies Spark default port and `-x` command parsing.
@@ -1451,8 +1526,8 @@ fn parses_spark_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Spark(args)) = cli.command else {
         panic!("expected spark protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("json"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("json"));
 }
 
 /// Verifies Hadoop default port, alias, and `-x` command parsing.
@@ -1477,8 +1552,8 @@ fn parses_hadoop_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Hadoop(args)) = cli.command else {
         panic!("expected hadoop protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("jmx"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("jmx"));
 }
 
 /// Verifies kubelet default port and `-x` command parsing.
@@ -1503,8 +1578,8 @@ fn parses_kubelet_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Kubelet(args)) = cli.command else {
         panic!("expected kubelet protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("pods"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("pods"));
 }
 
 /// Verifies GitLab default port and `-x` command parsing.
@@ -1529,8 +1604,8 @@ fn parses_gitlab_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Gitlab(args)) = cli.command else {
         panic!("expected gitlab protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("user"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("user"));
 }
 
 /// Verifies Harbor default port and `-x` command parsing.
@@ -1555,8 +1630,8 @@ fn parses_harbor_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Harbor(args)) = cli.command else {
         panic!("expected harbor protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("projects"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("projects"));
 }
 
 /// Verifies WebLogic default port, alias, and `-x` command parsing.
@@ -1581,8 +1656,8 @@ fn parses_weblogic_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Weblogic(args)) = cli.command else {
         panic!("expected weblogic protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("console"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("console"));
 }
 
 /// Verifies WebSphere default port, alias, and `-x` command parsing.
@@ -1607,6 +1682,6 @@ fn parses_websphere_execute_and_default_port() {
     let Command::Protocol(ProtocolArgs::Websphere(args)) = cli.command else {
         panic!("expected websphere protocol arguments");
     };
-    assert_eq!(args.common.targets, ["192.168.5.10"]);
-    assert_eq!(args.execute.as_deref(), Some("console"));
+    assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
+    assert_eq!(args.execute.execute.as_deref(), Some("console"));
 }

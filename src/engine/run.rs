@@ -81,6 +81,7 @@ pub async fn run_spray(
     }
 
     let protocol = request.protocol;
+    let url_scheme = request.url_scheme;
     let request_path = request.effective_path();
     let request_execute = request.execute.clone();
     let mut probes = Vec::new();
@@ -91,6 +92,7 @@ pub async fn run_spray(
             protocol,
             target_host,
             target: common.clone(),
+            url_scheme,
         };
         match module.probe_target(&target_ctx).await {
             TargetProbe::Ready(Some(message)) => {
@@ -173,6 +175,7 @@ pub async fn run_spray(
                 protocol,
                 target_host,
                 target,
+                url_scheme,
                 path,
                 execute,
                 credential,

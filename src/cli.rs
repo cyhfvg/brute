@@ -215,7 +215,7 @@ pub enum ProtocolArgs {
         override_usage = "brute elasticsearch <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass'\n  brute elasticsearch 192.168.5.10 -u '' -p ''\n  brute elasticsearch 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute elasticsearch 192.168.5.10 -u elastic -p 'elastic_pass' -x 'indices'"
     )]
-    Elasticsearch(ExecuteArgs),
+    Elasticsearch(HttpExecuteArgs),
 
     #[command(
         name = "docker",
@@ -224,7 +224,7 @@ pub enum ProtocolArgs {
         override_usage = "brute docker <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute docker 192.168.5.10 -u '' -p ''\n  brute docker 192.168.5.10 -u admin -p 'docker_pass'\n  brute docker 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute docker 192.168.5.10 -u '' -p '' -x 'containers'"
     )]
-    Docker(ExecuteArgs),
+    Docker(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using SNMP",
@@ -276,7 +276,7 @@ pub enum ProtocolArgs {
         override_usage = "brute kibana <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute kibana 192.168.5.10 -u elastic -p changeme\n  brute kibana 192.168.5.10 -u elastic -p changeme -x status"
     )]
-    Kibana(ExecuteArgs),
+    Kibana(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using NFS",
@@ -304,7 +304,7 @@ pub enum ProtocolArgs {
         override_usage = "brute grafana <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute grafana 192.168.5.10 -u admin -p grafana_pass\n  brute grafana 192.168.5.10 -u '' -p ''\n  brute grafana 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute grafana 192.168.5.10 -u admin -p grafana_pass -x org"
     )]
-    Grafana(ExecuteArgs),
+    Grafana(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using PROMETHEUS",
@@ -312,14 +312,14 @@ pub enum ProtocolArgs {
         override_usage = "brute prometheus <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute prometheus 192.168.5.10 -u admin -p prometheus_pass\n  brute prometheus 192.168.5.10 -u '' -p ''\n  brute prometheus 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute prometheus 192.168.5.10 -u admin -p prometheus_pass -x query"
     )]
-    Prometheus(ExecuteArgs),
+    Prometheus(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using JENKINS",
         override_usage = "brute jenkins <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass\n  brute jenkins 192.168.5.10 -u '' -p ''\n  brute jenkins 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami"
     )]
-    Jenkins(ExecuteArgs),
+    Jenkins(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using COUCHDB",
@@ -327,7 +327,7 @@ pub enum ProtocolArgs {
         override_usage = "brute couchdb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute couchdb 192.168.5.10 -u admin -p couch_pass\n  brute couchdb 192.168.5.10 -u '' -p ''\n  brute couchdb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute couchdb 192.168.5.10 -u admin -p couch_pass -x dbs"
     )]
-    Couchdb(ExecuteArgs),
+    Couchdb(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using CLICKHOUSE",
@@ -335,21 +335,21 @@ pub enum ProtocolArgs {
         override_usage = "brute clickhouse <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute clickhouse 192.168.5.10 -u admin -p click_pass\n  brute clickhouse 192.168.5.10 -u '' -p ''\n  brute clickhouse 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute clickhouse 192.168.5.10 -u admin -p click_pass -x version"
     )]
-    Clickhouse(ExecuteArgs),
+    Clickhouse(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using NEO4J",
         override_usage = "brute neo4j <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass\n  brute neo4j 192.168.5.10 -u '' -p ''\n  brute neo4j 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping"
     )]
-    Neo4j(ExecuteArgs),
+    Neo4j(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using ETCD",
         override_usage = "brute etcd <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute etcd 192.168.5.10 -u root -p etcd_pass\n  brute etcd 192.168.5.10 -u '' -p ''\n  brute etcd 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute etcd 192.168.5.10 -u root -p etcd_pass -x version"
     )]
-    Etcd(ExecuteArgs),
+    Etcd(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using INFLUXDB",
@@ -357,35 +357,35 @@ pub enum ProtocolArgs {
         override_usage = "brute influxdb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute influxdb 192.168.5.10 -u admin -p influx_pass\n  brute influxdb 192.168.5.10 -u '' -p ''\n  brute influxdb 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute influxdb 192.168.5.10 -u admin -p influx_pass -x dbs"
     )]
-    Influxdb(ExecuteArgs),
+    Influxdb(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using SOLR",
         override_usage = "brute solr <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute solr 192.168.5.10 -u solr -p solr_pass\n  brute solr 192.168.5.10 -u '' -p ''\n  brute solr 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute solr 192.168.5.10 -u solr -p solr_pass -x cores"
     )]
-    Solr(ExecuteArgs),
+    Solr(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using MINIO",
         override_usage = "brute minio <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass\n  brute minio 192.168.5.10 -u '' -p ''\n  brute minio 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets"
     )]
-    Minio(ExecuteArgs),
+    Minio(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using NACOS",
         override_usage = "brute nacos <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute nacos 192.168.5.10 -u nacos -p nacos\n  brute nacos 192.168.5.10 -u '' -p ''\n  brute nacos 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces"
     )]
-    Nacos(ExecuteArgs),
+    Nacos(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using NEXUS",
         override_usage = "brute nexus <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute nexus 192.168.5.10 -u admin -p nexus_pass\n  brute nexus 192.168.5.10 -u '' -p ''\n  brute nexus 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos"
     )]
-    Nexus(ExecuteArgs),
+    Nexus(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using JBOSS",
@@ -393,21 +393,21 @@ pub enum ProtocolArgs {
         override_usage = "brute jboss <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute jboss 192.168.5.10 -u admin -p jboss_pass\n  brute jboss 192.168.5.10 -u '' -p ''\n  brute jboss 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute jboss 192.168.5.10 -u admin -p jboss_pass -x version"
     )]
-    Jboss(ExecuteArgs),
+    Jboss(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using DRUID",
         override_usage = "brute druid <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute druid 192.168.5.10 -u admin -p druid_pass\n  brute druid 192.168.5.10 -u '' -p ''\n  brute druid 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute druid 192.168.5.10 -u admin -p druid_pass -x status"
     )]
-    Druid(ExecuteArgs),
+    Druid(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using SPARK",
         override_usage = "brute spark <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute spark 192.168.5.10 -u spark -p spark_pass\n  brute spark 192.168.5.10 -u '' -p ''\n  brute spark 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute spark 192.168.5.10 -u spark -p spark_pass -x json"
     )]
-    Spark(ExecuteArgs),
+    Spark(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using HADOOP",
@@ -415,28 +415,28 @@ pub enum ProtocolArgs {
         override_usage = "brute hadoop <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass\n  brute hadoop 192.168.5.10 -u '' -p ''\n  brute hadoop 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute hadoop 192.168.5.10 -u hdfs -p hadoop_pass -x jmx"
     )]
-    Hadoop(ExecuteArgs),
+    Hadoop(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using KUBELET",
         override_usage = "brute kubelet <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute kubelet 192.168.5.10 -u '' -p k8s-token\n  brute kubelet 192.168.5.10 -u '' -p ''\n  brute kubelet 192.168.5.10 -u users.txt -p tokens.txt --threads 8\n  brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods"
     )]
-    Kubelet(ExecuteArgs),
+    Kubelet(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using GITLAB",
         override_usage = "brute gitlab <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1\n  brute gitlab 192.168.5.10 -u '' -p ''\n  brute gitlab 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1 -x user"
     )]
-    Gitlab(ExecuteArgs),
+    Gitlab(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using HARBOR",
         override_usage = "brute harbor <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute harbor 192.168.5.10 -u admin -p Harbor12345\n  brute harbor 192.168.5.10 -u '' -p ''\n  brute harbor 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects"
     )]
-    Harbor(ExecuteArgs),
+    Harbor(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using WEBLOGIC",
@@ -444,7 +444,7 @@ pub enum ProtocolArgs {
         override_usage = "brute weblogic <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute weblogic 192.168.5.10 -u weblogic -p weblogic_pass1\n  brute weblogic 192.168.5.10 -u '' -p ''\n  brute weblogic 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute weblogic 192.168.5.10 -u weblogic -p weblogic_pass1 -x console"
     )]
-    Weblogic(ExecuteArgs),
+    Weblogic(HttpExecuteArgs),
 
     #[command(
         about = "own stuff using WEBSPHERE",
@@ -452,7 +452,7 @@ pub enum ProtocolArgs {
         override_usage = "brute websphere <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1\n  brute websphere 192.168.5.10 -u '' -p ''\n  brute websphere 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute websphere 192.168.5.10 -u wsadmin -p WsbPassw0rd1 -x console"
     )]
-    Websphere(ExecuteArgs),
+    Websphere(HttpExecuteArgs),
 }
 
 impl ProtocolArgs {
@@ -467,17 +467,17 @@ impl ProtocolArgs {
             | Self::Zookeeper(args)
             | Self::Memcached(args)
             | Self::Mongodb(args)
-            | Self::Elasticsearch(args)
-            | Self::Docker(args)
             | Self::Snmp(args)
             | Self::Activemq(args)
             | Self::Rabbitmq(args)
             | Self::Mssql(args)
             | Self::Kafka(args)
-            | Self::Kibana(args)
             | Self::Nfs(args)
             | Self::Telnet(args)
-            | Self::Ldap(args)
+            | Self::Ldap(args) => &args.common,
+            Self::Elasticsearch(args)
+            | Self::Docker(args)
+            | Self::Kibana(args)
             | Self::Grafana(args)
             | Self::Prometheus(args)
             | Self::Jenkins(args)
@@ -498,7 +498,7 @@ impl ProtocolArgs {
             | Self::Gitlab(args)
             | Self::Harbor(args)
             | Self::Weblogic(args)
-            | Self::Websphere(args) => &args.common,
+            | Self::Websphere(args) => &args.execute.common,
             Self::Oracle(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
@@ -532,17 +532,17 @@ impl ProtocolArgs {
             | Self::Zookeeper(args)
             | Self::Memcached(args)
             | Self::Mongodb(args)
-            | Self::Elasticsearch(args)
-            | Self::Docker(args)
             | Self::Snmp(args)
             | Self::Activemq(args)
             | Self::Rabbitmq(args)
             | Self::Mssql(args)
             | Self::Kafka(args)
-            | Self::Kibana(args)
             | Self::Nfs(args)
             | Self::Telnet(args)
-            | Self::Ldap(args)
+            | Self::Ldap(args) => args.execute.as_deref(),
+            Self::Elasticsearch(args)
+            | Self::Docker(args)
+            | Self::Kibana(args)
             | Self::Grafana(args)
             | Self::Prometheus(args)
             | Self::Jenkins(args)
@@ -563,11 +563,65 @@ impl ProtocolArgs {
             | Self::Gitlab(args)
             | Self::Harbor(args)
             | Self::Weblogic(args)
-            | Self::Websphere(args) => args.execute.as_deref(),
+            | Self::Websphere(args) => args.execute.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
         }
+    }
+
+    /// Returns the HTTP URL scheme for this command.
+    ///
+    /// # Parameters
+    ///
+    /// - `self`: Parsed protocol command.
+    ///
+    /// # Returns
+    ///
+    /// Explicit `--protocol` when set. Otherwise [`default_http_url_scheme`]
+    /// for the selected protocol. Non-HTTP protocols resolve to `http` and do
+    /// not expose the flag.
+    ///
+    /// # Errors
+    ///
+    /// This function does not return errors.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let scheme = protocol_args.url_scheme();
+    /// ```
+    pub fn url_scheme(&self) -> HttpUrlScheme {
+        let explicit = match self {
+            Self::Http(args) => args.scheme.url_scheme,
+            Self::Tomcat(args) => args.scheme.url_scheme,
+            Self::Elasticsearch(args)
+            | Self::Docker(args)
+            | Self::Kibana(args)
+            | Self::Grafana(args)
+            | Self::Prometheus(args)
+            | Self::Jenkins(args)
+            | Self::Couchdb(args)
+            | Self::Clickhouse(args)
+            | Self::Neo4j(args)
+            | Self::Etcd(args)
+            | Self::Influxdb(args)
+            | Self::Solr(args)
+            | Self::Minio(args)
+            | Self::Nacos(args)
+            | Self::Nexus(args)
+            | Self::Jboss(args)
+            | Self::Druid(args)
+            | Self::Spark(args)
+            | Self::Hadoop(args)
+            | Self::Kubelet(args)
+            | Self::Gitlab(args)
+            | Self::Harbor(args)
+            | Self::Weblogic(args)
+            | Self::Websphere(args) => args.scheme.url_scheme,
+            _ => None,
+        };
+        explicit.unwrap_or_else(|| default_http_url_scheme(self.protocol()))
     }
 
     /// Returns the WinRM remote shell type when the protocol is WinRM.
@@ -794,6 +848,8 @@ pub struct TomcatArgs {
     /// Request path for the Tomcat Manager endpoint.
     #[arg(long, default_value = "/manager/html")]
     pub path: String,
+    #[command(flatten)]
+    pub scheme: HttpSchemeArgs,
 }
 
 /// URL scheme for the HTTP Basic Auth module (`--protocol`).
@@ -830,6 +886,54 @@ impl HttpUrlScheme {
     }
 }
 
+/// Shared optional `--protocol http|https` flag for HTTP-family modules.
+#[derive(Debug, Clone, Args, Default)]
+pub struct HttpSchemeArgs {
+    /// URL scheme: `http` or `https`. HTTPS skips TLS certificate verification.
+    ///
+    /// Omitted values use the protocol default: `https` for kubelet and websphere, otherwise `http`.
+    #[arg(long = "protocol", value_enum)]
+    pub url_scheme: Option<HttpUrlScheme>,
+}
+
+/// Execute options plus the shared HTTP scheme flag.
+#[derive(Debug, Clone, Args)]
+pub struct HttpExecuteArgs {
+    #[command(flatten)]
+    pub execute: ExecuteArgs,
+    #[command(flatten)]
+    pub scheme: HttpSchemeArgs,
+}
+
+/// Returns the URL scheme used when `--protocol` is omitted.
+///
+/// # Parameters
+///
+/// - `protocol`: Selected protocol.
+///
+/// # Returns
+///
+/// `https` for kubelet and websphere. `http` for every other protocol.
+///
+/// # Errors
+///
+/// This function does not return errors.
+///
+/// # Examples
+///
+/// ```
+/// use brute::cli::{HttpUrlScheme, Protocol, default_http_url_scheme};
+/// assert_eq!(default_http_url_scheme(Protocol::Kubelet), HttpUrlScheme::Https);
+/// assert_eq!(default_http_url_scheme(Protocol::Websphere), HttpUrlScheme::Https);
+/// assert_eq!(default_http_url_scheme(Protocol::Jenkins), HttpUrlScheme::Http);
+/// ```
+pub fn default_http_url_scheme(protocol: Protocol) -> HttpUrlScheme {
+    match protocol {
+        Protocol::Kubelet | Protocol::Websphere => HttpUrlScheme::Https,
+        _ => HttpUrlScheme::Http,
+    }
+}
+
 /// Options for generic HTTP Basic Auth login and spray.
 #[derive(Debug, Clone, Args)]
 pub struct HttpArgs {
@@ -838,9 +942,8 @@ pub struct HttpArgs {
     /// Request path used for the HTTP Basic Auth GET (default `/`).
     #[arg(long, default_value = "/")]
     pub path: String,
-    /// URL scheme: `http` (default) or `https`. HTTPS skips TLS certificate verification.
-    #[arg(long = "protocol", value_enum, default_value_t = HttpUrlScheme::Http)]
-    pub url_scheme: HttpUrlScheme,
+    #[command(flatten)]
+    pub scheme: HttpSchemeArgs,
 }
 
 /// Options for rsync daemon module login and spray.

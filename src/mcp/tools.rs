@@ -23,7 +23,7 @@ pub struct ProtocolOptions {
     pub execute: Option<String>,
     /// HTTP/Tomcat request path, or rsync daemon module name.
     pub path: Option<String>,
-    /// HTTP URL scheme: `http` or `https`. Default: `http`.
+    /// HTTP URL scheme: `http` or `https`. Omitted values use `https` for kubelet and websphere, otherwise `http`.
     pub url_scheme: Option<String>,
     /// Oracle Service Name values or wordlist paths. Mutually exclusive with `sids`.
     #[serde(default)]
@@ -202,6 +202,8 @@ fn apply_options(request: &mut SprayRequest, options: ProtocolOptions) -> anyhow
     request.path = options.path;
     if let Some(scheme) = options.url_scheme {
         request.url_scheme = crate::engine::parse_http_scheme(&scheme)?;
+    } else {
+        request.url_scheme = crate::cli::default_http_url_scheme(request.protocol);
     }
     request.service_names = options.service_names;
     request.sids = options.sids;

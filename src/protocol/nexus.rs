@@ -89,14 +89,15 @@ impl BruteModule for NexusModule {
 /// Runs one Nexus login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, NexusAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| NexusAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| NexusAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(&ctx.target_host, port, "/service/rest/v1/security/users");
+    let url = api_url(
+        ctx.url_scheme,
+        &ctx.target_host,
+        port,
+        "/service/rest/v1/security/users",
+    );
     let mut request = client.get(&url);
     if !unauthenticated {
         request = request.basic_auth(
@@ -134,6 +135,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, NexusAttemptError> {
     let path = execute_path(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -171,6 +173,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -189,12 +192,12 @@ async fn execute_command(
 /// use brute::protocol::nexus::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 8081, "/service/rest/v1/status"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8081, "/service/rest/v1/status"),
 ///     "http://10.0.0.5:8081/service/rest/v1/status"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a Nexus REST path.
@@ -230,13 +233,14 @@ pub fn execute_path(command: &str) -> String {
 }
 
 async fn probe_status(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/service/rest/v1/status");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(
+        ctx.url_scheme,
+        &ctx.target_host,
+        ctx.port(),
+        "/service/rest/v1/status",
+    );
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     if status.is_success() || status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN

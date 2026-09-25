@@ -139,6 +139,12 @@ HTTP 家族的凭据判定集中在 `src/protocol/http_auth.rs`。401 一律是�
 协议特有信号仍保留在各模块：MinIO 的 400、Nacos 响应体、GitLab 的 `invalid_grant`/`400`、WebLogic/WebSphere 的登录回跳、etcd 的响应体启发式。探测路径里的 401/403 只表示服务在线，不走这张表。
 
 
+### HTTP scheme
+
+HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`tomcat`、`elasticsearch`、`docker`、`kibana`、`grafana`、`prometheus`、`jenkins`、`couchdb`、`clickhouse`、`neo4j`、`etcd`、`influxdb`、`solr`、`minio`、`nacos`、`nexus`、`jboss`、`druid`、`spark`、`hadoop`、`kubelet`、`gitlab`、`harbor`、`weblogic`、`websphere`。SSH、FTP 等非 HTTP 协议不接受该 flag。
+
+省略时 `kubelet` 与 `websphere` 默认为 `https`，其余默认为 `http`。显式值同时进入 HTTP client 与请求 URL。HTTPS 默认跳过证书校验。MCP 省略 `url_scheme` 时套用同一默认。`brute combo` 仍只把 URL scheme `https` 映射为 `Protocol::Http` + `Https`，不在这里扩展其它协议的 URL scheme 解析。
+
 ### 凭据展开
 
 `-u` / `-p` 支持内联多值与字典文件；路径存在且为文件时按行展开（去空行）。`oracle` 的 `--service-name` 与 `--sid` 使用同一规则（二者互斥）。展开后：

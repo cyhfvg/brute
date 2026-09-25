@@ -105,6 +105,7 @@ pub async fn run_paired_spray(
             protocol: request.protocol,
             target_host: login.host.clone(),
             target: target_args,
+            url_scheme: request.url_scheme,
         };
         if let TargetProbe::Ready(Some(message)) = module.probe_target(&target_ctx).await {
             if let Some(reporter) = reporter {
@@ -126,6 +127,7 @@ pub async fn run_paired_spray(
     let module: Arc<dyn BruteModule> = module;
     let planned = planned_attempts(&request, logins);
     let protocol = request.protocol;
+    let url_scheme = request.url_scheme;
 
     stream::iter(planned)
         .for_each_concurrent(request.threads, |planned| {
@@ -166,6 +168,7 @@ pub async fn run_paired_spray(
                     protocol,
                     target_host: planned.host,
                     target,
+                    url_scheme,
                     path,
                     execute,
                     credential: planned.credential,

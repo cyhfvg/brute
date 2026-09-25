@@ -237,6 +237,7 @@ fn attempt_ctx(
             continue_on_success: false,
             proxy: None,
         },
+        url_scheme: HttpUrlScheme::Http,
         path: Some(path.to_string()),
         execute: None,
         credential: CredentialSet {

@@ -89,14 +89,15 @@ impl BruteModule for SolrModule {
 /// Runs one Solr login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, SolrAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| SolrAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| SolrAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(&ctx.target_host, port, "/solr/admin/info/system");
+    let url = api_url(
+        ctx.url_scheme,
+        &ctx.target_host,
+        port,
+        "/solr/admin/info/system",
+    );
     let mut request = client.get(&url);
     if !unauthenticated {
         request = request.basic_auth(
@@ -134,6 +135,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, SolrAttemptError> {
     let path = execute_path(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -171,6 +173,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -189,12 +192,12 @@ async fn execute_command(
 /// use brute::protocol::solr::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 8983, "/solr/admin/cores"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8983, "/solr/admin/cores"),
 ///     "http://10.0.0.5:8983/solr/admin/cores"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a Solr admin path.
@@ -265,13 +268,14 @@ pub fn parse_system_banner(body: &str) -> Option<String> {
 }
 
 async fn probe_system(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/solr/admin/info/system");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(
+        ctx.url_scheme,
+        &ctx.target_host,
+        ctx.port(),
+        "/solr/admin/info/system",
+    );
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     let body = response.text().await.ok()?;

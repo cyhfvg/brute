@@ -89,13 +89,10 @@ impl BruteModule for DockerModule {
 /// Runs one Docker API login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, DockerAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| DockerAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| DockerAttemptError::Transport(err.to_string()))?;
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         "/version",
@@ -142,6 +139,7 @@ async fn execute_docker_command(
 ) -> Result<AttemptSuccess, DockerAttemptError> {
     let path = execute_path(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -179,6 +177,7 @@ async fn execute_docker_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -197,12 +196,12 @@ async fn execute_docker_command(
 /// use brute::protocol::docker::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 2375, "/version"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 2375, "/version"),
 ///     "http://10.0.0.5:2375/version"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a Docker Engine API path.
@@ -240,13 +239,9 @@ pub fn execute_path(command: &str) -> String {
 
 /// Probes `GET /version` without credentials.
 async fn probe_version(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/version");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/version");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     let body = response.text().await.ok()?;

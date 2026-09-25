@@ -89,14 +89,10 @@ impl BruteModule for ClickHouseModule {
 /// Runs one ClickHouse login or unauthorized probe, then optional `-x` SQL.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, ChAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| ChAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| ChAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = query_url(&ctx.target_host, port, "SELECT 1");
+    let url = query_url(ctx.url_scheme, &ctx.target_host, port, "SELECT 1");
     let mut request = client.get(&url);
     if !unauthenticated {
         request = request.basic_auth(
@@ -143,6 +139,7 @@ async fn execute_sql(
 ) -> Result<AttemptSuccess, ChAttemptError> {
     let sql = execute_sql_text(command);
     let url = query_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &sql,
@@ -180,6 +177,7 @@ async fn execute_sql(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -197,16 +195,17 @@ async fn execute_sql(
 /// ```
 /// use brute::protocol::clickhouse::api_url;
 ///
-/// assert_eq!(api_url("10.0.0.5", 8123, "/ping"), "http://10.0.0.5:8123/ping");
+/// assert_eq!(api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8123, "/ping"), "http://10.0.0.5:8123/ping");
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Builds a ClickHouse HTTP query URL.
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `sql`: SQL text.
@@ -224,9 +223,9 @@ pub fn api_url(host: &str, port: u16, path: &str) -> String {
 /// ```
 /// use brute::protocol::clickhouse::query_url;
 ///
-/// assert!(query_url("10.0.0.5", 8123, "SELECT 1").contains("query=SELECT"));
+/// assert!(query_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 8123, "SELECT 1").contains("query=SELECT"));
 /// ```
-pub fn query_url(host: &str, port: u16, sql: &str) -> String {
+pub fn query_url(scheme: HttpUrlScheme, host: &str, port: u16, sql: &str) -> String {
     let encoded: String = sql
         .bytes()
         .map(|b| match b {
@@ -237,7 +236,7 @@ pub fn query_url(host: &str, port: u16, sql: &str) -> String {
             _ => format!("%{b:02X}"),
         })
         .collect();
-    format!("http://{host}:{port}/?query={encoded}")
+    format!("{}://{host}:{port}/?query={encoded}", scheme.as_str())
 }
 
 /// Normalizes `-x` text into ClickHouse SQL.
@@ -273,13 +272,9 @@ pub fn execute_sql_text(command: &str) -> String {
 }
 
 async fn probe_ping(ctx: &TargetContext) -> Option<()> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/ping");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/ping");
     let response = client.get(&url).send().await.ok()?;
     response.status().is_success().then_some(())
 }

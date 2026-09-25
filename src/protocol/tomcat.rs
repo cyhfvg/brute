@@ -1,9 +1,7 @@
 //! Apache Tomcat Manager brute-force implementation.
 
-use async_trait::async_trait;
-use reqwest::Client;
-
 use super::{AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule};
+use async_trait::async_trait;
 
 /// Tomcat Manager module configuration.
 #[derive(Debug, Clone)]
@@ -25,27 +23,22 @@ impl BruteModule for TomcatManagerModule {
     async fn attempt(&self, ctx: &AttemptContext) -> AttemptOutcome {
         let username = ctx.credential.username.clone().unwrap_or_default();
         let password = ctx.credential.password.clone().unwrap_or_default();
-        let url = format!(
-            "http://{}:{}{}",
-            ctx.target_host,
+        let path = normalize_path(ctx.path.as_deref().unwrap_or("/manager/html"));
+        let url = super::http::build_http_basic_url(
+            ctx.url_scheme,
+            &ctx.target_host,
             ctx.target.port.unwrap_or(ctx.protocol.default_port()),
-            normalize_path(ctx.path.as_deref().unwrap_or("/manager/html"))
+            &path,
         );
-
-        let mut builder = Client::builder()
-            .danger_accept_invalid_certs(true)
-            .timeout(ctx.timeout());
-        if let Some(proxy) = ctx.target.proxy.as_ref() {
-            match proxy.to_reqwest_proxy() {
-                Ok(proxy) => builder = builder.proxy(proxy),
-                Err(err) => {
-                    return AttemptOutcome::Error(format!("http proxy config failed: {err}"));
-                }
-            }
-        }
-        let client = match builder.build() {
+        let client = match super::http::build_http_basic_client(
+            ctx.timeout(),
+            ctx.url_scheme,
+            ctx.target.proxy.as_ref(),
+        ) {
             Ok(client) => client,
-            Err(err) => return AttemptOutcome::Error(format!("http client build failed: {err}")),
+            Err(err) => {
+                return AttemptOutcome::Error(format!("http client build failed: {err}"));
+            }
         };
 
         let response = match client

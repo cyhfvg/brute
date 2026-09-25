@@ -73,15 +73,11 @@ impl BruteModule for EtcdModule {
 /// Runs one etcd login or unauthorized KV probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| err.to_string())?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| err.to_string())?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
     let token = if unauthenticated {
-        kv_range(&client, &ctx.target_host, port, None).await?;
+        kv_range(&client, ctx.url_scheme, &ctx.target_host, port, None).await?;
         None
     } else {
         Some(authenticate(&client, &ctx.target_host, port, ctx).await?)
@@ -89,7 +85,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, String> {
     let message = success_message(unauthenticated);
     if let Some(command) = ctx.execute.as_deref() {
         let path = execute_path(command);
-        let url = api_url(&ctx.target_host, port, &path);
+        let url = api_url(ctx.url_scheme, &ctx.target_host, port, &path);
         let mut req = if path.contains("/v3/") {
             client
                 .post(&url)
@@ -121,7 +117,7 @@ async fn authenticate(
     port: u16,
     ctx: &AttemptContext,
 ) -> Result<String, String> {
-    let url = api_url(host, port, "/v3/auth/authenticate");
+    let url = api_url(ctx.url_scheme, host, port, "/v3/auth/authenticate");
     let body = serde_json::json!({
         "name": ctx.credential.username.as_deref().unwrap_or(""),
         "password": ctx.credential.password.as_deref().unwrap_or(""),
@@ -150,13 +146,37 @@ async fn authenticate(
         .ok_or_else(|| format!("auth:no token in {text}"))
 }
 
+/// Posts one etcd KV range request.
+///
+/// # Parameters
+///
+/// - `client`: HTTP client for this attempt.
+/// - `scheme`: URL scheme from the attempt context.
+/// - `host`: Target host.
+/// - `port`: Service port.
+/// - `token`: Optional authenticate token. `None` probes unauthorized access.
+///
+/// # Returns
+///
+/// `Ok(())` when the range request is accepted.
+///
+/// # Errors
+///
+/// Returns an `auth:` error for authentication failures and a status error otherwise.
+///
+/// # Examples
+///
+/// ```ignore
+/// kv_range(&client, scheme, host, port, None).await?;
+/// ```
 async fn kv_range(
     client: &reqwest::Client,
+    scheme: HttpUrlScheme,
     host: &str,
     port: u16,
     token: Option<&str>,
 ) -> Result<(), String> {
-    let url = api_url(host, port, "/v3/kv/range");
+    let url = api_url(scheme, host, port, "/v3/kv/range");
     let mut req = client
         .post(&url)
         .header(header::CONTENT_TYPE, "application/json")
@@ -180,6 +200,7 @@ async fn kv_range(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -197,10 +218,10 @@ async fn kv_range(
 /// ```
 /// use brute::protocol::etcd::api_url;
 ///
-/// assert_eq!(api_url("10.0.0.5", 2379, "/version"), "http://10.0.0.5:2379/version");
+/// assert_eq!(api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 2379, "/version"), "http://10.0.0.5:2379/version");
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into an etcd HTTP path.
@@ -305,13 +326,9 @@ fn is_etcd_error(body: &str) -> bool {
 }
 
 async fn probe_version(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/version");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/version");
     let response = client.get(&url).send().await.ok()?;
     let body = response.text().await.ok()?;
     parse_version_banner(&body).or(Some("etcd".to_string()))

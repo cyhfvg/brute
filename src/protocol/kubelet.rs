@@ -90,14 +90,10 @@ impl BruteModule for KubeletModule {
 /// Runs one kubelet login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, KubeletAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Https,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| KubeletAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| KubeletAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
-    let url = api_url(&ctx.target_host, port, "/runningpods/");
+    let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/runningpods/");
     let mut request = client.get(&url);
     if !unauthenticated {
         request = authorize(request, ctx);
@@ -141,6 +137,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, KubeletAttemptError> {
     let path = execute_path(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -175,6 +172,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -193,12 +191,12 @@ async fn execute_command(
 /// use brute::protocol::kubelet::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 10250, "/healthz"),
+///     api_url(brute::cli::HttpUrlScheme::Https, "10.0.0.5", 10250, "/healthz"),
 ///     "https://10.0.0.5:10250/healthz"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("https://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a kubelet path.
@@ -234,13 +232,9 @@ pub fn execute_path(command: &str) -> String {
 }
 
 async fn probe_healthz(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Https,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/healthz");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(ctx.url_scheme, &ctx.target_host, ctx.port(), "/healthz");
     let response = client.get(&url).send().await.ok()?;
     let status = response.status();
     if status.is_success() || status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN

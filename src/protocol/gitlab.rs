@@ -91,15 +91,11 @@ impl BruteModule for GitlabModule {
 /// Runs one GitLab OAuth login or unauthorized probe, then optional `-x`.
 async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, GitlabAttemptError> {
     let unauthenticated = is_unauthenticated(ctx);
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .map_err(|err| GitlabAttemptError::Transport(err.to_string()))?;
+    let client = build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref())
+        .map_err(|err| GitlabAttemptError::Transport(err.to_string()))?;
     let port = ctx.target.port.unwrap_or(ctx.protocol.default_port());
     let token = if unauthenticated {
-        let url = api_url(&ctx.target_host, port, "/api/v4/user");
+        let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/api/v4/user");
         let response = client
             .get(&url)
             .send()
@@ -122,7 +118,7 @@ async fn attempt_once(ctx: &AttemptContext) -> Result<AttemptSuccess, GitlabAtte
         }
         None
     } else {
-        let url = api_url(&ctx.target_host, port, "/oauth/token");
+        let url = api_url(ctx.url_scheme, &ctx.target_host, port, "/oauth/token");
         let form = format!(
             "grant_type=password&username={}&password={}",
             encode_form(ctx.credential.username.as_deref().unwrap_or("")),
@@ -177,6 +173,7 @@ async fn execute_command(
 ) -> Result<AttemptSuccess, GitlabAttemptError> {
     let path = execute_path(command);
     let url = api_url(
+        ctx.url_scheme,
         &ctx.target_host,
         ctx.target.port.unwrap_or(ctx.protocol.default_port()),
         &path,
@@ -211,6 +208,7 @@ async fn execute_command(
 ///
 /// # Parameters
 ///
+/// - `scheme`: URL scheme (`http` or `https`).
 /// - `host`: Target host.
 /// - `port`: Service port.
 /// - `path`: Absolute path.
@@ -229,12 +227,12 @@ async fn execute_command(
 /// use brute::protocol::gitlab::api_url;
 ///
 /// assert_eq!(
-///     api_url("10.0.0.5", 80, "/oauth/token"),
+///     api_url(brute::cli::HttpUrlScheme::Http, "10.0.0.5", 80, "/oauth/token"),
 ///     "http://10.0.0.5:80/oauth/token"
 /// );
 /// ```
-pub fn api_url(host: &str, port: u16, path: &str) -> String {
-    format!("http://{host}:{port}{path}")
+pub fn api_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {
+    super::http::build_http_basic_url(scheme, host, port, path)
 }
 
 /// Normalizes `-x` text into a GitLab API path.
@@ -316,13 +314,14 @@ fn encode_form(input: &str) -> String {
 }
 
 async fn probe_version(ctx: &TargetContext) -> Option<String> {
-    let client = build_http_basic_client(
-        ctx.timeout(),
-        HttpUrlScheme::Http,
-        ctx.target.proxy.as_ref(),
-    )
-    .ok()?;
-    let url = api_url(&ctx.target_host, ctx.port(), "/api/v4/version");
+    let client =
+        build_http_basic_client(ctx.timeout(), ctx.url_scheme, ctx.target.proxy.as_ref()).ok()?;
+    let url = api_url(
+        ctx.url_scheme,
+        &ctx.target_host,
+        ctx.port(),
+        "/api/v4/version",
+    );
     let response = client.get(&url).send().await.ok()?;
     if response.status().is_success()
         || response.status() == StatusCode::UNAUTHORIZED

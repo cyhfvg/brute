@@ -79,6 +79,8 @@ Implemented modules:
 - `weblogic` (alias `wls`; console form login; `-x` console; default port `7001`)
 - `websphere` (alias `was`; console form login; `-x` console; default port `9043`)
 
+HTTP-family modules (`http`, `tomcat`, `elasticsearch`, `docker`, `kibana`, `grafana`, `prometheus`, `jenkins`, `couchdb`, `clickhouse`, `neo4j`, `etcd`, `influxdb`, `solr`, `minio`, `nacos`, `nexus`, `jboss`, `druid`, `spark`, `hadoop`, `kubelet`, `gitlab`, `harbor`, `weblogic`, `websphere`) accept `--protocol http|https`. Omitted values use `https` for kubelet and websphere, otherwise `http`. HTTPS skips certificate verification.
+
 See [docs/TODO.md](docs/TODO.md) for the current protocol backlog.
 
 ## Installation
