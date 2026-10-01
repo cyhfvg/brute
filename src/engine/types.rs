@@ -241,6 +241,17 @@ pub struct CredentialDeleteReport {
     pub missing_ids: Vec<i64>,
 }
 
+/// Result of running a post-auth command against a verified credential.
+#[derive(Debug, Clone, Serialize)]
+pub struct CommandResult {
+    /// Whether authentication succeeded before the command ran.
+    pub authenticated: bool,
+    /// Command output on success, or `None` when no command was requested.
+    pub output: Option<String>,
+    /// Failure detail: authentication, transport, cancellation, or command error.
+    pub error: Option<String>,
+}
+
 /// Implemented protocol list in CLI order.
 pub(crate) const ALL_PROTOCOLS: [Protocol; 48] = [
     Protocol::Ssh,

@@ -185,9 +185,13 @@ fn mcp_initialize_lists_expected_tools() {
         "verify_account",
         "verify_connections",
         "spray_passwords",
+        "execute_command",
         "list_credentials",
+        "add_credential",
+        "update_credential",
         "list_workspaces",
         "list_protocols",
+        "probe_target",
         "delete_credentials",
     ] {
         assert!(
@@ -325,4 +329,112 @@ fn mcp_verify_account_returns_structured_report() {
             >= 1,
         "verify report should count the non-success outcome: {report}"
     );
+}
+
+/// Verifies add_credential and update_credential write to the shared store.
+#[test]
+fn mcp_adds_and_updates_credentials() {
+    let home = TempHome::new("mcp-add-update");
+    let mut client = McpClient::start(&home);
+    initialize(&mut client);
+
+    let added = client.call_tool(
+        "add_credential",
+        json!({
+            "protocol": "ssh",
+            "host": "10.0.0.8",
+            "port": 22,
+            "username": "root",
+            "password": "toor"
+        }),
+    );
+    assert_eq!(added["protocol"], "ssh");
+    assert_eq!(added["host"], "10.0.0.8");
+    let id = added["id"].as_i64().expect("added credential id");
+
+    let listed = client.call_tool(
+        "list_credentials",
+        json!({"protocol": "ssh", "host": "10.0.0.8"}),
+    );
+    assert_eq!(listed[0]["id"], id);
+    assert_eq!(listed[0]["password"], "toor");
+
+    let updated = client.call_tool(
+        "update_credential",
+        json!({
+            "id": id,
+            "protocol": "ssh",
+            "host": "10.0.0.8",
+            "port": 2222,
+            "username": "root",
+            "password": "changed"
+        }),
+    );
+    assert_eq!(updated["id"], id);
+    assert_eq!(updated["port"], 2222);
+    assert_eq!(updated["password"], "changed");
+
+    // Re-adding the same key is idempotent, not a duplicate row.
+    client.call_tool(
+        "add_credential",
+        json!({
+            "protocol": "ssh",
+            "host": "10.0.0.8",
+            "port": 2222,
+            "username": "root",
+            "password": "changed"
+        }),
+    );
+    let listed = client.call_tool("list_credentials", json!({}));
+    assert_eq!(listed.as_array().expect("array").len(), 1);
+}
+
+/// Verifies probe_target reports an offline (no banner) target deterministically.
+#[test]
+fn mcp_probe_target_reports_closed_port() {
+    let home = TempHome::new("mcp-probe");
+    let mut client = McpClient::start(&home);
+    initialize(&mut client);
+
+    let probe = client.call_tool(
+        "probe_target",
+        json!({
+            "protocol": "ssh",
+            "target": "127.0.0.1",
+            "port": 1,
+            "timeout_ms": 400
+        }),
+    );
+    assert_eq!(probe["protocol"], "ssh");
+    assert_eq!(probe["host"], "127.0.0.1");
+    assert_eq!(probe["port"], 1);
+    assert_eq!(probe["online"], false);
+    assert!(probe["banner"].is_null(), "{probe}");
+}
+
+/// Verifies execute_command returns a failed-auth result without hanging.
+#[test]
+fn mcp_execute_command_reports_failed_auth() {
+    let home = TempHome::new("mcp-exec");
+    let mut client = McpClient::start(&home);
+    initialize(&mut client);
+
+    let result = client.call_tool(
+        "execute_command",
+        json!({
+            "protocol": "ssh",
+            "target": "127.0.0.1",
+            "username": "root",
+            "password": "invalid",
+            "command": "id",
+            "options": {
+                "port": 1,
+                "timeout_ms": 400,
+                "retries": 0
+            }
+        }),
+    );
+    assert_eq!(result["authenticated"], false);
+    assert!(result["output"].is_null(), "{result}");
+    assert!(result["error"].is_string(), "{result}");
 }

@@ -43,6 +43,16 @@ pub struct SavedCredential {
     pub conn_url: String,
 }
 
+/// Input fields for adding or updating a credential directly.
+#[derive(Debug, Clone)]
+pub struct CredentialInput {
+    pub protocol: Protocol,
+    pub host: String,
+    pub port: u16,
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
 impl CredentialDatabase {
     /// Returns the default SQLite database path under `~/.config/brute/brute.db`.
     ///
@@ -293,6 +303,115 @@ impl CredentialDatabase {
 
         credential
             .with_context(|| format!("credential id {id} was not found in workspace '{workspace}'"))
+    }
+
+    /// Adds a credential directly, without requiring a verified login.
+    ///
+    /// The unique key `(workspace, protocol, host, port, username, password)` is
+    /// upserted, so re-adding an existing credential is idempotent.
+    ///
+    /// # Parameters
+    ///
+    /// - `workspace`: Workspace name.
+    /// - `input`: Credential fields to store.
+    ///
+    /// # Returns
+    ///
+    /// The stored credential, including its id and generated connection URL.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the workspace is empty or the database write fails.
+    pub fn add_credential(&self, workspace: &str, input: &CredentialInput) -> Result<SavedCredential> {
+        let conn = self.connect()?;
+        let workspace_id = self.ensure_workspace(&conn, workspace)?;
+        let protocol_name = input.protocol.as_str();
+        let credential = CredentialSet {
+            username: input.username.clone(),
+            password: input.password.clone(),
+            service_name: None,
+            sid: None,
+        };
+        let conn_url = build_conn_url(protocol_name, &credential, &input.host, input.port);
+
+        let id: i64 = conn.query_row(
+            r#"
+            INSERT INTO credentials (
+                workspace_id, protocol, host, port, username, password, conn_url, created_at, updated_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'), datetime('now'))
+            ON CONFLICT(workspace_id, protocol, host, port, username, password)
+            DO UPDATE SET conn_url = excluded.conn_url, updated_at = datetime('now')
+            RETURNING id
+            "#,
+            params![
+                workspace_id,
+                protocol_name,
+                input.host,
+                input.port,
+                input.username.as_deref().unwrap_or_default(),
+                input.password.as_deref().unwrap_or_default(),
+                conn_url
+            ],
+            |row| row.get(0),
+        )?;
+        self.get_credential(id, workspace)
+    }
+
+    /// Updates an existing credential by id within one workspace.
+    ///
+    /// # Parameters
+    ///
+    /// - `id`: Credential id to update.
+    /// - `workspace`: Workspace the id must belong to.
+    /// - `input`: New credential fields.
+    ///
+    /// # Returns
+    ///
+    /// The updated credential.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the id is not in the workspace or the write fails.
+    pub fn update_credential(
+        &self,
+        id: i64,
+        workspace: &str,
+        input: &CredentialInput,
+    ) -> Result<SavedCredential> {
+        let conn = self.connect()?;
+        let workspace_id = self.ensure_workspace(&conn, workspace)?;
+        let protocol_name = input.protocol.as_str();
+        let credential = CredentialSet {
+            username: input.username.clone(),
+            password: input.password.clone(),
+            service_name: None,
+            sid: None,
+        };
+        let conn_url = build_conn_url(protocol_name, &credential, &input.host, input.port);
+
+        let changes = conn.execute(
+            r#"
+            UPDATE credentials
+            SET protocol = ?1, host = ?2, port = ?3, username = ?4, password = ?5,
+                conn_url = ?6, updated_at = datetime('now')
+            WHERE id = ?7 AND workspace_id = ?8
+            "#,
+            params![
+                protocol_name,
+                input.host,
+                input.port,
+                input.username.as_deref().unwrap_or_default(),
+                input.password.as_deref().unwrap_or_default(),
+                conn_url,
+                id,
+                workspace_id
+            ],
+        )?;
+        if changes == 0 {
+            bail!("credential id {id} was not found in workspace '{workspace}'");
+        }
+        self.get_credential(id, workspace)
     }
 
     /// Lists saved credentials with optional workspace and protocol filters.

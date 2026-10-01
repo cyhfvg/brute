@@ -64,6 +64,63 @@ pub struct VerifyAccountParams {
     pub options: ProtocolOptions,
 }
 
+/// Parameters for running a post-auth command against a verified credential.
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct ExecuteCommandParams {
+    /// Protocol name: ssh, ftp, mysql, postgresql, redis, oracle, winrm, zookeeper, memcached, mongodb, elasticsearch, docker, snmp, activemq, rabbitmq, mssql, kafka, kibana, nfs, telnet, ldap, grafana, prometheus, jenkins, couchdb, clickhouse, neo4j, etcd, influxdb, solr, minio, nacos, nexus, jboss, druid, spark, hadoop, kubelet, gitlab, harbor, weblogic, websphere.
+    pub protocol: String,
+    /// Target IPv4 address, IPv4 CIDR, hostname, FQDN, or target-file path. IPv6 is not supported.
+    pub target: String,
+    /// Username. Required unless `credential_id` is set.
+    pub username: Option<String>,
+    /// Password. Required unless `credential_id` is set.
+    pub password: Option<String>,
+    /// Saved credential id from the selected workspace. Mutually exclusive with username/password.
+    pub credential_id: Option<i64>,
+    /// Command to run after authentication succeeds.
+    pub command: String,
+    /// Shared protocol options.
+    #[serde(default)]
+    pub options: ProtocolOptions,
+}
+
+impl ExecuteCommandParams {
+    /// Converts execute-tool arguments into a single-target engine request.
+    ///
+    /// # Parameters
+    ///
+    /// None. Uses the fields on `self`.
+    ///
+    /// # Returns
+    ///
+    /// A single-target [`SprayRequest`] whose `execute` carries the command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when protocol, proxy, or credential sources are invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let request = params.into_request()?;
+    /// ```
+    pub fn into_request(self) -> anyhow::Result<SprayRequest> {
+        let mut request = SprayRequest {
+            protocol: crate::engine::parse_protocol(&self.protocol)?,
+            targets: vec![self.target],
+            credential_id: self.credential_id,
+            execute: Some(self.command),
+            ..SprayRequest::default()
+        };
+        if self.credential_id.is_none() {
+            request.usernames = vec![self.username.unwrap_or_default()];
+            request.passwords = vec![self.password.unwrap_or_default()];
+        }
+        apply_options(&mut request, self.options)?;
+        Ok(request)
+    }
+}
+
 /// Parameters for a multi-account password spray.
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 pub struct SprayPasswordsParams {
@@ -117,6 +174,59 @@ pub struct DeleteCredentialsParams {
     /// Delete every credential in the workspace. Refused when combined with ids or filters.
     #[serde(default)]
     pub all: bool,
+}
+
+/// Parameters for adding a credential directly.
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct AddCredentialParams {
+    /// Protocol name such as `ssh` or `http`.
+    pub protocol: String,
+    /// Target host.
+    pub host: String,
+    /// Service port.
+    pub port: u16,
+    /// Username. Empty string means an empty username.
+    pub username: Option<String>,
+    /// Password. Empty string means an empty password.
+    pub password: Option<String>,
+    /// Workspace to add to. Defaults to the current workspace.
+    pub workspace: Option<String>,
+}
+
+/// Parameters for updating an existing credential by id.
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct UpdateCredentialParams {
+    /// Credential id to update.
+    pub id: i64,
+    /// New protocol name such as `ssh` or `http`.
+    pub protocol: String,
+    /// New host.
+    pub host: String,
+    /// New port.
+    pub port: u16,
+    /// New username. Empty string means an empty username.
+    pub username: Option<String>,
+    /// New password. Empty string means an empty password.
+    pub password: Option<String>,
+    /// Workspace the id belongs to. Defaults to the current workspace.
+    pub workspace: Option<String>,
+}
+
+/// Parameters for probing one target.
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct ProbeTargetParams {
+    /// Protocol name such as `ssh` or `http`.
+    pub protocol: String,
+    /// Target IPv4 address, hostname, or FQDN. IPv6 is not supported.
+    pub target: String,
+    /// TCP port override. Defaults to the protocol service port.
+    pub port: Option<u16>,
+    /// Per-attempt timeout in milliseconds. Default: 5000.
+    pub timeout_ms: Option<u64>,
+    /// Outbound proxy URL: `http://[user[:pass]@]host:port` or `socks5://...`.
+    pub proxy: Option<String>,
+    /// HTTP URL scheme: `http` or `https`. Omitted uses `https` for kubelet and websphere, otherwise `http`.
+    pub url_scheme: Option<String>,
 }
 
 impl VerifyAccountParams {

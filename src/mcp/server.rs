@@ -8,13 +8,15 @@ use rmcp::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::database::CredentialDatabase;
+use crate::database::{CredentialDatabase, CredentialInput};
 use crate::engine::{
-    delete_credentials, list_protocols, list_workspaces, query_credentials, run_spray,
+    CredentialRecord, delete_credentials, list_protocols, list_workspaces, probe_target,
+    query_credentials, run_command, run_spray,
 };
 
 use super::tools::{
-    DeleteCredentialsParams, ListCredentialsParams, SprayPasswordsParams, VerifyAccountParams,
+    AddCredentialParams, DeleteCredentialsParams, ExecuteCommandParams, ListCredentialsParams,
+    ProbeTargetParams, SprayPasswordsParams, UpdateCredentialParams, VerifyAccountParams,
     VerifyConnectionsParams,
 };
 
@@ -42,6 +44,14 @@ impl BruteMcp {
     /// ```
     pub fn new(database: CredentialDatabase) -> Self {
         Self { database }
+    }
+
+    /// Resolves a workspace name, falling back to the current workspace.
+    fn resolve_workspace(&self, workspace: Option<&str>) -> anyhow::Result<String> {
+        match workspace {
+            Some(name) if !name.trim().is_empty() => Ok(name.to_string()),
+            _ => self.database.current_workspace(),
+        }
     }
 }
 
@@ -90,6 +100,28 @@ impl BruteMcp {
             .await
             .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
         to_json(&report)
+    }
+
+    /// Runs a post-auth command against a verified credential.
+    ///
+    /// Authenticates first using explicit or saved credentials, then runs the
+    /// command on protocols that support `-x`. Authorized targets only.
+    #[tool(
+        name = "execute_command",
+        description = "Run a command after authenticating against one target using explicit or saved credentials. Only protocols that support post-auth commands. Authorized targets only."
+    )]
+    async fn execute_command(
+        &self,
+        Parameters(params): Parameters<ExecuteCommandParams>,
+        cancel: CancellationToken,
+    ) -> Result<String, ErrorData> {
+        let request = params
+            .into_request()
+            .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+        let result = run_command(&self.database, request, &cancel)
+            .await
+            .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
+        to_json(&result)
     }
 
     /// Lists credentials already verified and stored by brute.
@@ -145,6 +177,106 @@ impl BruteMcp {
         )
         .map_err(credential_delete_error)?;
         to_json(&report)
+    }
+
+    /// Adds a credential directly without a verified login.
+    #[tool(
+        name = "add_credential",
+        description = "Add a credential to a workspace without verifying it. Idempotent on the unique (workspace, protocol, host, port, username, password) key. Returns the stored record."
+    )]
+    fn add_credential(
+        &self,
+        Parameters(params): Parameters<AddCredentialParams>,
+    ) -> Result<String, ErrorData> {
+        let protocol = crate::engine::parse_protocol(&params.protocol)
+            .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+        let workspace = self
+            .resolve_workspace(params.workspace.as_deref())
+            .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
+        let input = CredentialInput {
+            protocol,
+            host: params.host,
+            port: params.port,
+            username: params.username,
+            password: params.password,
+        };
+        let record = self
+            .database
+            .add_credential(&workspace, &input)
+            .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
+        to_json(&CredentialRecord::from(&record))
+    }
+
+    /// Updates an existing credential by id within one workspace.
+    #[tool(
+        name = "update_credential",
+        description = "Update an existing credential by id. Refuses an id outside the workspace. Returns the updated record."
+    )]
+    fn update_credential(
+        &self,
+        Parameters(params): Parameters<UpdateCredentialParams>,
+    ) -> Result<String, ErrorData> {
+        let protocol = crate::engine::parse_protocol(&params.protocol)
+            .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+        let workspace = self
+            .resolve_workspace(params.workspace.as_deref())
+            .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
+        let input = CredentialInput {
+            protocol,
+            host: params.host,
+            port: params.port,
+            username: params.username,
+            password: params.password,
+        };
+        let record = self
+            .database
+            .update_credential(params.id, &workspace, &input)
+            .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
+        to_json(&CredentialRecord::from(&record))
+    }
+
+    /// Probes one target and reports its banner and online status.
+    #[tool(
+        name = "probe_target",
+        description = "Probe one target for a service banner. Returns the banner and whether the service responded. Authorized targets only."
+    )]
+    async fn probe_target(
+        &self,
+        Parameters(params): Parameters<ProbeTargetParams>,
+        cancel: CancellationToken,
+    ) -> Result<String, ErrorData> {
+        let protocol = crate::engine::parse_protocol(&params.protocol)
+            .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+        let url_scheme = match params.url_scheme.as_deref() {
+            Some(scheme) => crate::engine::parse_http_scheme(scheme)
+                .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?,
+            None => crate::cli::default_http_url_scheme(protocol),
+        };
+        let proxy = match params.proxy {
+            Some(proxy) => Some(
+                crate::proxy::ProxyConfig::parse(&proxy)
+                    .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?,
+            ),
+            None => None,
+        };
+        let effective_port = params.port.unwrap_or_else(|| protocol.default_port());
+        let banner = probe_target(
+            protocol,
+            params.target.clone(),
+            params.port,
+            params.timeout_ms.unwrap_or(5_000),
+            proxy,
+            url_scheme,
+            &cancel,
+        )
+        .await;
+        to_json(&serde_json::json!({
+            "protocol": protocol.as_str(),
+            "host": params.target,
+            "port": effective_port,
+            "banner": banner,
+            "online": banner.is_some(),
+        }))
     }
 
     /// Lists local credential workspaces.

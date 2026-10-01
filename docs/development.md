@@ -184,8 +184,11 @@ HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`t
 - `verify_account`: 单目标单账户验证
 - `spray_passwords`: 用户名 x 密码喷洒
 - `verify_connections`: 文件和/或内联连接 URL 的配对验证
-- `list_credentials`: 按 workspace/protocol/host 查询已验证凭据
+- `execute_command`: 对已验证凭据（显式或 `credential_id`）认证后运行 `-x` 命令
+- `list_credentials`: 按 workspace/protocol/host/username 查询已验证凭据
 - `delete_credentials`: 按 id、protocol、host 或 `all` 删除已保存凭据; 无选择器时拒绝
+- `add_credential` / `update_credential`: 直接写入/修改外部发现的凭据（upsert/按 id 更新）
+- `probe_target`: 单目标探测，返回 banner 与在线状态
 - `list_workspaces` / `list_protocols`: 发现本地 workspace 与协议能力
 
 成功凭据仍写入 `~/.config/brute/brute.db`, 与 CLI 共用同一 schema.

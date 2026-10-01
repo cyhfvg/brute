@@ -14,9 +14,10 @@ use futures::{StreamExt, stream};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-use crate::cli::Protocol;
-use crate::credentials::{LoadedCredentials, load_credentials, load_service_names, load_sids};
+use crate::cli::{HttpUrlScheme, Protocol};
+use crate::credentials::{CredentialSet, LoadedCredentials, load_credentials, load_service_names, load_sids};
 use crate::database::CredentialDatabase;
+use crate::proxy::ProxyConfig;
 use crate::protocol::{
     AttemptContext, AttemptFaultClass, AttemptOutcome, BruteModule, PostAuthResult, TargetContext,
     activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
@@ -38,7 +39,8 @@ use crate::targets::load_targets;
 use super::attempt::{AttemptControl, attempt_with_retries};
 use super::query::resolve_workspace;
 use super::types::{
-    AttemptRecord, AttemptStatus, ProbeRecord, SprayReport, SprayReporter, SprayRequest,
+    AttemptRecord, AttemptStatus, CommandResult, ProbeRecord, SprayReport, SprayReporter,
+    SprayRequest,
 };
 
 /// Executes a verify or spray request and optionally reports live CLI output.
@@ -234,6 +236,165 @@ pub async fn run_spray(
         error_count: error_count.load(Ordering::Relaxed),
         skipped: skipped.load(Ordering::Relaxed),
     })
+}
+
+/// Runs a post-auth command against a verified credential without a full spray.
+///
+/// Exactly one target and one credential are used; the request's `execute` field
+/// carries the command. This path skips target probing and success persistence.
+///
+/// # Parameters
+///
+/// - `database`: Open credential database used to resolve `--id`.
+/// - `request`: Single-target, single-credential request whose `execute` is the command.
+/// - `cancel`: Cancellation token. A cancelled try yields [`CommandResult`] with `authenticated = false`.
+///
+/// # Returns
+///
+/// A [`CommandResult`] carrying command output or an error.
+///
+/// # Errors
+///
+/// Returns an error when the request is invalid, the credential cannot be loaded,
+/// or no target was supplied.
+///
+/// # Examples
+///
+/// ```ignore
+/// let result = run_command(&database, request, &cancel).await?;
+/// assert!(result.authenticated);
+/// ```
+pub async fn run_command(
+    database: &CredentialDatabase,
+    request: SprayRequest,
+    cancel: &CancellationToken,
+) -> Result<CommandResult> {
+    request.validate()?;
+    let workspace = resolve_workspace(database, request.workspace.as_deref())?;
+    let credential = if let Some(id) = request.credential_id {
+        let saved = database.get_credential(id, &workspace)?;
+        CredentialSet {
+            username: saved.username.filter(|value| !value.is_empty()),
+            password: saved.password.filter(|value| !value.is_empty()),
+            service_name: None,
+            sid: None,
+        }
+    } else {
+        CredentialSet {
+            username: request.usernames.first().cloned().filter(|value| !value.is_empty()),
+            password: request.passwords.first().cloned().filter(|value| !value.is_empty()),
+            service_name: request.service_names.first().cloned(),
+            sid: request.sids.first().cloned(),
+        }
+    };
+    let target_host = request
+        .targets
+        .first()
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("no target was supplied"))?;
+    let module = build_module(&request);
+
+    let ctx = AttemptContext {
+        protocol: request.protocol,
+        target_host,
+        target: request.to_common_args(),
+        url_scheme: request.url_scheme,
+        path: request.effective_path(),
+        execute: request.execute.clone(),
+        credential,
+    };
+
+    let outcome = match attempt_with_retries(module.as_ref(), &ctx, cancel).await {
+        AttemptControl::Cancelled => {
+            return Ok(CommandResult {
+                authenticated: false,
+                output: None,
+                error: Some("cancelled".to_string()),
+            });
+        }
+        AttemptControl::Finished(outcome) => outcome,
+    };
+
+    Ok(match outcome {
+        AttemptOutcome::Success(success) => match success.post_auth_result {
+            Some(PostAuthResult::Output(output)) => CommandResult {
+                authenticated: true,
+                output: Some(output),
+                error: None,
+            },
+            Some(PostAuthResult::Failed(error)) => CommandResult {
+                authenticated: true,
+                output: None,
+                error: Some(error),
+            },
+            None => CommandResult {
+                authenticated: true,
+                output: None,
+                error: None,
+            },
+        },
+        AttemptOutcome::Failure(fault) | AttemptOutcome::Error(fault) => CommandResult {
+            authenticated: false,
+            output: None,
+            error: Some(fault.message),
+        },
+    })
+}
+
+/// Probes one target and returns its banner, or `None` when none was observed.
+///
+/// This mirrors the scheduler's target probe: `None` means no banner was seen
+/// (timeout, closed port, or a probe error), not a readiness verdict.
+///
+/// # Parameters
+///
+/// - `protocol`: Protocol module to probe with.
+/// - `target`: Single host.
+/// - `port`: Optional service port override.
+/// - `timeout_ms`: Per-attempt timeout in milliseconds.
+/// - `proxy`: Optional outbound proxy.
+/// - `url_scheme`: HTTP URL scheme.
+/// - `cancel`: Cancellation token.
+///
+/// # Returns
+///
+/// Banner text when the probe observed one, otherwise `None`.
+///
+/// # Examples
+///
+/// ```ignore
+/// let banner = probe_target(Protocol::Ssh, "10.0.0.8".into(), None, 5000, None, HttpUrlScheme::Http, &cancel).await;
+/// ```
+pub async fn probe_target(
+    protocol: Protocol,
+    target: String,
+    port: Option<u16>,
+    timeout_ms: u64,
+    proxy: Option<ProxyConfig>,
+    url_scheme: HttpUrlScheme,
+    cancel: &CancellationToken,
+) -> Option<String> {
+    let request = SprayRequest {
+        protocol,
+        targets: vec![target.clone()],
+        port,
+        timeout_ms,
+        proxy,
+        url_scheme,
+        ..SprayRequest::default()
+    };
+    let module = build_module(&request);
+    let ctx = TargetContext {
+        protocol,
+        target_host: target,
+        target: request.to_common_args(),
+        url_scheme,
+    };
+    tokio::select! {
+        biased;
+        _ = cancel.cancelled() => None,
+        probe = module.probe_target(&ctx) => probe,
+    }
 }
 
 /// Probes targets concurrently. Credential attempts must not wait for this future.
