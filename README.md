@@ -289,6 +289,7 @@ These flags are top-level (same level as `--version`) and must appear **before**
 
 - `--proxy <PROXY_URL>`: Supported schemes: `http` and `socks5`. URL form: `protocol://[username[:password]@]host:port`. Examples: `brute --proxy socks5://user:pass@127.0.0.1:1080 ssh 10.0.0.1 -u admin -p pass`, `brute --proxy http://127.0.0.1:8080 http 10.0.0.1 -u admin -p pass`.
 - `--no-color`: Disable colored output.
+- `--list-protocol`: List supported protocols and their default ports, then exit. The protocol list is no longer shown by `--help`; run `brute --list-protocol` to see it.
 
 ## MCP Server
 

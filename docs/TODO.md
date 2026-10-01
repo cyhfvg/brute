@@ -11,6 +11,11 @@
   (`http`/`socks5`, optional credentials); injected into runtime `CommonArgs.proxy`; shared
   `src/proxy.rs` parser + async/blocking tunnels + local TCP bridge for host:port-only clients;
   CLI parse/reject tests and docs (README / PROCESS).
+- `--help` no longer lists the 48 protocol subcommands; the protocol list moved to the top-level
+  `--list-protocol` flag (name + default port, ascending port order). `--help` now shows the ASCII
+  banner, top-level options, and a few usage examples. Protocol subcommands remain valid but are
+  hidden from the root help listing. `src/app.rs` handles `--list-protocol` before opening the
+  database.
 - SQLite foreign-key enforcement, credential URL encoding, and regression coverage.
 - Lazy attempt scheduling with validated concurrency and timeout inputs.
 - Post-auth command failures preserve successfully verified credentials.

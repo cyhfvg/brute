@@ -11,10 +11,22 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     about = "A multi-protocol credential attack and login verification utility",
     help_template = "\
 {before-help}{about-with-newline}\
+_      _ __   _   _  _       ___\n\
+| |__  | '__| | | | || |_    / _ \\\n\
+| '_ \\ | |    | | | || __|  |  __/\n\
+| |_) ||_|    | |_| || |_    \\___|\n\
+|_.__/         \\___/  \\__|\n\
+\n\
 Author: {author-with-newline}\
-{usage-heading} {usage}
-
-{all-args}{after-help}",
+{usage-heading} {usage}\n\
+\n\
+{all-args}\
+{after-help}",
+    after_help = "Examples:\n  \
+brute ssh 192.168.5.5 -u admin -p 123456\n  \
+brute ftp 192.168.5.5 -u users.txt -p pass.txt --threads 16\n  \
+brute combo connections.txt --threads 32\n  \
+brute --list-protocol",
     subcommand_value_name = "COMMAND",
     subcommand_help_heading = "commands"
 )]
@@ -30,8 +42,12 @@ pub struct Cli {
     #[arg(long = "proxy", value_name = "PROXY_URL", value_parser = crate::proxy::parse_proxy_url)]
     pub proxy: Option<crate::proxy::ProxyConfig>,
 
+    /// List supported protocols and their default ports, then exit.
+    #[arg(long = "list-protocol")]
+    pub list_protocol: bool,
+
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 /// Top-level command groups.
@@ -106,6 +122,7 @@ pub struct ComboArgs {
 #[derive(Debug, Subcommand)]
 pub enum ProtocolArgs {
     #[command(
+        hide = true,
         about = "own stuff using SSH",
         override_usage = "brute ssh <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute ssh 192.168.5.5 -u admin -p 123456 -x 'id'"
@@ -113,6 +130,7 @@ pub enum ProtocolArgs {
     Ssh(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using FTP",
         override_usage = "brute ftp <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute ftp 192.168.5.5 -u admin -p 123456 -x 'PWD'"
@@ -120,6 +138,7 @@ pub enum ProtocolArgs {
     Ftp(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using MYSQL",
         override_usage = "brute mysql <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute mysql 192.168.5.5 -u root -p 123456 -x 'show databases;'"
@@ -127,6 +146,7 @@ pub enum ProtocolArgs {
     Mysql(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using POSTGRESQL",
         override_usage = "brute postgresql <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute postgresql 192.168.5.5 -u postgres -p 123456 -x 'select version();'"
@@ -134,6 +154,7 @@ pub enum ProtocolArgs {
     Postgresql(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using REDIS",
         override_usage = "brute redis <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute redis 192.168.5.5 -u '' -p 123456 -x 'INFO server'"
@@ -141,6 +162,7 @@ pub enum ProtocolArgs {
     Redis(ExecuteArgs),
 
     #[command(
+        hide = true,
         name = "tomcat-manager",
         visible_alias = "tomcat",
         about = "own stuff using TOMCAT MANAGER",
@@ -150,6 +172,7 @@ pub enum ProtocolArgs {
     Tomcat(TomcatArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using SMB",
         override_usage = "brute smb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute smb 192.168.5.5 -u admin -p 123456\n  brute smb 192.168.5.5 -u admin -p 123456 --shares"
@@ -157,6 +180,7 @@ pub enum ProtocolArgs {
     Smb(SmbArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using RDP",
         override_usage = "brute rdp <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute rdp 192.168.5.5 -u admin -p 123456"
@@ -164,6 +188,7 @@ pub enum ProtocolArgs {
     Rdp(CommonArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using WINRM",
         override_usage = "brute winrm <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute winrm 192.168.5.5 -u admin -p 123456\n  brute winrm 192.168.5.5 -u admin -p 123456 -x 'whoami'\n  brute winrm 192.168.5.5 -u admin -p 123456 --shell-type cmd -x 'whoami'\n  brute winrm 192.168.5.5 -u admin -p 123456 --shell-type powershell\n  brute winrm 192.168.5.5 -u admin -p 123456 --shell-type cmd -x @script.bat\n  brute winrm 192.168.5.5 -u admin -p 123456 -x @script.ps1"
@@ -171,6 +196,7 @@ pub enum ProtocolArgs {
     Winrm(WinrmArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using ORACLE",
         override_usage = "brute oracle <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute oracle cloud.home.lab -u APPUSER -p PASSWORD --service-name XE -x 'select * from dual'\n  brute oracle cloud.home.lab -u users.txt -p pass.txt --service-name services.txt\n  brute oracle cloud.home.lab -u users.txt -p pass.txt --sid sids.txt"
@@ -178,6 +204,7 @@ pub enum ProtocolArgs {
     Oracle(OracleArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using HTTP Basic Auth",
         override_usage = "brute http <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute http 192.168.10.5 -u admin -p 123456 --path /\n  brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16\n  brute http 10.10.50.30 -u admin -p secret --protocol https --port 8443 --path /"
@@ -185,6 +212,7 @@ pub enum ProtocolArgs {
     Http(HttpArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using VNC",
         override_usage = "brute vnc <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute vnc 192.168.10.5 -u '' -p 123456\n  brute vnc 192.168.10.5 -u users.txt -p pass.txt --port 5900 --threads 16"
@@ -192,6 +220,7 @@ pub enum ProtocolArgs {
     Vnc(CommonArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using ZOOKEEPER",
         visible_alias = "zk",
         override_usage = "brute zookeeper <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -200,6 +229,7 @@ pub enum ProtocolArgs {
     Zookeeper(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using MEMCACHED",
         visible_alias = "memcache",
         override_usage = "brute memcached <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -208,6 +238,7 @@ pub enum ProtocolArgs {
     Memcached(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using MONGODB",
         visible_alias = "mongo",
         override_usage = "brute mongodb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -216,6 +247,7 @@ pub enum ProtocolArgs {
     Mongodb(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using ELASTICSEARCH",
         visible_alias = "es",
         override_usage = "brute elasticsearch <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -224,6 +256,7 @@ pub enum ProtocolArgs {
     Elasticsearch(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         name = "docker",
         visible_alias = "docker-api",
         about = "own stuff using DOCKER API",
@@ -233,6 +266,7 @@ pub enum ProtocolArgs {
     Docker(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using SNMP",
         override_usage = "brute snmp <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute snmp 192.168.5.10 -u '' -p public\n  brute snmp 192.168.5.10 -u '' -p ''\n  brute snmp 192.168.5.10 -u '' -p communities.txt --continue-on-success\n  brute snmp 192.168.5.10 -u '' -p secret -x sysName"
@@ -240,6 +274,7 @@ pub enum ProtocolArgs {
     Snmp(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using ACTIVEMQ",
         visible_alias = "amq",
         override_usage = "brute activemq <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -248,6 +283,7 @@ pub enum ProtocolArgs {
     Activemq(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using RABBITMQ",
         visible_alias = "amqp",
         override_usage = "brute rabbitmq <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -256,6 +292,7 @@ pub enum ProtocolArgs {
     Rabbitmq(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using RSYNC",
         override_usage = "brute rsync <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute rsync 192.168.5.10 -u admin -p secret\n  brute rsync 192.168.5.10 -u '' -p '' --module files\n  brute rsync 192.168.5.10 -u users.txt -p pass.txt --module files --threads 8"
@@ -263,6 +300,7 @@ pub enum ProtocolArgs {
     Rsync(RsyncArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using MSSQL",
         visible_alias = "sqlserver",
         override_usage = "brute mssql <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -271,6 +309,7 @@ pub enum ProtocolArgs {
     Mssql(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using KAFKA",
         override_usage = "brute kafka <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute kafka 192.168.5.10 -u admin -p kafka_pass\n  brute kafka 192.168.5.10 -u admin -p kafka_pass -x metadata"
@@ -278,6 +317,7 @@ pub enum ProtocolArgs {
     Kafka(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using KIBANA",
         override_usage = "brute kibana <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute kibana 192.168.5.10 -u elastic -p changeme\n  brute kibana 192.168.5.10 -u elastic -p changeme -x status"
@@ -285,6 +325,7 @@ pub enum ProtocolArgs {
     Kibana(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using NFS",
         override_usage = "brute nfs <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute nfs 192.168.5.10 -u '' -p ''\n  brute nfs 192.168.5.10 -u 0 -p '' -x dump"
@@ -292,6 +333,7 @@ pub enum ProtocolArgs {
     Nfs(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using TELNET",
         override_usage = "brute telnet <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute telnet 192.168.5.10 -u admin -p telnet_pass\n  brute telnet 192.168.5.10 -u '' -p ''\n  brute telnet 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute telnet 192.168.5.10 -u admin -p telnet_pass -x id"
@@ -299,6 +341,7 @@ pub enum ProtocolArgs {
     Telnet(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using LDAP",
         override_usage = "brute ldap <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass\n  brute ldap 192.168.5.10 -u '' -p ''\n  brute ldap 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute ldap 192.168.5.10 -u 'cn=admin,dc=example,dc=org' -p ldap_pass -x whoami"
@@ -306,6 +349,7 @@ pub enum ProtocolArgs {
     Ldap(ExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using GRAFANA",
         override_usage = "brute grafana <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute grafana 192.168.5.10 -u admin -p grafana_pass\n  brute grafana 192.168.5.10 -u '' -p ''\n  brute grafana 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute grafana 192.168.5.10 -u admin -p grafana_pass -x org"
@@ -313,6 +357,7 @@ pub enum ProtocolArgs {
     Grafana(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using PROMETHEUS",
         visible_alias = "prom",
         override_usage = "brute prometheus <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -321,6 +366,7 @@ pub enum ProtocolArgs {
     Prometheus(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using JENKINS",
         override_usage = "brute jenkins <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass\n  brute jenkins 192.168.5.10 -u '' -p ''\n  brute jenkins 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute jenkins 192.168.5.10 -u admin -p jenkins_pass -x whoami"
@@ -328,6 +374,7 @@ pub enum ProtocolArgs {
     Jenkins(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using COUCHDB",
         visible_alias = "couch",
         override_usage = "brute couchdb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -336,6 +383,7 @@ pub enum ProtocolArgs {
     Couchdb(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using CLICKHOUSE",
         visible_alias = "ch",
         override_usage = "brute clickhouse <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -344,6 +392,7 @@ pub enum ProtocolArgs {
     Clickhouse(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using NEO4J",
         override_usage = "brute neo4j <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass\n  brute neo4j 192.168.5.10 -u '' -p ''\n  brute neo4j 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute neo4j 192.168.5.10 -u neo4j -p neo4j_pass -x ping"
@@ -351,6 +400,7 @@ pub enum ProtocolArgs {
     Neo4j(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using ETCD",
         override_usage = "brute etcd <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute etcd 192.168.5.10 -u root -p etcd_pass\n  brute etcd 192.168.5.10 -u '' -p ''\n  brute etcd 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute etcd 192.168.5.10 -u root -p etcd_pass -x version"
@@ -358,6 +408,7 @@ pub enum ProtocolArgs {
     Etcd(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using INFLUXDB",
         visible_alias = "influx",
         override_usage = "brute influxdb <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -366,6 +417,7 @@ pub enum ProtocolArgs {
     Influxdb(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using SOLR",
         override_usage = "brute solr <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute solr 192.168.5.10 -u solr -p solr_pass\n  brute solr 192.168.5.10 -u '' -p ''\n  brute solr 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute solr 192.168.5.10 -u solr -p solr_pass -x cores"
@@ -373,6 +425,7 @@ pub enum ProtocolArgs {
     Solr(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using MINIO",
         override_usage = "brute minio <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass\n  brute minio 192.168.5.10 -u '' -p ''\n  brute minio 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute minio 192.168.5.10 -u minioadmin -p minio_pass -x buckets"
@@ -380,6 +433,7 @@ pub enum ProtocolArgs {
     Minio(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using NACOS",
         override_usage = "brute nacos <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute nacos 192.168.5.10 -u nacos -p nacos\n  brute nacos 192.168.5.10 -u '' -p ''\n  brute nacos 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nacos 192.168.5.10 -u nacos -p nacos -x namespaces"
@@ -387,6 +441,7 @@ pub enum ProtocolArgs {
     Nacos(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using NEXUS",
         override_usage = "brute nexus <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute nexus 192.168.5.10 -u admin -p nexus_pass\n  brute nexus 192.168.5.10 -u '' -p ''\n  brute nexus 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute nexus 192.168.5.10 -u admin -p nexus_pass -x repos"
@@ -394,6 +449,7 @@ pub enum ProtocolArgs {
     Nexus(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using JBOSS",
         visible_alias = "wildfly",
         override_usage = "brute jboss <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -402,6 +458,7 @@ pub enum ProtocolArgs {
     Jboss(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using DRUID",
         override_usage = "brute druid <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute druid 192.168.5.10 -u admin -p druid_pass\n  brute druid 192.168.5.10 -u '' -p ''\n  brute druid 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute druid 192.168.5.10 -u admin -p druid_pass -x status"
@@ -409,6 +466,7 @@ pub enum ProtocolArgs {
     Druid(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using SPARK",
         override_usage = "brute spark <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute spark 192.168.5.10 -u spark -p spark_pass\n  brute spark 192.168.5.10 -u '' -p ''\n  brute spark 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute spark 192.168.5.10 -u spark -p spark_pass -x json"
@@ -416,6 +474,7 @@ pub enum ProtocolArgs {
     Spark(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using HADOOP",
         visible_alias = "hdfs",
         override_usage = "brute hadoop <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -424,6 +483,7 @@ pub enum ProtocolArgs {
     Hadoop(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using KUBELET",
         override_usage = "brute kubelet <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute kubelet 192.168.5.10 -u '' -p k8s-token\n  brute kubelet 192.168.5.10 -u '' -p ''\n  brute kubelet 192.168.5.10 -u users.txt -p tokens.txt --threads 8\n  brute kubelet 192.168.5.10 -u '' -p k8s-token -x pods"
@@ -431,6 +491,7 @@ pub enum ProtocolArgs {
     Kubelet(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using GITLAB",
         override_usage = "brute gitlab <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1\n  brute gitlab 192.168.5.10 -u '' -p ''\n  brute gitlab 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute gitlab 192.168.5.10 -u root -p gitlab_pass1 -x user"
@@ -438,6 +499,7 @@ pub enum ProtocolArgs {
     Gitlab(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using HARBOR",
         override_usage = "brute harbor <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
         after_help = "Example:\n  brute harbor 192.168.5.10 -u admin -p Harbor12345\n  brute harbor 192.168.5.10 -u '' -p ''\n  brute harbor 192.168.5.10 -u users.txt -p pass.txt --threads 8\n  brute harbor 192.168.5.10 -u admin -p Harbor12345 -x projects"
@@ -445,6 +507,7 @@ pub enum ProtocolArgs {
     Harbor(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using WEBLOGIC",
         visible_alias = "wls",
         override_usage = "brute weblogic <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
@@ -453,6 +516,7 @@ pub enum ProtocolArgs {
     Weblogic(HttpExecuteArgs),
 
     #[command(
+        hide = true,
         about = "own stuff using WEBSPHERE",
         visible_alias = "was",
         override_usage = "brute websphere <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",

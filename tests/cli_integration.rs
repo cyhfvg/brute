@@ -66,7 +66,7 @@ fn stdout(output: &Output) -> String {
 }
 
 #[test]
-fn help_lists_primary_command_groups() {
+fn help_lists_primary_command_groups_without_protocols() {
     let home = TempHome::new("help");
 
     let output = run_with_home(&home, ["--help"]);
@@ -78,47 +78,84 @@ fn help_lists_primary_command_groups() {
     assert!(stdout.contains("workspace"));
     assert!(stdout.contains("creds"));
     assert!(stdout.contains("mcp"));
-    assert!(stdout.contains("ssh"));
-    assert!(stdout.contains("zookeeper"));
-    assert!(stdout.contains("memcached"));
-    assert!(stdout.contains("mongodb"));
-    assert!(stdout.contains("elasticsearch"));
-    assert!(stdout.contains("docker"));
-    assert!(stdout.contains("snmp"));
-    assert!(stdout.contains("activemq"));
-    assert!(stdout.contains("rabbitmq"));
-    assert!(stdout.contains("rsync"));
-    assert!(stdout.contains("mssql"));
-    assert!(stdout.contains("kafka"));
-    assert!(stdout.contains("kibana"));
-    assert!(stdout.contains("nfs"));
-    assert!(stdout.contains("telnet"));
-    assert!(stdout.contains("ldap"));
-    assert!(stdout.contains("grafana"));
-    assert!(stdout.contains("prometheus"));
-    assert!(stdout.contains("jenkins"));
-    assert!(stdout.contains("couchdb"));
-    assert!(stdout.contains("clickhouse"));
-    assert!(stdout.contains("neo4j"));
-    assert!(stdout.contains("etcd"));
-    assert!(stdout.contains("influxdb"));
-    assert!(stdout.contains("solr"));
-    assert!(stdout.contains("minio"));
-    assert!(stdout.contains("nacos"));
-    assert!(stdout.contains("nexus"));
-    assert!(stdout.contains("jboss"));
-    assert!(stdout.contains("druid"));
-    assert!(stdout.contains("spark"));
-    assert!(stdout.contains("hadoop"));
-    assert!(stdout.contains("kubelet"));
-    assert!(stdout.contains("gitlab"));
-    assert!(stdout.contains("harbor"));
-    assert!(stdout.contains("weblogic"));
-    assert!(stdout.contains("websphere"));
+    assert!(stdout.contains("Examples:"));
+    assert!(
+        stdout.contains("|_.__/"),
+        "root --help must include the brute banner\nstdout:\n{stdout}"
+    );
     assert!(
         stdout.contains("Author: cyhfvg <https://github.com/cyhfvg/brute>"),
         "root --help must show author info\nstdout:\n{stdout}"
     );
+    // Protocol subcommands moved to `--list-protocol` and stay out of `--help`.
+    assert!(!stdout.contains("own stuff using"));
+    assert!(!stdout.contains("zookeeper"));
+}
+
+#[test]
+fn list_protocol_flag_lists_supported_protocols() {
+    let home = TempHome::new("list-protocol");
+
+    let output = run_with_home(&home, ["--list-protocol"]);
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    for protocol in [
+        "ssh",
+        "ftp",
+        "mysql",
+        "postgresql",
+        "redis",
+        "tomcat",
+        "smb",
+        "rdp",
+        "winrm",
+        "oracle",
+        "http",
+        "vnc",
+        "zookeeper",
+        "memcached",
+        "mongodb",
+        "elasticsearch",
+        "docker",
+        "snmp",
+        "activemq",
+        "rabbitmq",
+        "rsync",
+        "mssql",
+        "kafka",
+        "kibana",
+        "nfs",
+        "telnet",
+        "ldap",
+        "grafana",
+        "prometheus",
+        "jenkins",
+        "couchdb",
+        "clickhouse",
+        "neo4j",
+        "etcd",
+        "influxdb",
+        "solr",
+        "minio",
+        "nacos",
+        "nexus",
+        "jboss",
+        "druid",
+        "spark",
+        "hadoop",
+        "kubelet",
+        "gitlab",
+        "harbor",
+        "weblogic",
+        "websphere",
+    ] {
+        assert!(
+            stdout.contains(protocol),
+            "--list-protocol must include {protocol}\nstdout:\n{stdout}"
+        );
+    }
+    assert!(stdout.contains("port"));
 }
 
 #[test]

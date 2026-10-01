@@ -288,6 +288,7 @@ brute urls 'ssh://root:password@192.168.5.1:22' 'ssh://:@192.168.5.2'
 
 - `--proxy <PROXY_URL>`: 支持 `http` 与 `socks5`。URL 形式：`protocol://[username[:password]@]host:port`。示例：`brute --proxy socks5://user:pass@127.0.0.1:1080 ssh 10.0.0.1 -u admin -p pass`、`brute --proxy http://127.0.0.1:8080 http 10.0.0.1 -u admin -p pass`。
 - `--no-color`: 关闭彩色输出。
+- `--list-protocol`: 列出支持的协议及其默认端口后退出。协议列表不再出现在 `--help` 中，请用 `brute --list-protocol` 查看。
 
 ## MCP 服务
 

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use tokio_util::sync::CancellationToken;
 
 use crate::cli::{Cli, ComboArgs, Command, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
@@ -15,6 +15,10 @@ use crate::protocol::{AttemptContext, AttemptOutcome, TargetContext};
 /// Parses CLI arguments and executes the selected command.
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
+    if cli.list_protocol {
+        print_protocol_list();
+        return Ok(());
+    }
     let (database, initialized) = CredentialDatabase::open_default()?;
     let cancel = CancellationToken::new();
     let shutdown = cancel.clone();
@@ -23,7 +27,7 @@ pub async fn run() -> Result<()> {
             shutdown.cancel();
         }
     });
-    let is_mcp = matches!(cli.command, Command::Mcp);
+    let is_mcp = matches!(cli.command, Some(Command::Mcp));
     if initialized && !is_mcp {
         println!(
             "[*] initialized credential database: {}",
@@ -33,13 +37,20 @@ pub async fn run() -> Result<()> {
     }
 
     match cli.command {
-        Command::Protocol(protocol_args) => {
+        Some(Command::Protocol(protocol_args)) => {
             run_protocol(cli.no_color, cli.proxy, database, protocol_args, &cancel).await
         }
-        Command::Combo(args) => run_combo(cli.no_color, cli.proxy, database, args, &cancel).await,
-        Command::Workspace(args) => run_workspace(database, args),
-        Command::Creds(args) => crate::creds::run(&database, args),
-        Command::Mcp => crate::mcp::serve_stdio(database, cancel).await,
+        Some(Command::Combo(args)) => {
+            run_combo(cli.no_color, cli.proxy, database, args, &cancel).await
+        }
+        Some(Command::Workspace(args)) => run_workspace(database, args),
+        Some(Command::Creds(args)) => crate::creds::run(&database, args),
+        Some(Command::Mcp) => crate::mcp::serve_stdio(database, cancel).await,
+        None => {
+            Cli::command().print_long_help()?;
+            println!();
+            Ok(())
+        }
     }
 }
 
@@ -156,6 +167,21 @@ fn run_workspace(database: CredentialDatabase, args: WorkspaceArgs) -> Result<()
 
     Ok(())
 }
+
+/// Prints the supported protocol list for the top-level `--list-protocol` flag.
+///
+/// Each row shows a stable protocol name and its default TCP port in ascending
+/// port order.
+fn print_protocol_list() {
+    let mut protocols = crate::engine::list_protocols();
+    protocols.sort_by_key(|protocol| protocol.default_port);
+    println!("Supported protocols:");
+    println!("  {:<16} {:>5}", "protocol", "port");
+    for protocol in protocols {
+        println!("  {:<16} {:>5}", protocol.name, protocol.default_port);
+    }
+}
+
 /// Console adapter that prints engine events in NetExec style.
 struct ConsoleReporter(Arc<Console>);
 

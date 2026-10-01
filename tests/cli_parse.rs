@@ -22,7 +22,7 @@ fn parses_oracle_service_name_and_sql_query_execution_arguments() {
     ])
     .expect("oracle service name arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Oracle(args))) = cli.command else {
         panic!("expected oracle protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["db.internal"]);
@@ -50,7 +50,7 @@ fn parses_multiple_oracle_service_names() {
     ])
     .expect("multiple oracle service names should parse");
 
-    let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Oracle(args))) = cli.command else {
         panic!("expected oracle protocol arguments");
     };
     assert_eq!(args.service_name, ["XE", "ORCL", "services.txt"]);
@@ -73,7 +73,7 @@ fn parses_oracle_sid_argument() {
     ])
     .expect("oracle SID arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Oracle(args))) = cli.command else {
         panic!("expected oracle protocol arguments");
     };
     assert!(args.service_name.is_empty());
@@ -98,7 +98,7 @@ fn parses_multiple_oracle_sids() {
     ])
     .expect("multiple oracle SIDs should parse");
 
-    let Command::Protocol(ProtocolArgs::Oracle(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Oracle(args))) = cli.command else {
         panic!("expected oracle protocol arguments");
     };
     assert!(args.service_name.is_empty());
@@ -142,7 +142,7 @@ fn parses_smb_shares_flag_and_rejects_execute() {
     ])
     .expect("smb --shares should parse");
 
-    let Command::Protocol(ProtocolArgs::Smb(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Smb(args))) = cli.command else {
         panic!("expected smb protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.10.5"]);
@@ -183,7 +183,7 @@ fn parses_rdp_threads_and_rejects_target_threads() {
         "8",
     ])
     .expect("rdp --threads should parse");
-    let Command::Protocol(ProtocolArgs::Rdp(common)) = with_threads.command else {
+    let Some(Command::Protocol(ProtocolArgs::Rdp(common))) = with_threads.command else {
         panic!("expected rdp protocol arguments");
     };
     assert_eq!(common.threads, 8);
@@ -237,7 +237,7 @@ fn parses_winrm_execute_and_shell_type() {
         "whoami",
     ])
     .expect("winrm -x should parse");
-    let Command::Protocol(ProtocolArgs::Winrm(args)) = default_shell.command else {
+    let Some(Command::Protocol(ProtocolArgs::Winrm(args))) = default_shell.command else {
         panic!("expected winrm protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.10.5"]);
@@ -262,7 +262,7 @@ fn parses_winrm_execute_and_shell_type() {
         "@script.ps1",
     ])
     .expect("winrm powershell shell-type should parse");
-    let Command::Protocol(ProtocolArgs::Winrm(args)) = powershell.command else {
+    let Some(Command::Protocol(ProtocolArgs::Winrm(args))) = powershell.command else {
         panic!("expected winrm protocol arguments");
     };
     assert_eq!(args.shell_type, Some(WinrmShellType::Powershell));
@@ -286,7 +286,7 @@ fn parses_winrm_execute_and_shell_type() {
         "@script.bat",
     ])
     .expect("winrm cmd shell-type should parse");
-    let Command::Protocol(ProtocolArgs::Winrm(args)) = cmd_shell.command else {
+    let Some(Command::Protocol(ProtocolArgs::Winrm(args))) = cmd_shell.command else {
         panic!("expected winrm protocol arguments");
     };
     assert_eq!(args.shell_type, Some(WinrmShellType::Cmd));
@@ -302,7 +302,7 @@ fn parses_winrm_execute_and_shell_type() {
         "secret",
     ])
     .expect("winrm without -x should parse");
-    let Command::Protocol(ProtocolArgs::Winrm(args)) = no_x_auto.command else {
+    let Some(Command::Protocol(ProtocolArgs::Winrm(args))) = no_x_auto.command else {
         panic!("expected winrm");
     };
     assert_eq!(args.shell_type, None);
@@ -329,7 +329,7 @@ fn parses_http_url_scheme_protocol_flag() {
         "secret",
     ])
     .expect("http without --protocol should parse");
-    let Command::Protocol(ProtocolArgs::Http(args)) = default_http.command else {
+    let Some(Command::Protocol(ProtocolArgs::Http(args))) = default_http.command else {
         panic!("expected http protocol arguments");
     };
     assert_eq!(args.scheme.url_scheme, None);
@@ -349,7 +349,7 @@ fn parses_http_url_scheme_protocol_flag() {
         "/manager/html",
     ])
     .expect("http --protocol https should parse");
-    let Command::Protocol(ProtocolArgs::Http(args)) = https.command else {
+    let Some(Command::Protocol(ProtocolArgs::Http(args))) = https.command else {
         panic!("expected http protocol arguments");
     };
     assert_eq!(args.scheme.url_scheme, Some(HttpUrlScheme::Https));
@@ -368,7 +368,7 @@ fn parses_http_url_scheme_protocol_flag() {
         "http",
     ])
     .expect("http --protocol http should parse");
-    let Command::Protocol(ProtocolArgs::Http(args)) = explicit_http.command else {
+    let Some(Command::Protocol(ProtocolArgs::Http(args))) = explicit_http.command else {
         panic!("expected http");
     };
     assert_eq!(args.scheme.url_scheme, Some(HttpUrlScheme::Http));
@@ -380,7 +380,7 @@ fn http_family_protocol_flag_uses_protocol_default() {
     let kubelet =
         Cli::try_parse_from(["brute", "kubelet", "192.168.5.10", "-u", "", "-p", "token"])
             .expect("kubelet parses");
-    let Command::Protocol(args) = kubelet.command else {
+    let Some(Command::Protocol(args)) = kubelet.command else {
         panic!("expected protocol");
     };
     assert_eq!(args.url_scheme(), HttpUrlScheme::Https);
@@ -395,7 +395,7 @@ fn http_family_protocol_flag_uses_protocol_default() {
         "pass",
     ])
     .expect("websphere parses");
-    let Command::Protocol(args) = websphere.command else {
+    let Some(Command::Protocol(args)) = websphere.command else {
         panic!("expected protocol");
     };
     assert_eq!(args.url_scheme(), HttpUrlScheme::Https);
@@ -410,7 +410,7 @@ fn http_family_protocol_flag_uses_protocol_default() {
         "pass",
     ])
     .expect("jenkins parses");
-    let Command::Protocol(args) = jenkins.command else {
+    let Some(Command::Protocol(args)) = jenkins.command else {
         panic!("expected protocol");
     };
     assert_eq!(args.url_scheme(), HttpUrlScheme::Http);
@@ -427,7 +427,7 @@ fn http_family_protocol_flag_uses_protocol_default() {
         "https",
     ])
     .expect("jenkins https parses");
-    let Command::Protocol(args) = https.command else {
+    let Some(Command::Protocol(args)) = https.command else {
         panic!("expected protocol");
     };
     assert_eq!(args.url_scheme(), HttpUrlScheme::Https);
@@ -510,7 +510,7 @@ fn parses_top_level_proxy_url() {
     assert_eq!(proxy.username.as_deref(), Some("sockproxyuser"));
     assert_eq!(proxy.password.as_deref(), Some("sockproxypassword"));
     assert!(
-        matches!(socks.command, Command::Protocol(ProtocolArgs::Ssh(_))),
+        matches!(socks.command, Some(Command::Protocol(ProtocolArgs::Ssh(_)))),
         "subcommand must still parse"
     );
 
@@ -586,7 +586,7 @@ fn rejects_proxy_flag_under_protocol_subcommand() {
 #[test]
 fn parses_mcp_stdio_command() {
     let cli = Cli::try_parse_from(["brute", "mcp"]).expect("mcp command should parse");
-    assert!(matches!(cli.command, Command::Mcp));
+    assert!(matches!(cli.command, Some(Command::Mcp)));
 }
 
 /// Verifies `brute combo` accepts a file or inline URL and the `urls` alias.
@@ -604,7 +604,7 @@ fn parses_combo_file_and_inline_url() {
         "5",
     ])
     .expect("combo file should parse");
-    let Command::Combo(args) = cli.command else {
+    let Some(Command::Combo(args)) = cli.command else {
         panic!("expected combo arguments");
     };
     assert_eq!(args.sources, ["connections.txt"]);
@@ -615,7 +615,7 @@ fn parses_combo_file_and_inline_url() {
 
     let aliased = Cli::try_parse_from(["brute", "urls", "ssh://root:password@192.168.5.1:22"])
         .expect("urls alias should parse");
-    assert!(matches!(aliased.command, Command::Combo(_)));
+    assert!(matches!(aliased.command, Some(Command::Combo(_))));
 }
 
 /// Verifies `brute combo` rejects a missing source.
@@ -639,7 +639,7 @@ fn parses_cidr_target_token() {
     ])
     .expect("CIDR TARGET should parse as a target token");
 
-    let Command::Protocol(ProtocolArgs::Tomcat(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Tomcat(args))) = cli.command else {
         panic!("expected tomcat protocol arguments");
     };
     assert_eq!(args.common.targets, ["10.10.50.24/29"]);
@@ -664,7 +664,7 @@ fn parses_zookeeper_execute_and_default_port() {
     ])
     .expect("zookeeper execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Zookeeper(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Zookeeper(args))) = cli.command else {
         panic!("expected zookeeper protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -679,7 +679,7 @@ fn parses_zookeeper_zk_alias() {
     let cli = Cli::try_parse_from(["brute", "zk", "192.168.5.10", "-u", "", "-p", ""])
         .expect("zk alias should parse as zookeeper");
 
-    let Command::Protocol(ProtocolArgs::Zookeeper(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Zookeeper(args))) = cli.command else {
         panic!("expected zookeeper protocol arguments from zk alias");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -704,7 +704,7 @@ fn parses_memcached_execute_and_default_port() {
     ])
     .expect("memcached execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Memcached(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Memcached(args))) = cli.command else {
         panic!("expected memcached protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -719,7 +719,7 @@ fn parses_memcached_memcache_alias() {
     let cli = Cli::try_parse_from(["brute", "memcache", "192.168.5.10", "-u", "", "-p", ""])
         .expect("memcache alias should parse as memcached");
 
-    let Command::Protocol(ProtocolArgs::Memcached(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Memcached(args))) = cli.command else {
         panic!("expected memcached protocol arguments from memcache alias");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -744,7 +744,7 @@ fn parses_mongodb_execute_and_default_port() {
     ])
     .expect("mongodb execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Mongodb(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Mongodb(args))) = cli.command else {
         panic!("expected mongodb protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -759,7 +759,7 @@ fn parses_mongodb_mongo_alias() {
     let cli = Cli::try_parse_from(["brute", "mongo", "192.168.5.10", "-u", "", "-p", ""])
         .expect("mongo alias should parse as mongodb");
 
-    let Command::Protocol(ProtocolArgs::Mongodb(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Mongodb(args))) = cli.command else {
         panic!("expected mongodb protocol arguments from mongo alias");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -784,7 +784,7 @@ fn parses_elasticsearch_execute_and_default_port() {
     ])
     .expect("elasticsearch execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Elasticsearch(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Elasticsearch(args))) = cli.command else {
         panic!("expected elasticsearch protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -799,7 +799,7 @@ fn parses_elasticsearch_es_alias() {
     let cli = Cli::try_parse_from(["brute", "es", "192.168.5.10", "-u", "", "-p", ""])
         .expect("es alias should parse as elasticsearch");
 
-    let Command::Protocol(ProtocolArgs::Elasticsearch(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Elasticsearch(args))) = cli.command else {
         panic!("expected elasticsearch protocol arguments from es alias");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -824,7 +824,7 @@ fn parses_docker_execute_and_default_port() {
     ])
     .expect("docker execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Docker(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Docker(args))) = cli.command else {
         panic!("expected docker protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -837,7 +837,7 @@ fn parses_docker_api_alias() {
     let cli = Cli::try_parse_from(["brute", "docker-api", "192.168.5.10", "-u", "", "-p", ""])
         .expect("docker-api alias should parse as docker");
 
-    let Command::Protocol(ProtocolArgs::Docker(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Docker(args))) = cli.command else {
         panic!("expected docker protocol arguments from docker-api alias");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -862,7 +862,7 @@ fn parses_snmp_execute_and_default_port() {
     ])
     .expect("snmp execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Snmp(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Snmp(args))) = cli.command else {
         panic!("expected snmp protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -889,7 +889,7 @@ fn parses_activemq_execute_and_default_port() {
     ])
     .expect("activemq execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Activemq(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Activemq(args))) = cli.command else {
         panic!("expected activemq protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -903,7 +903,7 @@ fn parses_activemq_amq_alias() {
     let cli = Cli::try_parse_from(["brute", "amq", "192.168.5.10", "-u", "admin", "-p", "admin"])
         .expect("amq alias should parse as activemq");
 
-    let Command::Protocol(ProtocolArgs::Activemq(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Activemq(args))) = cli.command else {
         panic!("expected activemq protocol arguments from amq alias");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -928,7 +928,7 @@ fn parses_rabbitmq_execute_and_default_port() {
     ])
     .expect("rabbitmq execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Rabbitmq(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Rabbitmq(args))) = cli.command else {
         panic!("expected rabbitmq protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -949,7 +949,7 @@ fn parses_rabbitmq_amqp_alias() {
     ])
     .expect("amqp alias should parse as rabbitmq");
 
-    let Command::Protocol(ProtocolArgs::Rabbitmq(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Rabbitmq(args))) = cli.command else {
         panic!("expected rabbitmq protocol arguments from amqp alias");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -974,7 +974,7 @@ fn parses_rsync_module_and_default_port() {
     ])
     .expect("rsync module arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Rsync(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Rsync(args))) = cli.command else {
         panic!("expected rsync protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -1000,7 +1000,7 @@ fn parses_mssql_execute_and_sqlserver_alias() {
     ])
     .expect("mssql execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Mssql(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Mssql(args))) = cli.command else {
         panic!("expected mssql protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -1016,7 +1016,7 @@ fn parses_mssql_execute_and_sqlserver_alias() {
         "Your_password1",
     ])
     .expect("sqlserver alias should parse as mssql");
-    let Command::Protocol(ProtocolArgs::Mssql(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Mssql(args))) = cli.command else {
         panic!("expected mssql protocol arguments from sqlserver alias");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -1041,7 +1041,7 @@ fn parses_kafka_execute_and_default_port() {
     ])
     .expect("kafka execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Kafka(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Kafka(args))) = cli.command else {
         panic!("expected kafka protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -1067,7 +1067,7 @@ fn parses_kibana_execute_and_default_port() {
     ])
     .expect("kibana execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Kibana(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Kibana(args))) = cli.command else {
         panic!("expected kibana protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1093,7 +1093,7 @@ fn parses_nfs_execute_and_default_port() {
     ])
     .expect("nfs execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Nfs(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Nfs(args))) = cli.command else {
         panic!("expected nfs protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -1119,7 +1119,7 @@ fn parses_telnet_execute_and_default_port() {
     ])
     .expect("telnet execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Telnet(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Telnet(args))) = cli.command else {
         panic!("expected telnet protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -1145,7 +1145,7 @@ fn parses_ldap_execute_and_default_port() {
     ])
     .expect("ldap execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Ldap(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Ldap(args))) = cli.command else {
         panic!("expected ldap protocol arguments");
     };
     assert_eq!(args.common.targets, ["192.168.5.10"]);
@@ -1171,7 +1171,7 @@ fn parses_grafana_execute_and_default_port() {
     ])
     .expect("grafana execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Grafana(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Grafana(args))) = cli.command else {
         panic!("expected grafana protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1197,7 +1197,7 @@ fn parses_prometheus_execute_and_default_port() {
     ])
     .expect("prometheus execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Prometheus(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Prometheus(args))) = cli.command else {
         panic!("expected prometheus protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1223,7 +1223,7 @@ fn parses_jenkins_execute_and_default_port() {
     ])
     .expect("jenkins execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Jenkins(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Jenkins(args))) = cli.command else {
         panic!("expected jenkins protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1249,7 +1249,7 @@ fn parses_couchdb_execute_and_default_port() {
     ])
     .expect("couchdb execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Couchdb(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Couchdb(args))) = cli.command else {
         panic!("expected couchdb protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1275,7 +1275,7 @@ fn parses_clickhouse_execute_and_default_port() {
     ])
     .expect("clickhouse execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Clickhouse(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Clickhouse(args))) = cli.command else {
         panic!("expected clickhouse protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1301,7 +1301,7 @@ fn parses_neo4j_execute_and_default_port() {
     ])
     .expect("neo4j execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Neo4j(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Neo4j(args))) = cli.command else {
         panic!("expected neo4j protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1327,7 +1327,7 @@ fn parses_etcd_execute_and_default_port() {
     ])
     .expect("etcd execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Etcd(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Etcd(args))) = cli.command else {
         panic!("expected etcd protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1353,7 +1353,7 @@ fn parses_influxdb_execute_and_default_port() {
     ])
     .expect("influxdb execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Influxdb(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Influxdb(args))) = cli.command else {
         panic!("expected influxdb protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1379,7 +1379,7 @@ fn parses_solr_execute_and_default_port() {
     ])
     .expect("solr execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Solr(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Solr(args))) = cli.command else {
         panic!("expected solr protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1405,7 +1405,7 @@ fn parses_minio_execute_and_default_port() {
     ])
     .expect("minio execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Minio(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Minio(args))) = cli.command else {
         panic!("expected minio protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1431,7 +1431,7 @@ fn parses_nacos_execute_and_default_port() {
     ])
     .expect("nacos execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Nacos(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Nacos(args))) = cli.command else {
         panic!("expected nacos protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1457,7 +1457,7 @@ fn parses_nexus_execute_and_default_port() {
     ])
     .expect("nexus execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Nexus(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Nexus(args))) = cli.command else {
         panic!("expected nexus protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1483,7 +1483,7 @@ fn parses_jboss_execute_and_default_port() {
     ])
     .expect("jboss execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Jboss(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Jboss(args))) = cli.command else {
         panic!("expected jboss protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1509,7 +1509,7 @@ fn parses_druid_execute_and_default_port() {
     ])
     .expect("druid execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Druid(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Druid(args))) = cli.command else {
         panic!("expected druid protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1535,7 +1535,7 @@ fn parses_spark_execute_and_default_port() {
     ])
     .expect("spark execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Spark(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Spark(args))) = cli.command else {
         panic!("expected spark protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1561,7 +1561,7 @@ fn parses_hadoop_execute_and_default_port() {
     ])
     .expect("hadoop execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Hadoop(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Hadoop(args))) = cli.command else {
         panic!("expected hadoop protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1587,7 +1587,7 @@ fn parses_kubelet_execute_and_default_port() {
     ])
     .expect("kubelet execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Kubelet(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Kubelet(args))) = cli.command else {
         panic!("expected kubelet protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1613,7 +1613,7 @@ fn parses_gitlab_execute_and_default_port() {
     ])
     .expect("gitlab execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Gitlab(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Gitlab(args))) = cli.command else {
         panic!("expected gitlab protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1639,7 +1639,7 @@ fn parses_harbor_execute_and_default_port() {
     ])
     .expect("harbor execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Harbor(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Harbor(args))) = cli.command else {
         panic!("expected harbor protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1665,7 +1665,7 @@ fn parses_weblogic_execute_and_default_port() {
     ])
     .expect("weblogic execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Weblogic(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Weblogic(args))) = cli.command else {
         panic!("expected weblogic protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1691,7 +1691,7 @@ fn parses_websphere_execute_and_default_port() {
     ])
     .expect("websphere execute arguments should parse");
 
-    let Command::Protocol(ProtocolArgs::Websphere(args)) = cli.command else {
+    let Some(Command::Protocol(ProtocolArgs::Websphere(args))) = cli.command else {
         panic!("expected websphere protocol arguments");
     };
     assert_eq!(args.execute.common.targets, ["192.168.5.10"]);
@@ -1705,7 +1705,7 @@ fn parses_delay_and_jitter_on_protocol_commands() {
         "brute", "ssh", "10.0.0.8", "-u", "root", "-p", "toor", "--delay", "0", "--jitter", "15",
     ])
     .expect("delay and jitter should parse");
-    let Command::Protocol(args) = cli.command else {
+    let Some(Command::Protocol(args)) = cli.command else {
         panic!("expected protocol arguments");
     };
     assert_eq!(args.common().delay_ms, 0);
