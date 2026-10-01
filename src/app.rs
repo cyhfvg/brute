@@ -6,10 +6,10 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use tokio_util::sync::CancellationToken;
 
-use crate::cli::{Cli, ComboArgs, Command, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
+use crate::cli::{Cli, ComboArgs, Command, OutputFormat, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
 use crate::database::CredentialDatabase;
 use crate::engine::{SprayReporter, SprayRequest, run_spray};
-use crate::output::Console;
+use crate::output::{Console, NdjsonReporter};
 use crate::protocol::{AttemptContext, AttemptOutcome, TargetContext};
 
 /// Parses CLI arguments and executes the selected command.
@@ -28,7 +28,7 @@ pub async fn run() -> Result<()> {
         }
     });
     let is_mcp = matches!(cli.command, Some(Command::Mcp));
-    if initialized && !is_mcp {
+    if initialized && !is_mcp && cli.format == OutputFormat::Text {
         println!(
             "[*] initialized credential database: {}",
             database.path().display()
@@ -38,10 +38,18 @@ pub async fn run() -> Result<()> {
 
     match cli.command {
         Some(Command::Protocol(protocol_args)) => {
-            run_protocol(cli.no_color, cli.proxy, database, protocol_args, &cancel).await
+            run_protocol(
+                cli.no_color,
+                cli.format,
+                cli.proxy,
+                database,
+                protocol_args,
+                &cancel,
+            )
+            .await
         }
         Some(Command::Combo(args)) => {
-            run_combo(cli.no_color, cli.proxy, database, args, &cancel).await
+            run_combo(cli.no_color, cli.format, cli.proxy, database, args, &cancel).await
         }
         Some(Command::Workspace(args)) => run_workspace(database, args),
         Some(Command::Creds(args)) => crate::creds::run(&database, args),
@@ -59,6 +67,7 @@ pub async fn run() -> Result<()> {
 /// # Parameters
 ///
 /// - `no_color`: Disable ANSI colors when true.
+/// - `format`: Console output format. `json` prints the report once at the end.
 /// - `proxy`: Optional top-level `--proxy` configuration applied to all attempts.
 /// - `database`: Open credential database handle.
 /// - `protocol_args`: Parsed protocol subcommand arguments.
@@ -73,14 +82,24 @@ pub async fn run() -> Result<()> {
 /// Returns [`anyhow::Error`] when target/credential expansion fails or persistence fails fatally.
 async fn run_protocol(
     no_color: bool,
+    format: OutputFormat,
     proxy: Option<crate::proxy::ProxyConfig>,
     database: CredentialDatabase,
     protocol_args: ProtocolArgs,
     cancel: &CancellationToken,
 ) -> Result<()> {
     let request = SprayRequest::from_protocol_args(&protocol_args, proxy);
-    let reporter = ConsoleReporter(Arc::new(Console::new(no_color)));
-    run_spray(&database, request, Some(&reporter), cancel).await?;
+    let reporter = build_reporter(no_color, format);
+    let report = run_spray(
+        &database,
+        request,
+        reporter.as_ref().map(|r| r as &dyn SprayReporter),
+        cancel,
+    )
+    .await?;
+    if format == OutputFormat::Json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    }
     Ok(())
 }
 
@@ -89,6 +108,7 @@ async fn run_protocol(
 /// # Parameters
 ///
 /// - `no_color`: Disable ANSI colors when true.
+/// - `format`: Console output format. `json` prints the report once at the end.
 /// - `proxy`: Top-level `--proxy` configuration applied to every protocol group.
 /// - `database`: Open credential database handle.
 /// - `args`: Parsed `combo` sources and shared options.
@@ -109,13 +129,14 @@ async fn run_protocol(
 /// ```
 async fn run_combo(
     no_color: bool,
+    format: OutputFormat,
     proxy: Option<crate::proxy::ProxyConfig>,
     database: CredentialDatabase,
     args: ComboArgs,
     cancel: &CancellationToken,
 ) -> Result<()> {
     let connections = crate::connections::load_connection_sources(&args.sources)?;
-    let reporter = ConsoleReporter(Arc::new(Console::new(no_color)));
+    let reporter = build_reporter(no_color, format);
     let options = crate::combo::ComboOptions {
         threads: args.threads,
         retries: args.retries,
@@ -129,7 +150,17 @@ async fn run_combo(
         shell_type: args.shell_type,
         workspace: None,
     };
-    crate::combo::run_connections(&database, connections, options, Some(&reporter), cancel).await?;
+    let report = crate::combo::run_connections(
+        &database,
+        connections,
+        options,
+        reporter.as_ref().map(|r| r as &dyn SprayReporter),
+        cancel,
+    )
+    .await?;
+    if format == OutputFormat::Json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    }
     Ok(())
 }
 
@@ -196,6 +227,51 @@ impl SprayReporter for ConsoleReporter {
 
     fn save_error(&self, err: &anyhow::Error) {
         eprintln!("failed to save credential: {err:#}");
+    }
+}
+
+/// Live reporter selected by `--format`.
+enum Reporter {
+    /// NetExec-style colored console (`--format text`).
+    Console(ConsoleReporter),
+    /// One JSON object per line (`--format ndjson`).
+    Ndjson(NdjsonReporter),
+}
+
+impl SprayReporter for Reporter {
+    fn probe(&self, ctx: &TargetContext, message: &str) {
+        match self {
+            Self::Console(reporter) => reporter.probe(ctx, message),
+            Self::Ndjson(reporter) => reporter.probe(ctx, message),
+        }
+    }
+
+    fn attempt(&self, ctx: &AttemptContext, outcome: &AttemptOutcome) {
+        match self {
+            Self::Console(reporter) => reporter.attempt(ctx, outcome),
+            Self::Ndjson(reporter) => reporter.attempt(ctx, outcome),
+        }
+    }
+
+    fn save_error(&self, err: &anyhow::Error) {
+        match self {
+            Self::Console(reporter) => reporter.save_error(err),
+            Self::Ndjson(reporter) => reporter.save_error(err),
+        }
+    }
+}
+
+/// Builds the live reporter for a protocol/combo run.
+///
+/// `json` returns [`None`] because the whole report is serialized once the run
+/// finishes; no per-event streaming is needed.
+fn build_reporter(no_color: bool, format: OutputFormat) -> Option<Reporter> {
+    match format {
+        OutputFormat::Text => Some(Reporter::Console(ConsoleReporter(Arc::new(Console::new(
+            no_color,
+        ))))),
+        OutputFormat::Ndjson => Some(Reporter::Ndjson(NdjsonReporter)),
+        OutputFormat::Json => None,
     }
 }
 

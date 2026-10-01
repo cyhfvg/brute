@@ -403,7 +403,7 @@ pub(super) fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
     }
 }
 
-pub(super) fn attempt_record_from_outcome(
+pub(crate) fn attempt_record_from_outcome(
     ctx: &AttemptContext,
     outcome: &AttemptOutcome,
 ) -> AttemptRecord {

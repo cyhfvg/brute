@@ -2,6 +2,7 @@
 
 use colored::{ColoredString, Colorize};
 
+use crate::engine::SprayReporter;
 use crate::protocol::{
     AttemptContext, AttemptFaultClass, AttemptOutcome, PostAuthResult, TargetContext,
 };
@@ -146,6 +147,44 @@ impl Console {
             "cyan" => value.cyan().bold(),
             _ => value.normal(),
         }
+    }
+}
+
+/// Machine-readable reporter that streams one JSON object per event line.
+///
+/// Used by `--format ndjson`. Each probe, attempt, and save error is emitted as
+/// a self-contained JSON line on stdout so downstream tools can consume the run
+/// incrementally without parsing ANSI escapes.
+#[derive(Debug, Default)]
+pub struct NdjsonReporter;
+
+impl SprayReporter for NdjsonReporter {
+    fn probe(&self, ctx: &TargetContext, message: &str) {
+        let line = serde_json::json!({
+            "type": "probe",
+            "protocol": ctx.protocol.as_str(),
+            "host": ctx.target_host,
+            "port": ctx.port(),
+            "message": message,
+        });
+        println!("{line}");
+    }
+
+    fn attempt(&self, ctx: &AttemptContext, outcome: &AttemptOutcome) {
+        let record = crate::engine::attempt_record_from_outcome(ctx, outcome);
+        let mut value = serde_json::to_value(record).expect("attempt record serializes");
+        if let Some(object) = value.as_object_mut() {
+            object.insert("type".into(), serde_json::Value::String("attempt".into()));
+        }
+        println!("{value}");
+    }
+
+    fn save_error(&self, err: &anyhow::Error) {
+        let line = serde_json::json!({
+            "type": "save_error",
+            "error": err.to_string(),
+        });
+        println!("{line}");
     }
 }
 

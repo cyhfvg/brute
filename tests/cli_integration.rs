@@ -1461,3 +1461,84 @@ fn ipv6_target_is_rejected() {
         "expected IPv6 rejection on stderr:\n{stderr}"
     );
 }
+
+#[test]
+fn format_json_emits_a_single_report_document() {
+    let home = TempHome::new("format-json");
+
+    let output = run_with_home(
+        &home,
+        [
+            "--format",
+            "json",
+            "tomcat",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "-u",
+            "admin",
+            "-p",
+            "admin123",
+            "--threads",
+            "1",
+            "--timeout-ms",
+            "300",
+            "--retries",
+            "0",
+        ],
+    );
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    let report: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|err| panic!("expected a JSON report:\n{stdout}\nerror: {err}"));
+    assert_eq!(report["protocol"], "tomcat");
+    assert_eq!(report["workspace"], "default");
+    assert!(report["successes"].is_array());
+    assert!(report["error_count"].is_u64());
+    assert!(
+        !stdout.contains('\x1b'),
+        "JSON output must not contain ANSI escapes:\n{stdout}"
+    );
+}
+
+#[test]
+fn format_ndjson_streams_one_object_per_line() {
+    let home = TempHome::new("format-ndjson");
+
+    let output = run_with_home(
+        &home,
+        [
+            "--format",
+            "ndjson",
+            "tomcat",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "-u",
+            "admin",
+            "-p",
+            "admin123",
+            "--threads",
+            "1",
+            "--timeout-ms",
+            "300",
+            "--retries",
+            "0",
+        ],
+    );
+
+    assert_success(&output);
+    let stdout = stdout(&output);
+    let lines: Vec<&str> = stdout.lines().filter(|line| !line.is_empty()).collect();
+    assert!(!lines.is_empty(), "ndjson must stream at least one line:\n{stdout}");
+    let first = lines[0];
+    let attempt: serde_json::Value = serde_json::from_str(first)
+        .unwrap_or_else(|err| panic!("expected a JSON line:\n{first}\nerror: {err}"));
+    assert_eq!(attempt["type"], "attempt");
+    assert_eq!(attempt["host"], "127.0.0.1");
+    assert!(
+        !stdout.contains('\x1b'),
+        "ndjson output must not contain ANSI escapes:\n{stdout}"
+    );
+}

@@ -2,6 +2,22 @@
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+/// Console output format for protocol and combo runs.
+///
+/// `text` renders the NetExec-style colored console. `json` prints one
+/// pretty-printed report document when the run finishes. `ndjson` streams one
+/// JSON object per probe and attempt line as they complete.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum OutputFormat {
+    /// NetExec-style colored console output.
+    #[default]
+    Text,
+    /// Single pretty-printed JSON report document.
+    Json,
+    /// One JSON object per line, streamed as attempts complete.
+    Ndjson,
+}
+
 /// Root CLI definition.
 #[derive(Debug, Parser)]
 #[command(
@@ -34,6 +50,14 @@ pub struct Cli {
     /// Disable ANSI colors in the terminal output.
     #[arg(long)]
     pub no_color: bool,
+
+    /// Console output format: `text`, `json`, or `ndjson`.
+    ///
+    /// `json` and `ndjson` suppress colored output so the result can be piped
+    /// to scripts. `json` emits one pretty-printed report at the end; `ndjson`
+    /// streams one JSON object per probe/attempt line.
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
 
     /// Outbound proxy URL: `http://[user[:pass]@]host:port` or `socks5://[user[:pass]@]host:port`.
     ///
