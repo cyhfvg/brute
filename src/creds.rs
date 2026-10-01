@@ -61,6 +61,7 @@ fn list(database: &CredentialDatabase, args: CredsListArgs) -> Result<()> {
         Some(workspace.as_str()),
         args.protocol,
         args.host.as_deref(),
+        args.username.as_deref(),
     )?;
     println!("current workspace: {workspace}");
     print_saved_credentials(&credentials, args.conn_url);

@@ -301,9 +301,10 @@ impl CredentialDatabase {
         workspace: &str,
         protocol: Option<Protocol>,
         host: Option<&str>,
+        username: Option<&str>,
     ) -> Result<Vec<SavedCredential>> {
         let conn = self.connect()?;
-        query_saved(&conn, workspace, protocol, host, &[])
+        query_saved(&conn, workspace, protocol, host, username, &[])
     }
 
     /// Deletes saved credentials in one workspace.
@@ -339,7 +340,7 @@ impl CredentialDatabase {
     ) -> Result<Vec<SavedCredential>> {
         let mut conn = self.connect()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let matched = query_saved(&tx, workspace, protocol, host, ids)?;
+        let matched = query_saved(&tx, workspace, protocol, host, None, ids)?;
         for row in &matched {
             tx.execute("DELETE FROM credentials WHERE id = ?1", params![row.id])?;
         }
@@ -485,6 +486,7 @@ fn saved_credential_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedC
 /// - `workspace`: Workspace name to search.
 /// - `protocol`: Optional protocol filter.
 /// - `host`: Optional exact host filter.
+/// - `username`: Optional exact username filter.
 /// - `ids`: Optional id allow-list. Empty means do not filter by id.
 ///
 /// # Returns
@@ -499,6 +501,7 @@ fn query_saved(
     workspace: &str,
     protocol: Option<Protocol>,
     host: Option<&str>,
+    username: Option<&str>,
     ids: &[i64],
 ) -> Result<Vec<SavedCredential>> {
     let mut sql = String::from(
@@ -509,6 +512,7 @@ fn query_saved(
         WHERE w.name = ?1
           AND (?2 IS NULL OR c.protocol = ?2)
           AND (?3 IS NULL OR c.host = ?3)
+          AND (?4 IS NULL OR c.username = ?4)
         "#,
     );
     if !ids.is_empty() {
@@ -525,6 +529,7 @@ fn query_saved(
 
     let protocol_name = protocol.map(|protocol| protocol.as_str().to_string());
     let host_value = host.map(str::to_owned);
+    let username_value = username.map(str::to_owned);
     let mut values = vec![
         rusqlite::types::Value::Text(workspace.to_owned()),
         match protocol_name {
@@ -533,6 +538,10 @@ fn query_saved(
         },
         match host_value {
             Some(host) => rusqlite::types::Value::Text(host),
+            None => rusqlite::types::Value::Null,
+        },
+        match username_value {
+            Some(username) => rusqlite::types::Value::Text(username),
             None => rusqlite::types::Value::Null,
         },
     ];
@@ -721,13 +730,21 @@ mod tests {
         };
         database.save_success("audit", Protocol::Ssh, "192.168.5.5", 22, &credential)?;
 
-        let credentials = database.list_credentials("audit", Some(Protocol::Ssh), None)?;
+        let credentials = database.list_credentials("audit", Some(Protocol::Ssh), None, None)?;
         assert_eq!(credentials.len(), 1);
         assert_eq!(credentials[0].protocol, "ssh");
         assert_eq!(credentials[0].conn_url, "ssh://admin:123456@192.168.5.5:22");
 
-        let credentials = database.list_credentials("audit", None, Some("192.168.5.5"))?;
+        let credentials = database.list_credentials("audit", None, Some("192.168.5.5"), None)?;
         assert_eq!(credentials.len(), 1);
+
+        let by_username = database.list_credentials("audit", None, None, Some("admin"))?;
+        assert_eq!(by_username.len(), 1);
+        assert!(
+            database
+                .list_credentials("audit", None, None, Some("root"))?
+                .is_empty()
+        );
 
         let saved = database.get_credential(credentials[0].id, "audit")?;
         assert_eq!(saved.username.as_deref(), Some("admin"));
@@ -741,7 +758,7 @@ mod tests {
         assert_eq!(database.current_workspace()?, DEFAULT_WORKSPACE);
         assert!(
             database
-                .list_credentials("audit", Some(Protocol::Ssh), None)?
+                .list_credentials("audit", Some(Protocol::Ssh), None, None)?
                 .is_empty()
         );
 
@@ -765,13 +782,13 @@ mod tests {
         database.save_success("default", Protocol::Smb, "10.0.0.9", 445, &credential)?;
         database.save_success("audit", Protocol::Ssh, "10.0.0.8", 22, &credential)?;
 
-        let default_rows = database.list_credentials("default", None, None)?;
+        let default_rows = database.list_credentials("default", None, None, None)?;
         let ssh_id = default_rows
             .iter()
             .find(|row| row.protocol == "ssh")
             .expect("ssh row")
             .id;
-        let audit_id = database.list_credentials("audit", None, None)?[0].id;
+        let audit_id = database.list_credentials("audit", None, None, None)?[0].id;
 
         let deleted = database.delete_credentials("default", None, None, &[ssh_id, audit_id])?;
         assert_eq!(deleted.len(), 1);
@@ -781,8 +798,8 @@ mod tests {
         let deleted =
             database.delete_credentials("default", Some(Protocol::Smb), Some("10.0.0.9"), &[])?;
         assert_eq!(deleted.len(), 1);
-        assert!(database.list_credentials("default", None, None)?.is_empty());
-        assert_eq!(database.list_credentials("audit", None, None)?.len(), 1);
+        assert!(database.list_credentials("default", None, None, None)?.is_empty());
+        assert_eq!(database.list_credentials("audit", None, None, None)?.len(), 1);
 
         let _ = fs::remove_file(path);
         Ok(())

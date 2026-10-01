@@ -1148,6 +1148,9 @@ pub struct CredsListArgs {
     /// Host/IP filter.
     #[arg(long)]
     pub host: Option<String>,
+    /// Username filter (exact match).
+    #[arg(long)]
+    pub username: Option<String>,
     /// Include connection URLs in output.
     #[arg(long)]
     pub conn_url: bool,

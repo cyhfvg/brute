@@ -94,6 +94,8 @@ pub struct ListCredentialsParams {
     pub protocol: Option<String>,
     /// Exact host/IP filter.
     pub host: Option<String>,
+    /// Exact username filter.
+    pub username: Option<String>,
 }
 
 /// Parameters for deleting saved credentials.

@@ -253,7 +253,7 @@ fn creds_delete_removes_selected_rows_and_refuses_unscoped_delete() {
         )
         .expect("save smb");
     let ssh_id = database
-        .list_credentials("default", Some(brute::cli::Protocol::Ssh), None)
+        .list_credentials("default", Some(brute::cli::Protocol::Ssh), None, None)
         .expect("list ssh")[0]
         .id;
     drop(database);
@@ -338,7 +338,7 @@ fn creds_delete_targets_only_the_current_workspace() {
         )
         .expect("save audit credential");
     let audit_id = database
-        .list_credentials("audit", None, None)
+        .list_credentials("audit", None, None, None)
         .expect("list audit")[0]
         .id;
     drop(database);
@@ -380,7 +380,7 @@ fn creds_delete_targets_only_the_current_workspace() {
 
     let database = brute::database::CredentialDatabase::open(&db_path).expect("reopen database");
     let audit_rows = database
-        .list_credentials("audit", None, None)
+        .list_credentials("audit", None, None, None)
         .expect("list audit after foreign delete");
     assert_eq!(audit_rows.len(), 1);
     assert_eq!(audit_rows[0].host, "10.0.0.9");
@@ -403,7 +403,7 @@ fn creds_delete_targets_only_the_current_workspace() {
 
     let database = brute::database::CredentialDatabase::open(&db_path).expect("reopen database");
     let default_rows = database
-        .list_credentials("default", None, None)
+        .list_credentials("default", None, None, None)
         .expect("list default after audit delete");
     assert_eq!(default_rows.len(), 1);
     assert_eq!(default_rows[0].host, "10.0.0.8");

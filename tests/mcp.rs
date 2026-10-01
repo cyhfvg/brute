@@ -263,7 +263,7 @@ fn mcp_deletes_saved_credentials() {
         )
         .expect("save credential");
     let id = database
-        .list_credentials("default", None, None)
+        .list_credentials("default", None, None, None)
         .expect("list")[0]
         .id;
     drop(database);

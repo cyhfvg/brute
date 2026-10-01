@@ -113,6 +113,7 @@ impl BruteMcp {
             params.workspace.as_deref(),
             protocol,
             params.host.as_deref(),
+            params.username.as_deref(),
         )
         .map_err(|err| ErrorData::internal_error(err.to_string(), None))?;
         to_json(&credentials)

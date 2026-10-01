@@ -94,6 +94,7 @@ pub fn list_workspaces(database: &CredentialDatabase) -> Result<Vec<WorkspaceInf
 /// - `workspace`: Workspace to search; defaults to the current workspace.
 /// - `protocol`: Optional protocol filter.
 /// - `host`: Optional exact host filter.
+/// - `username`: Optional exact username filter.
 ///
 /// # Returns
 ///
@@ -106,17 +107,18 @@ pub fn list_workspaces(database: &CredentialDatabase) -> Result<Vec<WorkspaceInf
 /// # Examples
 ///
 /// ```ignore
-/// let creds = query_credentials(&database, None, Some(Protocol::Ssh), None)?;
+/// let creds = query_credentials(&database, None, Some(Protocol::Ssh), None, None)?;
 /// ```
 pub fn query_credentials(
     database: &CredentialDatabase,
     workspace: Option<&str>,
     protocol: Option<Protocol>,
     host: Option<&str>,
+    username: Option<&str>,
 ) -> Result<Vec<CredentialRecord>> {
     let workspace = resolve_workspace(database, workspace)?;
     database
-        .list_credentials(&workspace, protocol, host)
+        .list_credentials(&workspace, protocol, host, username)
         .map(|rows| rows.iter().map(CredentialRecord::from).collect())
 }
 
