@@ -16,5 +16,6 @@ pub mod mcp;
 pub mod output;
 pub mod protocol;
 pub mod proxy;
+pub mod report;
 pub mod targets;
 pub mod tls;

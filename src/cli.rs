@@ -1,6 +1,7 @@
 //! Command-line parsing types.
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use std::path::PathBuf;
 
 /// Console output format for protocol and combo runs.
 ///
@@ -16,6 +17,21 @@ pub enum OutputFormat {
     Json,
     /// One JSON object per line, streamed as attempts complete.
     Ndjson,
+}
+
+/// File format for `-o/--output`.
+///
+/// Only successful credentials are written; the file is a fresh export of the
+/// run's hits and does not replace the SQLite credential store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum OutputFileFormat {
+    /// JSON array of [`crate::engine::AttemptRecord`] values.
+    #[default]
+    Json,
+    /// CSV with a header row and one success per line.
+    Csv,
+    /// One `protocol://user:pass@host:port` line per success.
+    Text,
 }
 
 /// Root CLI definition.
@@ -58,6 +74,17 @@ pub struct Cli {
     /// streams one JSON object per probe/attempt line.
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
+
+    /// Write successful credentials to a file, replacing any existing file.
+    ///
+    /// Only hits are exported; the SQLite credential store remains the source
+    /// of truth. Format is selected by `--output-format`.
+    #[arg(short = 'o', long = "output", value_name = "FILE")]
+    pub output: Option<PathBuf>,
+
+    /// Format for `--output`: `json`, `csv`, or `text`.
+    #[arg(long, value_enum, default_value_t = OutputFileFormat::Json, requires = "output")]
+    pub output_format: OutputFileFormat,
 
     /// Outbound proxy URL: `http://[user[:pass]@]host:port` or `socks5://[user[:pass]@]host:port`.
     ///
