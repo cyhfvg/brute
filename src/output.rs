@@ -191,7 +191,7 @@ impl SprayReporter for NdjsonReporter {
 #[cfg(test)]
 mod tests {
     use crate::{
-        cli::{CommonArgs, Protocol},
+        cli::{CommonArgs, CredentialOrder, Protocol},
         protocol::TargetContext,
     };
 
@@ -216,6 +216,7 @@ mod tests {
                 delay_ms: 0,
                 jitter_ms: 0,
                 continue_on_success: false,
+                order: CredentialOrder::UsernameFirst,
                 proxy: None,
             },
         };

@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 use anyhow::{Context, Result};
 
-use crate::cli::CommonArgs;
+use crate::cli::{CommonArgs, CredentialOrder};
 
 /// One login attempt combination to test.
 ///
@@ -100,6 +100,36 @@ impl LoadedCredentials {
     /// assert_eq!(loaded.expand().len(), 4);
     /// ```
     pub fn expand(&self) -> Vec<CredentialSet> {
+        self.expand_ordered(CredentialOrder::UsernameFirst)
+    }
+
+    /// Expands the loaded sources into a cartesian product in the given traversal order.
+    ///
+    /// The identifier (Service Name or SID) is always the outermost dimension.
+    /// `username-first` iterates usernames then passwords; `password-first`
+    /// iterates passwords then usernames so a reused password converges across
+    /// hosts sooner.
+    ///
+    /// # Parameters
+    ///
+    /// - `order`: [`CredentialOrder::UsernameFirst`] or [`CredentialOrder::PasswordFirst`].
+    ///
+    /// # Returns
+    ///
+    /// - When both `service_names` and `sids` are empty: `usernames × passwords`
+    /// - When `service_names` is non-empty: `service_names × usernames × passwords`
+    /// - When `sids` is non-empty: `sids × usernames × passwords`
+    ///
+    /// Empty username or password strings become `None` on the set.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use brute::cli::CredentialOrder;
+    /// let loaded = LoadedCredentials { usernames: vec!["a".into(), "b".into()], passwords: vec!["1".into()], service_names: Vec::new(), sids: Vec::new() };
+    /// assert_eq!(loaded.expand_ordered(CredentialOrder::PasswordFirst).len(), 2);
+    /// ```
+    pub fn expand_ordered(&self, order: CredentialOrder) -> Vec<CredentialSet> {
         debug_assert!(
             self.service_names.is_empty() || self.sids.is_empty(),
             "service_names and sids must not both be non-empty"
@@ -129,28 +159,43 @@ impl LoadedCredentials {
             .saturating_mul(self.passwords.len());
         let mut combinations = Vec::with_capacity(capacity);
 
+        let mut push = |identifier: &Identifier, username: &str, password: &str| {
+            let (service_name, sid) = match identifier {
+                Identifier::None => (None, None),
+                Identifier::Service(service) => (Some(service.clone()), None),
+                Identifier::Sid(sid) => (None, Some(sid.clone())),
+            };
+            combinations.push(CredentialSet {
+                username: if username.is_empty() {
+                    None
+                } else {
+                    Some(username.to_string())
+                },
+                password: if password.is_empty() {
+                    None
+                } else {
+                    Some(password.to_string())
+                },
+                service_name,
+                sid,
+            });
+        };
+
         for identifier in &identifiers {
-            for username in &self.usernames {
-                for password in &self.passwords {
-                    let (service_name, sid) = match identifier {
-                        Identifier::None => (None, None),
-                        Identifier::Service(service) => (Some(service.clone()), None),
-                        Identifier::Sid(sid) => (None, Some(sid.clone())),
-                    };
-                    combinations.push(CredentialSet {
-                        username: if username.is_empty() {
-                            None
-                        } else {
-                            Some(username.clone())
-                        },
-                        password: if password.is_empty() {
-                            None
-                        } else {
-                            Some(password.clone())
-                        },
-                        service_name,
-                        sid,
-                    });
+            match order {
+                CredentialOrder::UsernameFirst => {
+                    for username in &self.usernames {
+                        for password in &self.passwords {
+                            push(identifier, username, password);
+                        }
+                    }
+                }
+                CredentialOrder::PasswordFirst => {
+                    for password in &self.passwords {
+                        for username in &self.usernames {
+                            push(identifier, username, password);
+                        }
+                    }
                 }
             }
         }
@@ -315,6 +360,34 @@ mod tests {
                 service_name: None,
                 sid: None,
             }
+        );
+    }
+
+    /// Verifies `password-first` iterates passwords before usernames.
+    #[test]
+    fn password_first_traverses_passwords_before_usernames() {
+        use crate::cli::CredentialOrder;
+
+        let loaded = LoadedCredentials {
+            usernames: vec!["a".to_string(), "b".to_string()],
+            passwords: vec!["1".to_string(), "2".to_string()],
+            service_names: Vec::new(),
+            sids: Vec::new(),
+        };
+
+        let expanded = loaded.expand_ordered(CredentialOrder::PasswordFirst);
+        let sequence: Vec<(&str, &str)> = expanded
+            .iter()
+            .map(|set| {
+                (
+                    set.username.as_deref().unwrap_or(""),
+                    set.password.as_deref().unwrap_or(""),
+                )
+            })
+            .collect();
+        assert_eq!(
+            sequence,
+            [("a", "1"), ("b", "1"), ("a", "2"), ("b", "2")]
         );
     }
 

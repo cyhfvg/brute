@@ -42,6 +42,8 @@ pub struct ProtocolOptions {
     pub shell_type: Option<String>,
     /// PostgreSQL SSL mode: `disable`, `require`, or `verify-full`.
     pub ssl_mode: Option<String>,
+    /// Credential traversal order: `username-first` or `password-first`.
+    pub order: Option<String>,
 }
 
 /// Parameters for a single-account validity check.
@@ -227,6 +229,9 @@ fn apply_options(request: &mut SprayRequest, options: ProtocolOptions) -> anyhow
     }
     if let Some(ssl_mode) = options.ssl_mode {
         request.ssl_mode = crate::engine::parse_pg_ssl_mode(&ssl_mode)?;
+    }
+    if let Some(order) = options.order {
+        request.order = crate::engine::parse_credential_order(&order)?;
     }
     Ok(())
 }

@@ -97,7 +97,7 @@ fn transport_retry_backoff_ms(failed_attempts: usize) -> u64 {
 
 #[cfg(test)]
 pub(super) fn scripted_ctx(retries: usize) -> AttemptContext {
-    use crate::cli::{CommonArgs, HttpUrlScheme, Protocol};
+    use crate::cli::{CommonArgs, CredentialOrder, HttpUrlScheme, Protocol};
     use crate::credentials::CredentialSet;
 
     AttemptContext {
@@ -116,6 +116,7 @@ pub(super) fn scripted_ctx(retries: usize) -> AttemptContext {
             delay_ms: 0,
             jitter_ms: 0,
             continue_on_success: false,
+            order: CredentialOrder::UsernameFirst,
             proxy: None,
         },
         path: None,

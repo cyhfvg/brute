@@ -362,7 +362,7 @@ mod tests {
         password: Option<&str>,
         port: Option<u16>,
     ) -> AttemptContext {
-        use crate::cli::{CommonArgs, Protocol};
+        use crate::cli::{CommonArgs, CredentialOrder, Protocol};
         use crate::credentials::CredentialSet;
 
         AttemptContext {
@@ -381,6 +381,7 @@ mod tests {
                 delay_ms: 0,
                 jitter_ms: 0,
                 continue_on_success: false,
+                order: CredentialOrder::UsernameFirst,
                 proxy: None,
             },
             path: None,

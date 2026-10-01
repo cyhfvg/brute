@@ -13,7 +13,7 @@ use std::{
 
 use reqwest::StatusCode;
 
-use brute::cli::{CommonArgs, HttpUrlScheme, Protocol};
+use brute::cli::{CommonArgs, CredentialOrder, HttpUrlScheme, Protocol};
 use brute::credentials::CredentialSet;
 use brute::protocol::http::{
     HttpBasicModule, build_http_basic_client, build_http_basic_url, classify_http_basic_status,
@@ -216,6 +216,7 @@ fn attempt_ctx(
             delay_ms: 0,
             jitter_ms: 0,
             continue_on_success: false,
+            order: CredentialOrder::UsernameFirst,
             proxy: None,
         },
         url_scheme: HttpUrlScheme::Http,

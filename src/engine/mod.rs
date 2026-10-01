@@ -19,6 +19,6 @@ pub use run::run_spray;
 pub(crate) use run::attempt_record_from_outcome;
 pub use types::{
     AttemptRecord, AttemptStatus, CredentialDeleteReport, CredentialRecord, ProbeRecord,
-    ProtocolInfo, SprayReport, SprayReporter, SprayRequest, WorkspaceInfo, parse_http_scheme,
-    parse_pg_ssl_mode, parse_protocol, parse_shell_type,
+    ProtocolInfo, SprayReport, SprayReporter, SprayRequest, WorkspaceInfo, parse_credential_order,
+    parse_http_scheme, parse_pg_ssl_mode, parse_protocol, parse_shell_type,
 };

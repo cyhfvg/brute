@@ -267,7 +267,7 @@ fn map_execute_error(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::{CommonArgs, Protocol};
+    use crate::cli::{CommonArgs, CredentialOrder, Protocol};
     use crate::credentials::CredentialSet;
     use crate::protocol::winrm::WinrmModule;
     use crate::protocol::{AttemptContext, BruteModule};
@@ -292,6 +292,7 @@ mod tests {
                 delay_ms: 0,
                 jitter_ms: 0,
                 continue_on_success: false,
+                order: CredentialOrder::UsernameFirst,
                 proxy: None,
             },
             path: None,

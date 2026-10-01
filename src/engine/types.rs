@@ -3,7 +3,9 @@
 use anyhow::{Result, bail};
 use serde::Serialize;
 
-use crate::cli::{CommonArgs, HttpUrlScheme, PgSslMode, Protocol, ProtocolArgs, WinrmShellType};
+use crate::cli::{
+    CommonArgs, CredentialOrder, HttpUrlScheme, PgSslMode, Protocol, ProtocolArgs, WinrmShellType,
+};
 use crate::database::SavedCredential;
 use crate::protocol::{AttemptContext, AttemptFaultClass, AttemptOutcome, TargetContext};
 use crate::proxy::ProxyConfig;
@@ -47,6 +49,8 @@ pub struct SprayRequest {
     pub jitter_ms: u64,
     /// Continue a target after the first success.
     pub continue_on_success: bool,
+    /// Credential traversal order for `username × password` expansion.
+    pub order: CredentialOrder,
     /// Optional outbound proxy.
     pub proxy: Option<ProxyConfig>,
     /// Optional post-auth command for protocols that support `-x`.
@@ -84,6 +88,7 @@ impl Default for SprayRequest {
             delay_ms: 0,
             jitter_ms: 0,
             continue_on_success: false,
+            order: CredentialOrder::UsernameFirst,
             proxy: None,
             execute: None,
             path: None,
@@ -464,6 +469,36 @@ pub fn parse_pg_ssl_mode(name: &str) -> Result<PgSslMode> {
     }
 }
 
+/// Parses a credential traversal order string.
+///
+/// # Parameters
+///
+/// - `name`: `username-first` or `password-first` (case-insensitive).
+///
+/// # Returns
+///
+/// The matching [`CredentialOrder`].
+///
+/// # Errors
+///
+/// Returns an error when `name` is not a supported order.
+///
+/// # Examples
+///
+/// ```
+/// use brute::cli::CredentialOrder;
+/// use brute::engine::parse_credential_order;
+///
+/// assert_eq!(parse_credential_order("password-first").unwrap(), CredentialOrder::PasswordFirst);
+/// ```
+pub fn parse_credential_order(name: &str) -> Result<CredentialOrder> {
+    match name.trim().to_ascii_lowercase().as_str() {
+        "username-first" | "username_first" => Ok(CredentialOrder::UsernameFirst),
+        "password-first" | "password_first" => Ok(CredentialOrder::PasswordFirst),
+        other => bail!("unsupported credential order {other:?}; expected username-first or password-first"),
+    }
+}
+
 impl SprayRequest {
     /// Builds a request from parsed CLI protocol arguments.
     ///
@@ -505,6 +540,7 @@ impl SprayRequest {
             delay_ms: common.delay_ms,
             jitter_ms: common.jitter_ms,
             continue_on_success: common.continue_on_success,
+            order: common.order,
             proxy,
             execute: args.execute().map(ToOwned::to_owned),
             path: args.path().map(ToOwned::to_owned),
@@ -531,6 +567,7 @@ impl SprayRequest {
             delay_ms: self.delay_ms,
             jitter_ms: self.jitter_ms,
             continue_on_success: self.continue_on_success,
+            order: self.order,
             proxy: self.proxy.clone(),
         }
     }

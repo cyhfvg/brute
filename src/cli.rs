@@ -807,6 +807,19 @@ fn parse_positive_u64(value: &str) -> Result<u64, String> {
         })
 }
 
+/// Credential traversal order for username x password cartesian expansion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum CredentialOrder {
+    /// Iterate usernames first, then passwords (`username × password`).
+    #[default]
+    UsernameFirst,
+    /// Iterate passwords first, then usernames (`password × username`).
+    ///
+    /// Useful for password-spray and cross-host password-reuse detection, where
+    /// hitting a shared password across hosts converges faster.
+    PasswordFirst,
+}
+
 /// Common options shared by all protocols.
 #[derive(Debug, Clone, Args)]
 pub struct CommonArgs {
@@ -857,6 +870,9 @@ pub struct CommonArgs {
     /// Continue authentication attempts even after successes.
     #[arg(long)]
     pub continue_on_success: bool,
+    /// Credential traversal order: `username-first` or `password-first`.
+    #[arg(long, value_enum, default_value_t = CredentialOrder::UsernameFirst)]
+    pub order: CredentialOrder,
     /// Runtime-only outbound proxy injected from top-level `Cli::proxy` (not a subcommand flag).
     #[arg(skip)]
     pub proxy: Option<crate::proxy::ProxyConfig>,

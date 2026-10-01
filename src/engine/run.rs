@@ -82,7 +82,7 @@ pub async fn run_spray(
     if targets.is_empty() {
         bail!("no targets were generated from the supplied TARGET arguments");
     }
-    let credentials = credentials.expand();
+    let credentials = credentials.expand_ordered(request.order);
     if credentials.is_empty() {
         bail!("no credential combinations were generated from the supplied arguments");
     }

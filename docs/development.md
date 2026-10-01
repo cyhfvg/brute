@@ -160,6 +160,8 @@ HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`t
 - 有 Service Name：`service_names × usernames × passwords`
 - 有 SID：`sids × usernames × passwords`
 
+`--order {username-first,password-first}`（默认 `username-first`）控制用户与密码的遍历顺序；`password-first` 先遍历密码再遍历用户，用于密码喷洒/跨主机密码复用场景更快收敛。Oracle 标识维度始终在最外层。
+
 账号级成功跳过键为 `(host, service_name, sid, username)`，避免同一用户在不同 Service Name/SID 上被误跳过。目标级首次成功即停策略不变；多标识枚举需 `--continue-on-success`。
 
 `brute combo`（别名 `urls`）不走上面的笛卡尔积。每个参数是连接 URL 文件、`-` 或内联 `scheme://[user[:password]@]host[:port][/path][?query]`。空用户名、空密码、省略端口都会尝试；省略端口使用协议默认端口，`https` 省略端口记为 `443`。同一文件可混合协议，调度层按 `(protocol, url_scheme)` 分组后调用 `engine::run_paired_spray`。成功跳过键包含有效端口，因此 `:22` 与 `:2222` 互不影响。
