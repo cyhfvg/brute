@@ -1542,3 +1542,71 @@ fn format_ndjson_streams_one_object_per_line() {
         "ndjson output must not contain ANSI escapes:\n{stdout}"
     );
 }
+
+#[test]
+fn creds_import_and_export_round_trip() {
+    let home = TempHome::new("creds-import-export");
+
+    let import_path = home.path().join("creds.json");
+    fs::write(
+        &import_path,
+        r#"[{"protocol":"ssh","host":"10.0.0.8","port":22,"username":"root","password":"toor"},{"protocol":"http","host":"10.0.0.9","port":80,"username":null,"password":"a,b\"c"}]"#,
+    )
+    .expect("write import file");
+
+    let imported = run_with_home(
+        &home,
+        ["creds", "import", import_path.to_str().expect("path"), "--format", "json"],
+    );
+    assert_success(&imported);
+    assert!(stdout(&imported).contains("imported 2 credentials"));
+
+    let listed = run_with_home(&home, ["creds", "list"]);
+    assert_success(&listed);
+    let list_text = stdout(&listed);
+    assert!(list_text.contains("10.0.0.8"));
+    assert!(list_text.contains("10.0.0.9"));
+
+    let export_path = home.path().join("creds.csv");
+    let exported = run_with_home(
+        &home,
+        [
+            "creds",
+            "export",
+            "--format",
+            "csv",
+            "--output",
+            export_path.to_str().expect("path"),
+        ],
+    );
+    assert_success(&exported);
+    let csv = fs::read_to_string(&export_path).expect("read export");
+    let lines: Vec<&str> = csv.lines().collect();
+    assert_eq!(lines[0], "protocol,host,port,username,password");
+    assert!(csv.contains("ssh,10.0.0.8,22,root,toor"));
+    assert!(csv.contains("\"a,b\"\"c\""));
+
+    // Re-importing the CSV is idempotent (upsert), not a duplicate insert.
+    let reimported = run_with_home(
+        &home,
+        [
+            "creds",
+            "import",
+            export_path.to_str().expect("path"),
+            "--format",
+            "csv",
+        ],
+    );
+    assert_success(&reimported);
+    let final_list = run_with_home(&home, ["creds", "list"]);
+    assert_success(&final_list);
+    assert_eq!(
+        stdout(&final_list)
+            .lines()
+            .filter(|line| line.contains("10.0.0."))
+            .count(),
+        2,
+        "import must upsert, not duplicate:\n{}",
+        stdout(&final_list)
+    );
+}

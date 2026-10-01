@@ -1175,6 +1175,42 @@ pub enum CredsAction {
     /// Does not accept `--workspace`. Run `workspace use <NAME>` before deleting
     /// credentials that belong to another workspace.
     Delete(CredsDeleteArgs),
+    /// Export saved credentials from the current workspace to CSV or JSON.
+    Export(CredsExportArgs),
+    /// Import saved credentials into the current workspace from CSV or JSON.
+    Import(CredsImportArgs),
+}
+
+/// Credential import/export file format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum CredsFormat {
+    /// JSON array of portable credential records.
+    #[default]
+    Json,
+    /// CSV with a header row and one credential per line.
+    Csv,
+}
+
+/// Options for exporting saved credentials from the current workspace.
+#[derive(Debug, Args)]
+pub struct CredsExportArgs {
+    /// Export format: `json` or `csv`.
+    #[arg(long, value_enum, default_value_t = CredsFormat::Json)]
+    pub format: CredsFormat,
+    /// Destination file, or `-` for stdout.
+    #[arg(long, value_name = "FILE")]
+    pub output: Option<String>,
+}
+
+/// Options for importing saved credentials into the current workspace.
+#[derive(Debug, Args)]
+pub struct CredsImportArgs {
+    /// Source file, or `-` for stdin.
+    #[arg(value_name = "FILE")]
+    pub source: String,
+    /// Import format: `json` or `csv`.
+    #[arg(long, value_enum, default_value_t = CredsFormat::Json)]
+    pub format: CredsFormat,
 }
 
 /// Options for listing saved credentials in the current workspace.

@@ -9,6 +9,7 @@ pub mod combo;
 pub mod connections;
 pub mod credentials;
 pub mod creds;
+pub mod csv;
 pub mod database;
 pub mod engine;
 pub mod error;

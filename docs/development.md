@@ -175,7 +175,7 @@ HTTP 家族支持可省略的 `--protocol http|https`。家族包括 `http`、`t
 
 每个 SQLite 连接都会启用外键约束，因此删除 workspace 会级联删除其凭据。认证成功后的命令执行错误会作为认证成功的附加状态输出，确保有效凭据仍会写入数据库。保存的 `conn_url` 会对用户名和密码进行 URL 编码，并为 IPv6 主机添加方括号。
 
-协议调度层在 `AttemptOutcome::Success` 时写入数据库，并用 `(workspace_id, protocol, host, port, username, password)` 去重。`workspace current/new/use/delete/list` 负责 workspace 管理；`delete` 会级联删除该 workspace 下的凭据，且不允许删除 `default`。`creds list` 与 `creds delete` 都不接受 `--workspace`，只操作当前 workspace，并打印当前 workspace 名称。其它 workspace 必须先 `workspace use` 显式切换。`list` 支持 `--protocol`、`--host` 和 `--conn-url`；`delete` 按 id、`--protocol`、`--host` 或 `--all` 删除，无选择器时拒绝，不跨 workspace，CLI 不回显密码。MCP `list_credentials` / `delete_credentials` 仍可传入 `workspace`，因为 MCP 不会切换全局 current workspace。
+协议调度层在 `AttemptOutcome::Success` 时写入数据库，并用 `(workspace_id, protocol, host, port, username, password)` 去重。`workspace current/new/use/delete/list` 负责 workspace 管理；`delete` 会级联删除该 workspace 下的凭据，且不允许删除 `default`。`creds list` 与 `creds delete` 都不接受 `--workspace`，只操作当前 workspace，并打印当前 workspace 名称。其它 workspace 必须先 `workspace use` 显式切换。`list` 支持 `--protocol`、`--host`、`--username` 和 `--conn-url`；`delete` 按 id、`--protocol`、`--host` 或 `--all` 删除，无选择器时拒绝，不跨 workspace，CLI 不回显密码。`creds export` / `creds import` 用 `--format {json,csv}` 在文件（或 `-` 的 stdin/stdout）间迁移当前 workspace 的凭据，导入按唯一键 upsert。MCP `list_credentials` / `delete_credentials` 仍可传入 `workspace`，因为 MCP 不会切换全局 current workspace。
 
 ### MCP
 
@@ -225,7 +225,7 @@ Ctrl-C 与 MCP 请求取消共用 `CancellationToken`。取消后不再领取新
 
 `TARGET` 支持直接传入多个目标，也支持传入文件路径。目标文件按行读取，忽略空行和以 `#` 开头的注释行。
 
-每个目标 token（含文件中的每一行）若形如 IPv4 CIDR（`a.b.c.d/prefix`），则展开为该前缀内的全部地址，包括网络地址与广播地址。例如 `10.10.50.24/29` 展开为 `10.10.50.24` 至 `10.10.50.31` 共 8 个主机。主机名、FQDN、裸 IPv4 保持原样。单个 CIDR 最多展开 65536 个地址（IPv4 `/16`），超出则报错。解析集中在 `src/targets.rs`，CLI 与 MCP、全部协议共用 `load_targets`。IP range（如 `10.10.50.24-31`）仍未实现。
+每个目标 token（含文件中的每一行）若形如 IPv4 CIDR（`a.b.c.d/prefix`），则展开为该前缀内的全部地址，包括网络地址与广播地址。例如 `10.10.50.24/29` 展开为 `10.10.50.24` 至 `10.10.50.31` 共 8 个主机。若形如 IPv4 last-octet range（`a.b.c.d-m`），则在同一 `/24` 内展开，例如 `10.10.50.24-31` 展开为 `10.10.50.24` 至 `10.10.50.31`。主机名、FQDN、裸 IPv4 保持原样。单个 CIDR 最多展开 65536 个地址（IPv4 `/16`），超出则报错。解析集中在 `src/targets.rs`，CLI 与 MCP、全部协议共用 `load_targets`。
 
 **brute 不支持 IPv6。** `TARGET` 不接受 IPv6 地址或 IPv6 CIDR；此类输入会报错并拒绝展开。
 

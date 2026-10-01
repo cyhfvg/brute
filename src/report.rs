@@ -51,7 +51,7 @@ pub fn write_success_file(
 fn to_csv(successes: &[AttemptRecord]) -> String {
     let mut csv = String::from("protocol,host,port,username,password,service_name,sid\n");
     for record in successes {
-        csv.push_str(&csv_row(&[
+        csv.push_str(&crate::csv::row(&[
             &record.protocol,
             &record.host,
             &record.port.to_string(),
@@ -63,24 +63,6 @@ fn to_csv(successes: &[AttemptRecord]) -> String {
         csv.push('\n');
     }
     csv
-}
-
-/// Renders one CSV row with RFC 4180-style quoting.
-fn csv_row(fields: &[&str]) -> String {
-    fields
-        .iter()
-        .map(|field| {
-            let needs_quoting = field
-                .chars()
-                .any(|ch| matches!(ch, ',' | '"' | '\n' | '\r'));
-            if needs_quoting {
-                format!("\"{}\"", field.replace('"', "\"\""))
-            } else {
-                (*field).to_string()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(",")
 }
 
 /// Serializes successes as scanner-friendly connection URLs.

@@ -1,12 +1,22 @@
 //! Saved-credential CLI commands.
 
-use anyhow::{Result, bail};
+use std::{
+    fs,
+    io::{self, Read},
+};
 
-use crate::cli::{CredsAction, CredsArgs, CredsDeleteArgs, CredsListArgs};
+use anyhow::{Context, Result, bail};
+use serde::{Deserialize, Serialize};
+
+use crate::cli::{
+    CredsAction, CredsArgs, CredsDeleteArgs, CredsExportArgs, CredsFormat, CredsImportArgs,
+    CredsListArgs,
+};
+use crate::credentials::CredentialSet;
 use crate::database::CredentialDatabase;
-use crate::engine::{CredentialRecord, delete_credentials, query_credentials};
+use crate::engine::{CredentialRecord, delete_credentials, parse_protocol, query_credentials};
 
-/// Executes `creds list` or `creds delete`.
+/// Executes `creds list`, `creds delete`, `creds export`, or `creds import`.
 ///
 /// # Parameters
 ///
@@ -19,8 +29,8 @@ use crate::engine::{CredentialRecord, delete_credentials, query_credentials};
 ///
 /// # Errors
 ///
-/// Returns an error when the query or delete fails, the delete is unscoped, or a
-/// requested credential id was not found.
+/// Returns an error when the query or delete fails, the delete is unscoped, a
+/// requested credential id was not found, or an import/export source is invalid.
 ///
 /// # Examples
 ///
@@ -31,6 +41,8 @@ pub fn run(database: &CredentialDatabase, args: CredsArgs) -> Result<()> {
     match args.action {
         CredsAction::List(args) => list(database, args),
         CredsAction::Delete(args) => delete(database, args),
+        CredsAction::Export(args) => export(database, args),
+        CredsAction::Import(args) => import(database, args),
     }
 }
 
@@ -125,6 +137,157 @@ fn delete(database: &CredentialDatabase, args: CredsDeleteArgs) -> Result<()> {
         .collect::<Vec<_>>()
         .join(", ");
     bail!("credential not found: {missing}")
+}
+
+/// Portable credential record used by `creds export` and `creds import`.
+///
+/// It carries only the fields a credential needs to move between machines or
+/// tools. Workspace, id, and connection URL are derived locally on import.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PortableCredential {
+    protocol: String,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+}
+
+impl From<&CredentialRecord> for PortableCredential {
+    fn from(record: &CredentialRecord) -> Self {
+        Self {
+            protocol: record.protocol.clone(),
+            host: record.host.clone(),
+            port: record.port,
+            username: record.username.clone(),
+            password: record.password.clone(),
+        }
+    }
+}
+
+/// Exports every credential in the current workspace.
+fn export(database: &CredentialDatabase, args: CredsExportArgs) -> Result<()> {
+    let workspace = database.current_workspace()?;
+    let credentials = query_credentials(database, Some(workspace.as_str()), None, None, None)?;
+    let portable: Vec<PortableCredential> =
+        credentials.iter().map(PortableCredential::from).collect();
+    let content = match args.format {
+        CredsFormat::Json => serde_json::to_string_pretty(&portable)?,
+        CredsFormat::Csv => portable_to_csv(&portable),
+    };
+    write_export(&content, args.output.as_deref())
+}
+
+/// Imports credentials into the current workspace.
+fn import(database: &CredentialDatabase, args: CredsImportArgs) -> Result<()> {
+    let workspace = database.current_workspace()?;
+    let text = read_source(&args.source)?;
+    let portable = match args.format {
+        CredsFormat::Json => serde_json::from_str::<Vec<PortableCredential>>(&text)
+            .with_context(|| "failed to parse JSON credential import")?,
+        CredsFormat::Csv => parse_portable_csv(&text)?,
+    };
+
+    for record in &portable {
+        let protocol = parse_protocol(&record.protocol)?;
+        let credential = CredentialSet {
+            username: record.username.clone(),
+            password: record.password.clone(),
+            service_name: None,
+            sid: None,
+        };
+        database.save_success(&workspace, protocol, &record.host, record.port, &credential)?;
+    }
+
+    let count = portable.len();
+    if count == 1 {
+        println!("imported 1 credential into workspace: {workspace}");
+    } else {
+        println!("imported {count} credentials into workspace: {workspace}");
+    }
+    Ok(())
+}
+
+/// Writes export content to a file, or to stdout when `output` is `None` or `-`.
+fn write_export(content: &str, output: Option<&str>) -> Result<()> {
+    match output {
+        None | Some("-") => {
+            println!("{content}");
+            Ok(())
+        }
+        Some(path) => {
+            fs::write(path, content).with_context(|| format!("failed to write export file: {path}"))
+        }
+    }
+}
+
+/// Reads an import source that is either `-` (stdin) or a file path.
+fn read_source(source: &str) -> Result<String> {
+    if source == "-" {
+        let mut text = String::new();
+        io::stdin()
+            .read_to_string(&mut text)
+            .context("failed to read stdin")?;
+        Ok(text)
+    } else {
+        fs::read_to_string(source)
+            .with_context(|| format!("failed to read import file: {source}"))
+    }
+}
+
+/// CSV header shared by `creds export --format csv` and its importer.
+const PORTABLE_CSV_HEADER: &str = "protocol,host,port,username,password";
+
+/// Serializes portable credentials as CSV.
+fn portable_to_csv(records: &[PortableCredential]) -> String {
+    let mut csv = String::from(PORTABLE_CSV_HEADER);
+    csv.push('\n');
+    for record in records {
+        csv.push_str(&crate::csv::row(&[
+            &record.protocol,
+            &record.host,
+            &record.port.to_string(),
+            record.username.as_deref().unwrap_or(""),
+            record.password.as_deref().unwrap_or(""),
+        ]));
+        csv.push('\n');
+    }
+    csv
+}
+
+/// Parses portable credentials from CSV text.
+fn parse_portable_csv(text: &str) -> Result<Vec<PortableCredential>> {
+    let mut records = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        if index == 0 && line.trim() == PORTABLE_CSV_HEADER {
+            continue;
+        }
+        if line.trim().is_empty() {
+            continue;
+        }
+        let fields = crate::csv::parse_line(line)?;
+        if fields.len() != 5 {
+            bail!(
+                "expected 5 CSV columns (protocol,host,port,username,password), got {}",
+                fields.len()
+            );
+        }
+        let port: u16 = fields[2]
+            .parse()
+            .with_context(|| format!("invalid port in CSV row {}: {:?}", index + 1, fields[2]))?;
+        records.push(PortableCredential {
+            protocol: fields[0].clone(),
+            host: fields[1].clone(),
+            port,
+            username: none_if_empty(fields[3].clone()),
+            password: none_if_empty(fields[4].clone()),
+        });
+    }
+    Ok(records)
+}
+
+/// Converts an empty string into `None`, matching the saved-credential convention.
+fn none_if_empty(value: String) -> Option<String> {
+    if value.is_empty() { None } else { Some(value) }
 }
 
 /// Renders an empty username as `-`.
