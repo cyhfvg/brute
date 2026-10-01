@@ -3,7 +3,7 @@
 use anyhow::{Result, bail};
 use serde::Serialize;
 
-use crate::cli::{CommonArgs, HttpUrlScheme, Protocol, ProtocolArgs, WinrmShellType};
+use crate::cli::{CommonArgs, HttpUrlScheme, PgSslMode, Protocol, ProtocolArgs, WinrmShellType};
 use crate::database::SavedCredential;
 use crate::protocol::{AttemptContext, AttemptFaultClass, AttemptOutcome, TargetContext};
 use crate::proxy::ProxyConfig;
@@ -63,6 +63,8 @@ pub struct SprayRequest {
     pub shares: bool,
     /// WinRM shell type for probes and `-x`.
     pub shell_type: Option<WinrmShellType>,
+    /// PostgreSQL SSL mode. Non-PostgreSQL protocols keep `require`.
+    pub ssl_mode: PgSslMode,
     /// Workspace used for `--id` lookup and success persistence.
     pub workspace: Option<String>,
 }
@@ -90,6 +92,7 @@ impl Default for SprayRequest {
             sids: Vec::new(),
             shares: false,
             shell_type: None,
+            ssl_mode: PgSslMode::Require,
             workspace: None,
         }
     }
@@ -430,6 +433,37 @@ pub fn parse_shell_type(name: &str) -> Result<WinrmShellType> {
     }
 }
 
+/// Parses a PostgreSQL SSL mode string.
+///
+/// # Parameters
+///
+/// - `name`: `disable`, `require`, or `verify-full` (case-insensitive).
+///
+/// # Returns
+///
+/// The matching [`PgSslMode`].
+///
+/// # Errors
+///
+/// Returns an error when `name` is not a supported SSL mode.
+///
+/// # Examples
+///
+/// ```
+/// use brute::cli::PgSslMode;
+/// use brute::engine::parse_pg_ssl_mode;
+///
+/// assert_eq!(parse_pg_ssl_mode("verify-full").unwrap(), PgSslMode::VerifyFull);
+/// ```
+pub fn parse_pg_ssl_mode(name: &str) -> Result<PgSslMode> {
+    match name.trim().to_ascii_lowercase().as_str() {
+        "disable" => Ok(PgSslMode::Disable),
+        "require" => Ok(PgSslMode::Require),
+        "verify-full" | "verify_full" => Ok(PgSslMode::VerifyFull),
+        other => bail!("unsupported PostgreSQL sslmode {other:?}; expected disable, require, or verify-full"),
+    }
+}
+
 impl SprayRequest {
     /// Builds a request from parsed CLI protocol arguments.
     ///
@@ -453,6 +487,10 @@ impl SprayRequest {
             ProtocolArgs::Oracle(oracle) => (oracle.service_name.clone(), oracle.sid.clone()),
             _ => (Vec::new(), Vec::new()),
         };
+        let ssl_mode = match args {
+            ProtocolArgs::Postgresql(postgres) => postgres.ssl_mode,
+            _ => PgSslMode::Require,
+        };
         let url_scheme = args.url_scheme();
         Self {
             protocol: args.protocol(),
@@ -475,6 +513,7 @@ impl SprayRequest {
             sids,
             shares: args.shares(),
             shell_type: args.shell_type(),
+            ssl_mode,
             workspace: None,
         }
     }

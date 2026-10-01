@@ -200,9 +200,9 @@ pub enum ProtocolArgs {
         hide = true,
         about = "own stuff using POSTGRESQL",
         override_usage = "brute postgresql <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute postgresql 192.168.5.5 -u postgres -p 123456 -x 'select version();'"
+        after_help = "Example:\n  brute postgresql 192.168.5.5 -u postgres -p 123456 -x 'select version();'\n  brute postgresql 192.168.5.5 -u postgres -p 123456 --sslmode verify-full"
     )]
-    Postgresql(ExecuteArgs),
+    Postgresql(PostgresArgs),
 
     #[command(
         hide = true,
@@ -583,7 +583,6 @@ impl ProtocolArgs {
             Self::Ssh(args)
             | Self::Ftp(args)
             | Self::Mysql(args)
-            | Self::Postgresql(args)
             | Self::Redis(args)
             | Self::Zookeeper(args)
             | Self::Memcached(args)
@@ -621,6 +620,7 @@ impl ProtocolArgs {
             | Self::Weblogic(args)
             | Self::Websphere(args) => &args.execute.common,
             Self::Oracle(args) => &args.execute.common,
+            Self::Postgresql(args) => &args.execute.common,
             Self::Smb(args) => &args.common,
             Self::Winrm(args) => &args.common,
             Self::Rdp(args) | Self::Vnc(args) => args,
@@ -648,7 +648,6 @@ impl ProtocolArgs {
             Self::Ssh(args)
             | Self::Ftp(args)
             | Self::Mysql(args)
-            | Self::Postgresql(args)
             | Self::Redis(args)
             | Self::Zookeeper(args)
             | Self::Memcached(args)
@@ -686,6 +685,7 @@ impl ProtocolArgs {
             | Self::Weblogic(args)
             | Self::Websphere(args) => args.execute.execute.as_deref(),
             Self::Oracle(args) => args.execute.execute.as_deref(),
+            Self::Postgresql(args) => args.execute.execute.as_deref(),
             Self::Winrm(args) => args.execute.as_deref(),
             _ => None,
         }
@@ -952,6 +952,31 @@ pub struct OracleArgs {
         num_args = 1..,
     )]
     pub sid: Vec<String>,
+}
+
+/// PostgreSQL SSL mode for `--sslmode`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum PgSslMode {
+    /// No TLS; connect in plaintext.
+    Disable,
+    /// TLS with certificate verification skipped (scanner default).
+    #[default]
+    Require,
+    /// TLS with certificate chain and hostname verification against system roots.
+    VerifyFull,
+}
+
+/// PostgreSQL-specific options: common credentials, post-auth execute, and SSL mode.
+#[derive(Debug, Clone, Args)]
+pub struct PostgresArgs {
+    #[command(flatten)]
+    pub execute: ExecuteArgs,
+    /// SSL mode: `disable`, `require`, or `verify-full`.
+    ///
+    /// `require` encrypts but skips certificate verification (scanner default).
+    /// `verify-full` verifies the certificate chain and hostname.
+    #[arg(long = "sslmode", value_enum, default_value_t = PgSslMode::Require)]
+    pub ssl_mode: PgSslMode,
 }
 
 /// SMB-specific options: common credentials plus optional share enumeration.

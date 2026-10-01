@@ -355,7 +355,9 @@ pub(super) fn build_module(request: &SprayRequest) -> Arc<dyn BruteModule> {
         Protocol::Ssh => Arc::new(SshModule::new(request.timeout_ms)),
         Protocol::Ftp => Arc::new(FtpModule::new(request.timeout_ms)),
         Protocol::Mysql => Arc::new(MySqlModule::new(request.timeout_ms)),
-        Protocol::Postgresql => Arc::new(PostgreSqlModule::new(request.timeout_ms)),
+        Protocol::Postgresql => {
+            Arc::new(PostgreSqlModule::new(request.timeout_ms, request.ssl_mode))
+        }
         Protocol::Redis => Arc::new(RedisModule::new(request.timeout_ms)),
         Protocol::Tomcat => Arc::new(TomcatManagerModule::new(request.timeout_ms)),
         Protocol::Oracle => Arc::new(OracleModule::new(request.timeout_ms)),

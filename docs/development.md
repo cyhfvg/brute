@@ -77,8 +77,8 @@
 
 - `ssh`: 基于纯 Rust SSH 客户端 `russh`
 - `ftp`: 基于 `suppaftp`
-- `mysql`: 基于 `mysql`
-- `postgresql`: 基于 `tokio-postgres`
+- `mysql`: 基于 `mysql`；默认开启机会式 TLS（接受自签名证书、跳过域名校验），使 MySQL 8 默认的 `caching_sha2_password` 完整认证走加密通道，避免依赖服务器 RSA 公钥交换
+- `postgresql`: 基于 `tokio-postgres`；支持 `--sslmode {disable,require,verify-full}`（默认 `require`，即 TLS 但不校验证书；`verify-full` 用内置 Mozilla CA 根校验证书链与主机名）
 - `redis`: 基于 `redis`
 - `oracle`: 基于纯 Rust 的 `oracle-rs`，使用互斥且必选的 `--service-name` 或 `--sid`；两者均支持多值与字典文件，并与 `-u`/`-p` 做 `identifier × user × password` 笛卡尔展开；支持 Oracle Database 11g R2 (11.2)+，无需 Oracle Client 或动态链接库；依赖 cyhfvg/oracle-rs 的 11g 兼容与 18c 完成报文修复；`-x` 查询受 `--timeout-ms` 约束，执行前移除 SQL 尾部空白与客户端分号
 - `tomcat`: 基于 `reqwest` + Basic Auth

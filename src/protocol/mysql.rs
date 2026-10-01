@@ -1,7 +1,7 @@
 //! MySQL login attempts.
 
 use async_trait::async_trait;
-use mysql::{Conn, OptsBuilder, Row, Value, prelude::Queryable};
+use mysql::{Conn, OptsBuilder, Row, SslOpts, Value, prelude::Queryable};
 
 use super::{
     AttemptContext, AttemptOutcome, AttemptSuccess, BruteModule, run_blocking_with_timeout,
@@ -50,13 +50,22 @@ impl BruteModule for MySqlModule {
             // The bridge must live until the blocking connect returns. Dropping it
             // here closes the local listener while the client may still be connecting.
             let _bridge = bridge;
+            // MySQL 8 defaults to caching_sha2_password. Its full-auth flow needs
+            // either TLS or a server-provided RSA public key. Negotiate TLS
+            // opportunistically (accepting self-signed certificates) so the
+            // full-auth path works even when RSA key exchange is disabled.
             let opts = OptsBuilder::default()
                 .ip_or_hostname(Some(connect_host))
                 .tcp_port(connect_port)
                 .user(Some(username))
                 .pass(Some(password))
                 .prefer_socket(false)
-                .stmt_cache_size(Some(0));
+                .stmt_cache_size(Some(0))
+                .ssl_opts(Some(
+                    SslOpts::default()
+                        .with_danger_accept_invalid_certs(true)
+                        .with_danger_skip_domain_validation(true),
+                ));
 
             match Conn::new(opts) {
                 Ok(mut conn) => {

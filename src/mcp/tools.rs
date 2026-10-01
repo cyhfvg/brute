@@ -40,6 +40,8 @@ pub struct ProtocolOptions {
     pub shares: bool,
     /// WinRM shell type: `cmd` or `powershell`.
     pub shell_type: Option<String>,
+    /// PostgreSQL SSL mode: `disable`, `require`, or `verify-full`.
+    pub ssl_mode: Option<String>,
 }
 
 /// Parameters for a single-account validity check.
@@ -222,6 +224,9 @@ fn apply_options(request: &mut SprayRequest, options: ProtocolOptions) -> anyhow
     request.shares = options.shares;
     if let Some(shell) = options.shell_type {
         request.shell_type = Some(crate::engine::parse_shell_type(&shell)?);
+    }
+    if let Some(ssl_mode) = options.ssl_mode {
+        request.ssl_mode = crate::engine::parse_pg_ssl_mode(&ssl_mode)?;
     }
     Ok(())
 }
