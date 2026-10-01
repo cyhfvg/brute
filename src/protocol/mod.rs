@@ -332,6 +332,7 @@ impl AttemptSuccess {
 }
 
 /// Shared protocol interface.
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait BruteModule: Send + Sync {
     /// User-facing module name.
