@@ -1,5 +1,8 @@
 # 开发过程说明
 
+> 本文档是开发过程的实现细节说明。文档总入口与待办清单见 [index.md](index.md)。
+> 阅读约定为「索引式」：先读 `index.md` 索引，再按需阅读本文件与其它专题文档。
+
 ## 目标
 
 围绕“类 NetExec 风格的 Rust 爆破工具”构建首版工程，优先实现：
@@ -241,15 +244,7 @@ Ctrl-C 与 MCP 请求取消共用 `CancellationToken`。取消后不再领取新
 
 各 target 共用 checkout / toolchain / cache / `cargo build --locked --release` / 打包 / artifact 上传步骤；打包脚本统一 `shell: bash`。Linux 额外安装 apt 依赖。Windows MSVC 因 `openssl` vendored 源码编译需要完整 Perl 与 NASM：安装 NASM，并将镜像自带的 Strawberry Perl 前置到 `PATH`；**构建步骤使用 `pwsh`**，避免 `shell: bash` 优先命中 Git/MSYS 残缺 `perl`（会报缺少 `Locale::Maketext::Simple`）。`publish` job 在 `ubuntu-latest` 汇总 artifact、生成 `SHA256SUMS.txt` 与 release notes，再通过 `softprops/action-gh-release` 发布。
 
-## 后续建议
-
-1. 增加 JSON/NDJSON 输出模式，便于脚本接入
-2. 为 HTTP 模块扩展表单爆破、Digest Auth、严格 CA 校验开关等（Basic Auth 与 `--protocol http|https` 已实现）
-3. 为 WinRM 增加 HTTPS(5986)、Kerberos、CredSSP 与 NTLM hash 登录（按需）
-4. 增强 SMB 目标探测，在可解析时输出 `name:` / `domain:`（当前为服务可达性探测）
-5. 若 IronRDP 与 `smb2` 的 `aes-gcm` 依赖冲突消除，可评估迁移 RDP 至 IronRDP 并去掉 vendored OpenSSL
-
-### 输出前缀
+## 输出前缀
 
 控制台固定前缀仅显示协议、目标和端口；协议专属的探测信息使用独立输出行，避免不可靠或重复的通用主机名列。
 
