@@ -1,8 +1,9 @@
 //! Target source parsing.
 //!
 //! Inline `TARGET` values and target-file lines may be hostnames, IPv4
-//! addresses, or IPv4 CIDR prefixes. CIDR values are expanded to every
-//! address in the prefix, including the network and broadcast addresses.
+//! addresses, IPv4 CIDR prefixes, or IPv4 last-octet ranges. CIDR values are
+//! expanded to every address in the prefix, including the network and broadcast
+//! addresses. A range such as `10.10.50.24-31` expands within one `/24`.
 //! IPv6 addresses and IPv6 CIDR prefixes are rejected.
 
 use std::{fs, net::Ipv4Addr, path::Path};
@@ -73,8 +74,9 @@ pub fn load_targets(sources: &[String]) -> Result<Vec<String>> {
 /// Expands one TARGET token into one or more IPv4 host strings.
 ///
 /// A spec whose address part parses as IPv4 and which contains `/` is treated
-/// as CIDR. Hostnames, FQDNs, and bare IPv4 addresses are returned unchanged.
-/// IPv6 addresses and IPv6 CIDR prefixes are rejected.
+/// as CIDR. A spec shaped `a.b.c.d-m` is treated as a last-octet range.
+/// Hostnames, FQDNs, and bare IPv4 addresses are returned unchanged. IPv6
+/// addresses and IPv6 CIDR prefixes are rejected.
 ///
 /// # Parameters
 ///
@@ -82,12 +84,14 @@ pub fn load_targets(sources: &[String]) -> Result<Vec<String>> {
 ///
 /// # Returns
 ///
-/// One host string for a non-CIDR spec, or every address in an IPv4 CIDR prefix.
+/// One host string for a non-CIDR/non-range spec, or every address in an IPv4
+/// CIDR prefix or last-octet range.
 ///
 /// # Errors
 ///
 /// Returns an error when the spec is IPv6, looks like an IPv4 CIDR but the
-/// prefix is invalid, or expansion would exceed [`MAX_CIDR_ADDRESSES`].
+/// prefix is invalid, looks like an IPv4 range but the range is invalid, or
+/// CIDR expansion would exceed [`MAX_CIDR_ADDRESSES`].
 ///
 /// # Examples
 ///
@@ -117,7 +121,10 @@ pub fn expand_target_spec(spec: &str) -> Result<Vec<String>> {
     }
     match expand_ipv4_cidr(spec)? {
         Some(hosts) => Ok(hosts),
-        None => Ok(vec![spec.to_owned()]),
+        None => match expand_ipv4_range(spec)? {
+            Some(hosts) => Ok(hosts),
+            None => Ok(vec![spec.to_owned()]),
+        },
     }
 }
 
@@ -225,6 +232,65 @@ fn expand_ipv4_cidr(spec: &str) -> Result<Option<Vec<String>>> {
     Ok(Some(expand_ipv4_net(net)))
 }
 
+/// Parses `spec` as an IPv4 last-octet range and expands it, or returns `None`
+/// when it is not an IP range.
+///
+/// A range is `a.b.c.d-m` where `d` and `m` are the first and last addresses in
+/// the same `/24`. `10.10.50.24-31` expands to `10.10.50.24` through
+/// `10.10.50.31`. Ranges cannot span a `/24` boundary: `m` must be a single
+/// octet greater than or equal to `d`.
+///
+/// # Parameters
+///
+/// - `spec`: Target token that may be `a.b.c.d-m`.
+///
+/// # Returns
+///
+/// - `Ok(Some(hosts))` when `spec` is a valid IPv4 range.
+/// - `Ok(None)` when `spec` is not range-shaped (no `-`, the address part is not
+///   IPv4, or the suffix is non-numeric, e.g. `web-01.internal`).
+///
+/// # Errors
+///
+/// Returns an error when the address part is IPv4 and the suffix is numeric but
+/// the range is invalid (end precedes start, or end is not a single octet).
+///
+/// # Examples
+///
+/// ```ignore
+/// assert_eq!(expand_ipv4_range("10.10.50.24-31")?.unwrap(), ["10.10.50.24", "…", "10.10.50.31"]);
+/// assert!(expand_ipv4_range("web-01.internal")?.is_none());
+/// ```
+fn expand_ipv4_range(spec: &str) -> Result<Option<Vec<String>>> {
+    let Some((addr_text, end_text)) = spec.rsplit_once('-') else {
+        return Ok(None);
+    };
+    let start = match addr_text.parse::<Ipv4Addr>() {
+        Ok(addr) => addr,
+        Err(_) => return Ok(None),
+    };
+    // A hostname like `web-01.internal` also contains `-`; only treat a numeric
+    // suffix as a range so hostnames stay unchanged.
+    if end_text.is_empty() || !end_text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Ok(None);
+    }
+
+    let end_octet: u8 = end_text
+        .parse()
+        .with_context(|| format!("invalid IP range target: {spec}"))?;
+    let start_octet = start.octets()[3];
+    if end_octet < start_octet {
+        bail!("invalid IP range target: {spec} (end {end_octet} precedes start {start_octet})");
+    }
+
+    let prefix = &addr_text[..addr_text.rfind('.').expect("IPv4 has octet separators")];
+    let mut hosts = Vec::with_capacity(usize::from(end_octet - start_octet) + 1);
+    for octet in start_octet..=end_octet {
+        hosts.push(format!("{prefix}.{octet}"));
+    }
+    Ok(Some(hosts))
+}
+
 /// Returns how many addresses a parsed IPv4 CIDR contains.
 ///
 /// # Parameters
@@ -329,6 +395,50 @@ mod tests {
             expand_target_spec("example.com/manager").expect("hostname slash"),
             ["example.com/manager"]
         );
+    }
+
+    /// Verifies a last-octet range expands within one /24.
+    #[test]
+    fn expands_ipv4_last_octet_range() {
+        let hosts = expand_target_spec("10.10.50.24-31").expect("expand range");
+        assert_eq!(
+            hosts,
+            [
+                "10.10.50.24",
+                "10.10.50.25",
+                "10.10.50.26",
+                "10.10.50.27",
+                "10.10.50.28",
+                "10.10.50.29",
+                "10.10.50.30",
+                "10.10.50.31",
+            ]
+        );
+        assert_eq!(
+            expand_target_spec("10.10.50.24-24").expect("single range"),
+            ["10.10.50.24"]
+        );
+    }
+
+    /// Verifies hostnames containing a dash are not mistaken for ranges.
+    #[test]
+    fn keeps_hostname_with_dash_unchanged() {
+        assert_eq!(
+            expand_target_spec("web-01.internal").expect("hostname dash"),
+            ["web-01.internal"]
+        );
+    }
+
+    /// Verifies invalid ranges are rejected rather than treated as hostnames.
+    #[test]
+    fn rejects_invalid_ipv4_range() {
+        for spec in ["10.10.50.31-24", "10.10.50.24-256"] {
+            let err = expand_target_spec(spec).expect_err(spec);
+            assert!(
+                err.to_string().contains("invalid IP range target"),
+                "unexpected error for {spec}: {err}"
+            );
+        }
     }
 
     /// Verifies IPv6 addresses and CIDR prefixes are rejected.
