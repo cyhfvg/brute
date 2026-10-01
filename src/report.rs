@@ -109,7 +109,10 @@ mod tests {
         let csv = to_csv(&[sample()]);
         let lines: Vec<&str> = csv.lines().collect();
         assert_eq!(lines.len(), 2);
-        assert_eq!(lines[0], "protocol,host,port,username,password,service_name,sid");
+        assert_eq!(
+            lines[0],
+            "protocol,host,port,username,password,service_name,sid"
+        );
         assert!(
             lines[1].contains("\"s3,cret\"\"x\""),
             "password must be RFC 4180 quoted:\n{}",
@@ -133,8 +136,7 @@ mod tests {
                 .expect("clock")
                 .as_nanos()
         ));
-        write_success_file(&path, OutputFileFormat::Json, &[sample()])
-            .expect("write json file");
+        write_success_file(&path, OutputFileFormat::Json, &[sample()]).expect("write json file");
         let content = std::fs::read_to_string(&path).expect("read json file");
         let _ = std::fs::remove_file(&path);
         let parsed: serde_json::Value = serde_json::from_str(&content).expect("valid json");

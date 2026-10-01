@@ -229,8 +229,7 @@ fn read_source(source: &str) -> Result<String> {
             .context("failed to read stdin")?;
         Ok(text)
     } else {
-        fs::read_to_string(source)
-            .with_context(|| format!("failed to read import file: {source}"))
+        fs::read_to_string(source).with_context(|| format!("failed to read import file: {source}"))
     }
 }
 

@@ -322,7 +322,11 @@ impl CredentialDatabase {
     /// # Errors
     ///
     /// Returns an error when the workspace is empty or the database write fails.
-    pub fn add_credential(&self, workspace: &str, input: &CredentialInput) -> Result<SavedCredential> {
+    pub fn add_credential(
+        &self,
+        workspace: &str,
+        input: &CredentialInput,
+    ) -> Result<SavedCredential> {
         let conn = self.connect()?;
         let workspace_id = self.ensure_workspace(&conn, workspace)?;
         let protocol_name = input.protocol.as_str();
@@ -917,8 +921,15 @@ mod tests {
         let deleted =
             database.delete_credentials("default", Some(Protocol::Smb), Some("10.0.0.9"), &[])?;
         assert_eq!(deleted.len(), 1);
-        assert!(database.list_credentials("default", None, None, None)?.is_empty());
-        assert_eq!(database.list_credentials("audit", None, None, None)?.len(), 1);
+        assert!(
+            database
+                .list_credentials("default", None, None, None)?
+                .is_empty()
+        );
+        assert_eq!(
+            database.list_credentials("audit", None, None, None)?.len(),
+            1
+        );
 
         let _ = fs::remove_file(path);
         Ok(())

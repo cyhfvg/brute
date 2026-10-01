@@ -489,11 +489,8 @@ mod tests {
             .as_nanos();
         let path =
             std::env::temp_dir().join(format!("brute-targets-{}-{nanos}.txt", std::process::id()));
-        fs::write(
-            &path,
-            "# lab\n127.0.0.24/30\n\nweb.internal\n192.168.1.8\n",
-        )
-        .expect("write targets");
+        fs::write(&path, "# lab\n127.0.0.24/30\n\nweb.internal\n192.168.1.8\n")
+            .expect("write targets");
 
         let hosts = load_targets(&[path.to_string_lossy().into_owned()]);
         let _ = fs::remove_file(&path);

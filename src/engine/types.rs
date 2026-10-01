@@ -476,7 +476,9 @@ pub fn parse_pg_ssl_mode(name: &str) -> Result<PgSslMode> {
         "disable" => Ok(PgSslMode::Disable),
         "require" => Ok(PgSslMode::Require),
         "verify-full" | "verify_full" => Ok(PgSslMode::VerifyFull),
-        other => bail!("unsupported PostgreSQL sslmode {other:?}; expected disable, require, or verify-full"),
+        other => bail!(
+            "unsupported PostgreSQL sslmode {other:?}; expected disable, require, or verify-full"
+        ),
     }
 }
 
@@ -506,7 +508,9 @@ pub fn parse_credential_order(name: &str) -> Result<CredentialOrder> {
     match name.trim().to_ascii_lowercase().as_str() {
         "username-first" | "username_first" => Ok(CredentialOrder::UsernameFirst),
         "password-first" | "password_first" => Ok(CredentialOrder::PasswordFirst),
-        other => bail!("unsupported credential order {other:?}; expected username-first or password-first"),
+        other => bail!(
+            "unsupported credential order {other:?}; expected username-first or password-first"
+        ),
     }
 }
 

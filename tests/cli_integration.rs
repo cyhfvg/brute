@@ -1531,7 +1531,10 @@ fn format_ndjson_streams_one_object_per_line() {
     assert_success(&output);
     let stdout = stdout(&output);
     let lines: Vec<&str> = stdout.lines().filter(|line| !line.is_empty()).collect();
-    assert!(!lines.is_empty(), "ndjson must stream at least one line:\n{stdout}");
+    assert!(
+        !lines.is_empty(),
+        "ndjson must stream at least one line:\n{stdout}"
+    );
     let first = lines[0];
     let attempt: serde_json::Value = serde_json::from_str(first)
         .unwrap_or_else(|err| panic!("expected a JSON line:\n{first}\nerror: {err}"));
@@ -1556,7 +1559,13 @@ fn creds_import_and_export_round_trip() {
 
     let imported = run_with_home(
         &home,
-        ["creds", "import", import_path.to_str().expect("path"), "--format", "json"],
+        [
+            "creds",
+            "import",
+            import_path.to_str().expect("path"),
+            "--format",
+            "json",
+        ],
     );
     assert_success(&imported);
     assert!(stdout(&imported).contains("imported 2 credentials"));

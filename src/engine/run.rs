@@ -15,9 +15,10 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 use crate::cli::{HttpUrlScheme, Protocol};
-use crate::credentials::{CredentialSet, LoadedCredentials, load_credentials, load_service_names, load_sids};
+use crate::credentials::{
+    CredentialSet, LoadedCredentials, load_credentials, load_service_names, load_sids,
+};
 use crate::database::CredentialDatabase;
-use crate::proxy::ProxyConfig;
 use crate::protocol::{
     AttemptContext, AttemptFaultClass, AttemptOutcome, BruteModule, PostAuthResult, TargetContext,
     activemq::ActiveMqModule, clickhouse::ClickHouseModule, couchdb::CouchDbModule,
@@ -34,6 +35,7 @@ use crate::protocol::{
     weblogic::WeblogicModule, websphere::WebsphereModule, winrm::WinrmModule,
     zookeeper::ZookeeperModule,
 };
+use crate::proxy::ProxyConfig;
 use crate::targets::load_targets;
 
 use super::attempt::{AttemptControl, attempt_with_retries};
@@ -281,8 +283,16 @@ pub async fn run_command(
         }
     } else {
         CredentialSet {
-            username: request.usernames.first().cloned().filter(|value| !value.is_empty()),
-            password: request.passwords.first().cloned().filter(|value| !value.is_empty()),
+            username: request
+                .usernames
+                .first()
+                .cloned()
+                .filter(|value| !value.is_empty()),
+            password: request
+                .passwords
+                .first()
+                .cloned()
+                .filter(|value| !value.is_empty()),
             service_name: request.service_names.first().cloned(),
             sid: request.sids.first().cloned(),
         }

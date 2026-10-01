@@ -385,10 +385,7 @@ mod tests {
                 )
             })
             .collect();
-        assert_eq!(
-            sequence,
-            [("a", "1"), ("b", "1"), ("a", "2"), ("b", "2")]
-        );
+        assert_eq!(sequence, [("a", "1"), ("b", "1"), ("a", "2"), ("b", "2")]);
     }
 
     #[test]

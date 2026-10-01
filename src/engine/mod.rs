@@ -15,8 +15,8 @@ pub use paired::run_paired_spray;
 pub use query::{
     delete_credentials, list_protocols, list_workspaces, protocol_names, query_credentials,
 };
-pub use run::{probe_target, run_command, run_spray};
 pub(crate) use run::attempt_record_from_outcome;
+pub use run::{probe_target, run_command, run_spray};
 pub use types::{
     AttemptRecord, AttemptStatus, CommandResult, CredentialDeleteReport, CredentialRecord,
     ProbeRecord, ProtocolInfo, SprayReport, SprayReporter, SprayRequest, WorkspaceInfo,

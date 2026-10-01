@@ -6,7 +6,10 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use tokio_util::sync::CancellationToken;
 
-use crate::cli::{Cli, ComboArgs, Command, OutputFileFormat, OutputFormat, ProtocolArgs, WorkspaceAction, WorkspaceArgs};
+use crate::cli::{
+    Cli, ComboArgs, Command, OutputFileFormat, OutputFormat, ProtocolArgs, WorkspaceAction,
+    WorkspaceArgs,
+};
 use crate::database::CredentialDatabase;
 use crate::engine::{SprayReporter, SprayRequest, run_spray};
 use crate::output::{Console, NdjsonReporter};
@@ -47,9 +50,7 @@ pub async fn run() -> Result<()> {
         Some(Command::Protocol(protocol_args)) => {
             run_protocol(&output, cli.proxy, database, protocol_args, &cancel).await
         }
-        Some(Command::Combo(args)) => {
-            run_combo(&output, cli.proxy, database, args, &cancel).await
-        }
+        Some(Command::Combo(args)) => run_combo(&output, cli.proxy, database, args, &cancel).await,
         Some(Command::Workspace(args)) => run_workspace(database, args),
         Some(Command::Creds(args)) => crate::creds::run(&database, args),
         Some(Command::Mcp) => crate::mcp::serve_stdio(database, cancel).await,
