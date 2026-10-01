@@ -49,7 +49,7 @@ const ACCESS_MESSAGE: &str = "Windows - Shell access!";
 ///
 /// ```ignore
 /// let outcome = try_winrm_login(
-///     "10.10.50.10",
+///     "192.168.10.5",
 ///     5985,
 ///     "admin",
 ///     "secret",

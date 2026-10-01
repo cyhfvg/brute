@@ -700,7 +700,7 @@ fn smb_help_exposes_shares_and_rejects_execute() {
         &home,
         [
             "smb",
-            "10.10.50.30",
+            "127.0.0.1",
             "-u",
             "admin",
             "-p",
@@ -748,7 +748,7 @@ fn rdp_help_documents_login_and_rejects_execute() {
         &home,
         [
             "rdp",
-            "10.10.50.10",
+            "127.0.0.1",
             "-u",
             "admin",
             "-p",

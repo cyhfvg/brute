@@ -112,7 +112,7 @@ impl BruteModule for SmbModule {
 ///
 /// ```ignore
 /// let outcome = try_smb_login(
-///     "10.10.50.30",
+///     "192.168.10.5",
 ///     445,
 ///     "admin",
 ///     "secret",

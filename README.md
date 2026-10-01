@@ -156,11 +156,11 @@ brute postgresql 192.168.10.5 -u pg_users.txt -p pg_pass.txt -x 'select version(
 brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select * from dual'
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
-brute tomcat 10.10.50.24/29 -u admin -p admin123
+brute tomcat 192.168.10.5/29 -u admin -p admin123
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
 brute http 192.168.10.5 -u admin -p 123456 --path /
-brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
-brute http 10.10.50.30 -u admin -p secret --protocol https --port 8443 --path /
+brute http 192.168.10.5 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
+brute http 192.168.10.5 -u admin -p secret --protocol https --port 8443 --path /
 brute smb 192.168.10.5 -u users.txt -p pass.txt --port 445
 brute smb 192.168.10.5 -u admin -p 'P@ssw0rd' --shares
 brute rdp 192.168.10.5 -u users.txt -p pass.txt --port 3389
@@ -1034,8 +1034,8 @@ Generic HTTP Basic Auth login and dictionary spray (default port `80`). Use `--p
 
 ```bash
 brute http 192.168.10.5 -u admin -p 123456 --path /
-brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
-brute http 10.10.50.30 -u admin -p secret --protocol https --port 8443 --path /
+brute http 192.168.10.5 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
+brute http 192.168.10.5 -u admin -p secret --protocol https --port 8443 --path /
 ```
 
 Result handling:

@@ -115,7 +115,7 @@ impl BruteModule for RdpModule {
 ///
 /// ```ignore
 /// let outcome = try_rdp_login(
-///     "10.10.50.10",
+///     "192.168.10.5",
 ///     3389,
 ///     "admin",
 ///     "secret",

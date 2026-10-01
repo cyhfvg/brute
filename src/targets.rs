@@ -3,7 +3,7 @@
 //! Inline `TARGET` values and target-file lines may be hostnames, IPv4
 //! addresses, IPv4 CIDR prefixes, or IPv4 last-octet ranges. CIDR values are
 //! expanded to every address in the prefix, including the network and broadcast
-//! addresses. A range such as `10.10.50.24-31` expands within one `/24`.
+//! addresses. A range such as `192.168.10.24-31` expands within one `/24`.
 //! IPv6 addresses and IPv6 CIDR prefixes are rejected.
 
 use std::{fs, net::Ipv4Addr, path::Path};
@@ -42,10 +42,10 @@ pub const MAX_CIDR_ADDRESSES: u64 = 65_536;
 /// ```
 /// use brute::targets::load_targets;
 ///
-/// let hosts = load_targets(&["10.10.50.24/29".to_string()])?;
+/// let hosts = load_targets(&["192.168.10.24/29".to_string()])?;
 /// assert_eq!(hosts.len(), 8);
-/// assert_eq!(hosts[0], "10.10.50.24");
-/// assert_eq!(hosts[7], "10.10.50.31");
+/// assert_eq!(hosts[0], "192.168.10.24");
+/// assert_eq!(hosts[7], "192.168.10.31");
 /// # Ok::<(), anyhow::Error>(())
 /// ```
 pub fn load_targets(sources: &[String]) -> Result<Vec<String>> {
@@ -98,18 +98,18 @@ pub fn load_targets(sources: &[String]) -> Result<Vec<String>> {
 /// ```
 /// use brute::targets::expand_target_spec;
 ///
-/// let hosts = expand_target_spec("10.10.50.24/29")?;
+/// let hosts = expand_target_spec("192.168.10.24/29")?;
 /// assert_eq!(
 ///     hosts,
 ///     [
-///         "10.10.50.24",
-///         "10.10.50.25",
-///         "10.10.50.26",
-///         "10.10.50.27",
-///         "10.10.50.28",
-///         "10.10.50.29",
-///         "10.10.50.30",
-///         "10.10.50.31",
+///         "192.168.10.24",
+///         "192.168.10.25",
+///         "192.168.10.26",
+///         "192.168.10.27",
+///         "192.168.10.28",
+///         "192.168.10.29",
+///         "192.168.10.30",
+///         "192.168.10.31",
 ///     ]
 /// );
 /// assert_eq!(expand_target_spec("web.internal")?, ["web.internal"]);
@@ -149,7 +149,7 @@ pub fn expand_target_spec(spec: &str) -> Result<Vec<String>> {
 /// ```ignore
 /// assert!(is_ipv6_spec("2001:db8::1"));
 /// assert!(is_ipv6_spec("[2001:db8::]/126"));
-/// assert!(!is_ipv6_spec("10.10.50.24/29"));
+/// assert!(!is_ipv6_spec("192.168.10.24/29"));
 /// ```
 fn is_ipv6_spec(spec: &str) -> bool {
     if ipv6_addr_text(spec).is_some() {
@@ -179,7 +179,7 @@ fn is_ipv6_spec(spec: &str) -> bool {
 /// ```ignore
 /// assert!(ipv6_addr_text("::1").is_some());
 /// assert!(ipv6_addr_text("[::1]").is_some());
-/// assert!(ipv6_addr_text("10.10.50.24").is_none());
+/// assert!(ipv6_addr_text("192.168.10.24").is_none());
 /// ```
 fn ipv6_addr_text(text: &str) -> Option<()> {
     let text = text
@@ -236,8 +236,8 @@ fn expand_ipv4_cidr(spec: &str) -> Result<Option<Vec<String>>> {
 /// when it is not an IP range.
 ///
 /// A range is `a.b.c.d-m` where `d` and `m` are the first and last addresses in
-/// the same `/24`. `10.10.50.24-31` expands to `10.10.50.24` through
-/// `10.10.50.31`. Ranges cannot span a `/24` boundary: `m` must be a single
+/// the same `/24`. `192.168.10.24-31` expands to `192.168.10.24` through
+/// `192.168.10.31`. Ranges cannot span a `/24` boundary: `m` must be a single
 /// octet greater than or equal to `d`.
 ///
 /// # Parameters
@@ -258,7 +258,7 @@ fn expand_ipv4_cidr(spec: &str) -> Result<Option<Vec<String>>> {
 /// # Examples
 ///
 /// ```ignore
-/// assert_eq!(expand_ipv4_range("10.10.50.24-31")?.unwrap(), ["10.10.50.24", "…", "10.10.50.31"]);
+/// assert_eq!(expand_ipv4_range("192.168.10.24-31")?.unwrap(), ["192.168.10.24", "…", "192.168.10.31"]);
 /// assert!(expand_ipv4_range("web-01.internal")?.is_none());
 /// ```
 fn expand_ipv4_range(spec: &str) -> Result<Option<Vec<String>>> {
@@ -308,7 +308,7 @@ fn expand_ipv4_range(spec: &str) -> Result<Option<Vec<String>>> {
 /// # Examples
 ///
 /// ```ignore
-/// let net: ipnet::Ipv4Net = "10.10.50.24/29".parse()?;
+/// let net: ipnet::Ipv4Net = "192.168.10.24/29".parse()?;
 /// assert_eq!(cidr_address_count(net), 8);
 /// ```
 fn cidr_address_count(net: Ipv4Net) -> u64 {
@@ -332,10 +332,10 @@ fn cidr_address_count(net: Ipv4Net) -> u64 {
 /// # Examples
 ///
 /// ```ignore
-/// let net: ipnet::Ipv4Net = "10.10.50.24/30".parse()?;
+/// let net: ipnet::Ipv4Net = "192.168.10.24/30".parse()?;
 /// assert_eq!(
 ///     expand_ipv4_net(net),
-///     ["10.10.50.24", "10.10.50.25", "10.10.50.26", "10.10.50.27"]
+///     ["192.168.10.24", "192.168.10.25", "192.168.10.26", "192.168.10.27"]
 /// );
 /// ```
 fn expand_ipv4_net(net: Ipv4Net) -> Vec<String> {
@@ -356,22 +356,22 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    /// Verifies 10.10.50.24/29 expands to all eight addresses, including
+    /// Verifies 127.0.0.24/29 expands to all eight addresses, including
     /// network and broadcast.
     #[test]
     fn expands_ipv4_cidr_including_network_and_broadcast() {
-        let hosts = expand_target_spec("10.10.50.24/29").expect("expand /29");
+        let hosts = expand_target_spec("127.0.0.24/29").expect("expand /29");
         assert_eq!(
             hosts,
             [
-                "10.10.50.24",
-                "10.10.50.25",
-                "10.10.50.26",
-                "10.10.50.27",
-                "10.10.50.28",
-                "10.10.50.29",
-                "10.10.50.30",
-                "10.10.50.31",
+                "127.0.0.24",
+                "127.0.0.25",
+                "127.0.0.26",
+                "127.0.0.27",
+                "127.0.0.28",
+                "127.0.0.29",
+                "127.0.0.30",
+                "127.0.0.31",
             ]
         );
     }
@@ -380,12 +380,12 @@ mod tests {
     #[test]
     fn keeps_non_cidr_specs_and_slash32() {
         assert_eq!(
-            expand_target_spec("10.10.50.24").expect("bare ip"),
-            ["10.10.50.24"]
+            expand_target_spec("127.0.0.24").expect("bare ip"),
+            ["127.0.0.24"]
         );
         assert_eq!(
-            expand_target_spec("10.10.50.24/32").expect("/32"),
-            ["10.10.50.24"]
+            expand_target_spec("127.0.0.24/32").expect("/32"),
+            ["127.0.0.24"]
         );
         assert_eq!(
             expand_target_spec("web.internal").expect("hostname"),
@@ -400,23 +400,23 @@ mod tests {
     /// Verifies a last-octet range expands within one /24.
     #[test]
     fn expands_ipv4_last_octet_range() {
-        let hosts = expand_target_spec("10.10.50.24-31").expect("expand range");
+        let hosts = expand_target_spec("127.0.0.24-31").expect("expand range");
         assert_eq!(
             hosts,
             [
-                "10.10.50.24",
-                "10.10.50.25",
-                "10.10.50.26",
-                "10.10.50.27",
-                "10.10.50.28",
-                "10.10.50.29",
-                "10.10.50.30",
-                "10.10.50.31",
+                "127.0.0.24",
+                "127.0.0.25",
+                "127.0.0.26",
+                "127.0.0.27",
+                "127.0.0.28",
+                "127.0.0.29",
+                "127.0.0.30",
+                "127.0.0.31",
             ]
         );
         assert_eq!(
-            expand_target_spec("10.10.50.24-24").expect("single range"),
-            ["10.10.50.24"]
+            expand_target_spec("127.0.0.24-24").expect("single range"),
+            ["127.0.0.24"]
         );
     }
 
@@ -432,7 +432,7 @@ mod tests {
     /// Verifies invalid ranges are rejected rather than treated as hostnames.
     #[test]
     fn rejects_invalid_ipv4_range() {
-        for spec in ["10.10.50.31-24", "10.10.50.24-256"] {
+        for spec in ["127.0.0.31-24", "127.0.0.24-256"] {
             let err = expand_target_spec(spec).expect_err(spec);
             assert!(
                 err.to_string().contains("invalid IP range target"),
@@ -462,7 +462,7 @@ mod tests {
     /// Verifies invalid IPv4 prefixes fail instead of being treated as hostnames.
     #[test]
     fn rejects_invalid_cidr_prefix() {
-        let err = expand_target_spec("10.10.50.24/99").expect_err("bad prefix");
+        let err = expand_target_spec("127.0.0.24/99").expect_err("bad prefix");
         assert!(
             err.to_string().contains("invalid CIDR target"),
             "unexpected error: {err}"
@@ -491,7 +491,7 @@ mod tests {
             std::env::temp_dir().join(format!("brute-targets-{}-{nanos}.txt", std::process::id()));
         fs::write(
             &path,
-            "# lab\n10.10.50.24/30\n\nweb.internal\n192.168.1.8\n",
+            "# lab\n127.0.0.24/30\n\nweb.internal\n192.168.1.8\n",
         )
         .expect("write targets");
 
@@ -502,10 +502,10 @@ mod tests {
         assert_eq!(
             hosts,
             [
-                "10.10.50.24",
-                "10.10.50.25",
-                "10.10.50.26",
-                "10.10.50.27",
+                "127.0.0.24",
+                "127.0.0.25",
+                "127.0.0.26",
+                "127.0.0.27",
                 "web.internal",
                 "192.168.1.8",
             ]
@@ -517,7 +517,7 @@ mod tests {
     fn load_targets_expands_inline_cidr_among_hosts() {
         let hosts = load_targets(&[
             "gateway.lab".to_string(),
-            "10.10.50.24/30".to_string(),
+            "127.0.0.24/30".to_string(),
             "192.168.1.8".to_string(),
         ])
         .expect("load");
@@ -525,10 +525,10 @@ mod tests {
             hosts,
             [
                 "gateway.lab",
-                "10.10.50.24",
-                "10.10.50.25",
-                "10.10.50.26",
-                "10.10.50.27",
+                "127.0.0.24",
+                "127.0.0.25",
+                "127.0.0.26",
+                "127.0.0.27",
                 "192.168.1.8",
             ]
         );

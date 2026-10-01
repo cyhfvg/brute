@@ -156,7 +156,7 @@ brute oracle db.internal -u system -p oracle --service-name ORCLPDB1 -x 'select 
 brute oracle db.internal -u users.txt -p pass.txt --service-name services.txt
 brute redis 192.168.10.5 -u '' -p redis_pass.txt -x 'INFO server'
 brute tomcat 192.168.10.5 -u user.txt -p passwd.txt --port 8080 --path /manager/html
-brute tomcat 10.10.50.24/29 -u admin -p admin123
+brute tomcat 192.168.10.5/29 -u admin -p admin123
 brute http 192.168.10.5 -u admin -p 123456 --path /
 brute http 192.168.10.5 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16
 brute http 192.168.10.5 -u admin -p secret --protocol https --port 8443 --path /

@@ -125,12 +125,12 @@ pub fn normalize_path(path: &str) -> String {
 /// use brute::cli::HttpUrlScheme;
 /// use brute::protocol::http::build_http_basic_url;
 /// assert_eq!(
-///     build_http_basic_url(HttpUrlScheme::Http, "10.10.50.30", 8080, "/manager/html"),
-///     "http://10.10.50.30:8080/manager/html"
+///     build_http_basic_url(HttpUrlScheme::Http, "192.168.10.5", 8080, "/manager/html"),
+///     "http://192.168.10.5:8080/manager/html"
 /// );
 /// assert_eq!(
-///     build_http_basic_url(HttpUrlScheme::Https, "10.10.50.30", 8443, "/"),
-///     "https://10.10.50.30:8443/"
+///     build_http_basic_url(HttpUrlScheme::Https, "192.168.10.5", 8443, "/"),
+///     "https://192.168.10.5:8443/"
 /// );
 /// ```
 pub fn build_http_basic_url(scheme: HttpUrlScheme, host: &str, port: u16, path: &str) -> String {

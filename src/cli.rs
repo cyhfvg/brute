@@ -258,7 +258,7 @@ pub enum ProtocolArgs {
         hide = true,
         about = "own stuff using HTTP Basic Auth",
         override_usage = "brute http <TARGET> (-u <USERNAME>... -p <PASSWORD>... | --id <ID>) [OPTIONS] ...",
-        after_help = "Example:\n  brute http 192.168.10.5 -u admin -p 123456 --path /\n  brute http 10.10.50.30 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16\n  brute http 10.10.50.30 -u admin -p secret --protocol https --port 8443 --path /"
+        after_help = "Example:\n  brute http 192.168.10.5 -u admin -p 123456 --path /\n  brute http 192.168.10.5 -u users.txt -p pass.txt --port 8080 --path /manager/html --threads 16\n  brute http 192.168.10.5 -u admin -p secret --protocol https --port 8443 --path /"
     )]
     Http(HttpArgs),
 

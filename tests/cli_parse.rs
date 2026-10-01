@@ -631,7 +631,7 @@ fn parses_cidr_target_token() {
     let cli = Cli::try_parse_from([
         "brute",
         "tomcat",
-        "10.10.50.24/29",
+        "127.0.0.1/29",
         "-u",
         "admin",
         "-p",
@@ -642,7 +642,7 @@ fn parses_cidr_target_token() {
     let Some(Command::Protocol(ProtocolArgs::Tomcat(args))) = cli.command else {
         panic!("expected tomcat protocol arguments");
     };
-    assert_eq!(args.common.targets, ["10.10.50.24/29"]);
+    assert_eq!(args.common.targets, ["127.0.0.1/29"]);
 }
 
 /// Verifies ZooKeeper default port and `-x` command parsing.

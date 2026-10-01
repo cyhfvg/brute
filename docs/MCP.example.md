@@ -264,7 +264,7 @@ SSH 192.168.10.5:22 上 admin / Summer2024! 验证成功, 已写入 workspace de
 ### 自然语言
 
 ```text
-对 10.10.50.10 和 10.10.50.11 做 WinRM 密码喷洒.
+对 192.168.10.5 和 192.168.10.6 做 WinRM 密码喷洒.
 用户: administrator, backup, svc-web
 密码: Welcome1, Spring2024!, P@ssw0rd
 并发 8, 命中后继续试其他账号.
@@ -278,7 +278,7 @@ SSH 192.168.10.5:22 上 admin / Summer2024! 验证成功, 已写入 workspace de
   "tool": "spray_passwords",
   "arguments": {
     "protocol": "winrm",
-    "targets": ["10.10.50.10", "10.10.50.11"],
+    "targets": ["192.168.10.5", "192.168.10.6"],
     "usernames": ["administrator", "backup", "svc-web"],
     "passwords": ["Welcome1", "Spring2024!", "P@ssw0rd"],
     "threads": 8,
@@ -320,7 +320,7 @@ SSH 192.168.10.5:22 上 admin / Summer2024! 验证成功, 已写入 workspace de
 ### CIDR 目标
 
 ```text
-对 10.10.50.24/29 做 Tomcat 喷洒, 用户 admin, 密码 admin123.
+对 192.168.10.24/29 做 Tomcat 喷洒, 用户 admin, 密码 admin123.
 ```
 
 ```json
@@ -328,22 +328,22 @@ SSH 192.168.10.5:22 上 admin / Summer2024! 验证成功, 已写入 workspace de
   "tool": "spray_passwords",
   "arguments": {
     "protocol": "tomcat",
-    "targets": ["10.10.50.24/29"],
+    "targets": ["192.168.10.24/29"],
     "usernames": ["admin"],
     "passwords": ["admin123"]
   }
 }
 ```
 
-`10.10.50.24/29` 展开为 8 个主机 (`10.10.50.24` .. `10.10.50.31`), 再与用户名/密码做笛卡尔积.
+`192.168.10.24/29` 展开为 8 个主机 (`192.168.10.24` .. `192.168.10.31`), 再与用户名/密码做笛卡尔积.
 
 
 ### 模型应向用户转述
 
 ```text
 WinRM 喷洒完成, workspace=default.
-10.10.50.10 命中 administrator / P@ssw0rd.
-10.10.50.11 没有命中.
+192.168.10.5 命中 administrator / P@ssw0rd.
+192.168.10.6 没有命中.
 成功凭据已写入本地数据库, 可用 list_credentials 再查.
 ```
 
@@ -578,7 +578,7 @@ SMB 成功后把 shares 列出来.
 ### HTTP Basic (含 HTTPS)
 
 ```text
-验证 10.10.50.30:8443 上 HTTPS 的 admin / secret, 路径 /manager/html.
+验证 192.168.10.5:8443 上 HTTPS 的 admin / secret, 路径 /manager/html.
 证书是自签的, 直接连.
 ```
 
@@ -587,7 +587,7 @@ SMB 成功后把 shares 列出来.
   "tool": "verify_account",
   "arguments": {
     "protocol": "http",
-    "target": "10.10.50.30",
+    "target": "192.168.10.5",
     "username": "admin",
     "password": "secret",
     "options": {
@@ -842,7 +842,7 @@ FTP 那台用 users.txt / pass.txt, 成功后 PWD.
 | 自然语言意图 | CLI | MCP |
 |---|---|---|
 | 验一个 SSH 账户 | `brute ssh 192.168.10.5 -u admin -p 'Summer2024!' -x id` | `verify_account` |
-| 喷 WinRM | `brute winrm 10.10.50.10 -u users.txt -p pass.txt --threads 8 --continue-on-success` | `spray_passwords` |
+| 喷 WinRM | `brute winrm 192.168.10.5 -u users.txt -p pass.txt --threads 8 --continue-on-success` | `spray_passwords` |
 | 查已保存凭据 | `brute creds list --protocol ssh --host 192.168.10.5` | `list_credentials` |
 | 删除已保存凭据 | `brute creds delete 3` 或 `brute creds delete --protocol ssh --host 192.168.10.5` | `delete_credentials` |
 | 复用凭据 id 3 | `brute smb 192.168.10.5 --id 3 --shares` | `verify_account` + `credential_id=3` + `options.shares` |

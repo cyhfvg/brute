@@ -67,12 +67,12 @@ fn builds_basic_auth_url_with_scheme() {
         "http://127.0.0.1:8080/"
     );
     assert_eq!(
-        build_http_basic_url(HttpUrlScheme::Http, "10.10.50.30", 8080, "/manager/html"),
-        "http://10.10.50.30:8080/manager/html"
+        build_http_basic_url(HttpUrlScheme::Http, "127.0.0.1", 8080, "/manager/html"),
+        "http://127.0.0.1:8080/manager/html"
     );
     assert_eq!(
-        build_http_basic_url(HttpUrlScheme::Https, "10.10.50.30", 8443, "/secure"),
-        "https://10.10.50.30:8443/secure"
+        build_http_basic_url(HttpUrlScheme::Https, "127.0.0.1", 8443, "/secure"),
+        "https://127.0.0.1:8443/secure"
     );
     assert_eq!(
         build_http_basic_url(HttpUrlScheme::Https, "127.0.0.1", 443, "/"),
